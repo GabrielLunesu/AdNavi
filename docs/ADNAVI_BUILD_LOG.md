@@ -1,6 +1,6 @@
 # AdNavi — Living Build Log
 
-_Last updated: 2025-09-25T14:53:00Z_
+_Last updated: 2025-09-25T15:15:00Z_
 
 ## 0) Monorepo Map (Current & Planned)
 - **Frontend (current):** `ui/` — Next.js 15.5.4 (App Router), **JSX only**
@@ -20,7 +20,7 @@ _Last updated: 2025-09-25T14:53:00Z_
 - Repo doc path: `docs/ADNAVI_BUILD_LOG.md`
 
 ### 1.1 Frontend — `ui/`
-- Routing: `/` (Homepage), `/dashboard`, `/analytics`
+- Routing: `/` (Homepage), `/dashboard`, `/analytics`, `/copilot`
 - Components: granular, presentational, mock props
 - Charts: Recharts; Icons: lucide-react
 - Styling: dark, rounded, soft shadows
@@ -87,6 +87,7 @@ _Last updated: 2025-09-25T14:53:00Z_
 - `/` → `ui/app/page.jsx`
 - `/dashboard` → `ui/app/(dashboard)/dashboard/page.jsx`
 - `/analytics` → `ui/app/(dashboard)/analytics/page.jsx`
+ - `/copilot` → `ui/app/(dashboard)/copilot/page.jsx`
 
 ---
 
@@ -108,6 +109,12 @@ _Last updated: 2025-09-25T14:53:00Z_
    - Rules: `components/analytics/RulesPanel.jsx`, `components/analytics/RuleRow.jsx`
    - Right rail: `components/analytics/RightRailAIPanel.jsx`
    - Primitives used: `components/PillButton.jsx`, `components/TabPill.jsx`
+ - Copilot (page-specific):
+   - `components/copilot/ContextBar.jsx`, `components/copilot/OrbHeader.jsx`
+   - `components/copilot/ChatThread.jsx`, `components/copilot/ChatMsgAI.jsx`, `components/copilot/ChatMsgUser.jsx`
+   - `components/copilot/MiniKPI.jsx`, `components/copilot/SparklineCard.jsx`
+   - `components/copilot/ExpandableSections.jsx`, `components/copilot/CampaignTile.jsx`
+   - `components/copilot/SmartSuggestions.jsx`, `components/copilot/InputBar.jsx`
 > Keep this list current with file paths.
 
 ---
@@ -115,6 +122,7 @@ _Last updated: 2025-09-25T14:53:00Z_
 ## 7) Mock Data Sources (Frontend `ui/`)
 - `ui/data/kpis.js`, `ui/data/notifications.js`, `ui/data/company.js`, `ui/data/visitors.js`, `ui/data/useCases.js`
 - Analytics: `ui/data/analytics/header.js`, `ui/data/analytics/kpis.js`, `ui/data/analytics/adsets.js`, `ui/data/analytics/chart.js`, `ui/data/analytics/opportunities.js`, `ui/data/analytics/rules.js`, `ui/data/analytics/panel.js`
+ - Copilot: `ui/data/copilot/context.js`, `ui/data/copilot/seedMessages.js`, `ui/data/copilot/suggestions.js`, `ui/data/copilot/placeholders.js`
 > Update when shapes/labels change.
 
 ---
@@ -144,6 +152,12 @@ _Last updated: 2025-09-25T14:53:00Z_
 ---
 
 ## 11) Changelog
+ - 2025-09-25T15:15:00Z — Copilot suggestions trimmed to 2; scrollbar removed.
+   - Files: `ui/components/copilot/SmartSuggestions.jsx`
+ - 2025-09-25T15:12:00Z — Add Copilot chat page with mock data and sidebar nav update.
+   - Route: `/copilot`
+   - Files: `ui/app/(dashboard)/copilot/page.jsx`, `ui/components/copilot/*`, `ui/components/Sidebar.jsx`, `ui/data/copilot/*`
+   - Notes: UI-only chat; no networking; reuses existing primitives.
  - 2025-09-25T14:33:00Z — Fix analytics icon import and React key spread warning.
    - Files: `ui/components/analytics/OpportunityItem.jsx`, `ui/components/analytics/KPIGrid.jsx`
  - 2025-09-25T14:48:00Z — Analytics UI tweaks to match design: Today timeframe, simplified ad-set tiles, chart header tabs, remove right rail.
