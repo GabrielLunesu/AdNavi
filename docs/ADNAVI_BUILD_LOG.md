@@ -1,6 +1,6 @@
 # AdNavi — Living Build Log
 
-_Last updated: 2025-09-25T13:55:00Z_
+_Last updated: 2025-09-25T14:53:00Z_
 
 ## 0) Monorepo Map (Current & Planned)
 - **Frontend (current):** `ui/` — Next.js 15.5.4 (App Router), **JSX only**
@@ -20,7 +20,7 @@ _Last updated: 2025-09-25T13:55:00Z_
 - Repo doc path: `docs/ADNAVI_BUILD_LOG.md`
 
 ### 1.1 Frontend — `ui/`
-- Routing: `/` (Homepage), `/dashboard`
+- Routing: `/` (Homepage), `/dashboard`, `/analytics`
 - Components: granular, presentational, mock props
 - Charts: Recharts; Icons: lucide-react
 - Styling: dark, rounded, soft shadows
@@ -86,6 +86,7 @@ _Last updated: 2025-09-25T13:55:00Z_
 ## 5) Routes (Frontend `ui/`)
 - `/` → `ui/app/page.jsx`
 - `/dashboard` → `ui/app/(dashboard)/dashboard/page.jsx`
+- `/analytics` → `ui/app/(dashboard)/analytics/page.jsx`
 
 ---
 
@@ -97,12 +98,23 @@ _Last updated: 2025-09-25T13:55:00Z_
 - Primitives: Card, IconBadge, KeyValue
 - Utils: cn.js
  - Assist: AssistantSection (greeting + prompt + quick actions)
+ - Analytics (page-specific):
+   - Controls: `components/analytics/AnalyticsControls.jsx`
+   - Copilot: `components/analytics/AICopilotHero.jsx`
+   - KPIs: `components/analytics/KPIGrid.jsx`, `components/analytics/KPICard.jsx`
+   - Ad sets: `components/analytics/AdSetCarousel.jsx`, `components/analytics/AdSetTile.jsx`
+   - Chart: `components/analytics/ChartCard.jsx`
+   - Opportunities: `components/analytics/OpportunityRadar.jsx`, `components/analytics/OpportunityItem.jsx`
+   - Rules: `components/analytics/RulesPanel.jsx`, `components/analytics/RuleRow.jsx`
+   - Right rail: `components/analytics/RightRailAIPanel.jsx`
+   - Primitives used: `components/PillButton.jsx`, `components/TabPill.jsx`
 > Keep this list current with file paths.
 
 ---
 
 ## 7) Mock Data Sources (Frontend `ui/`)
 - `ui/data/kpis.js`, `ui/data/notifications.js`, `ui/data/company.js`, `ui/data/visitors.js`, `ui/data/useCases.js`
+- Analytics: `ui/data/analytics/header.js`, `ui/data/analytics/kpis.js`, `ui/data/analytics/adsets.js`, `ui/data/analytics/chart.js`, `ui/data/analytics/opportunities.js`, `ui/data/analytics/rules.js`, `ui/data/analytics/panel.js`
 > Update when shapes/labels change.
 
 ---
@@ -114,7 +126,7 @@ _Last updated: 2025-09-25T13:55:00Z_
 - Assistant section is rendered at the top of the dashboard page (not fixed/sticky).
 - KPI cards render in a 3-column grid on desktop; they wrap if more than three.
 - Dashboard sections mirror wireframe; chips/CTAs non-functional.
-- Charts render static arrays.
+- Charts render static arrays (Recharts used for Analytics chart and sparklines).
 
 ---
 
@@ -132,6 +144,16 @@ _Last updated: 2025-09-25T13:55:00Z_
 ---
 
 ## 11) Changelog
+ - 2025-09-25T14:33:00Z — Fix analytics icon import and React key spread warning.
+   - Files: `ui/components/analytics/OpportunityItem.jsx`, `ui/components/analytics/KPIGrid.jsx`
+ - 2025-09-25T14:48:00Z — Analytics UI tweaks to match design: Today timeframe, simplified ad-set tiles, chart header tabs, remove right rail.
+   - Files: `ui/components/analytics/AnalyticsControls.jsx`, `ui/components/analytics/AdSetTile.jsx`, `ui/components/analytics/ChartCard.jsx`, `ui/app/(dashboard)/analytics/page.jsx`
+ - 2025-09-25T14:53:00Z — Rules panel scope selector added (“Rules for [campaign, platform, workspace]”).
+   - Files: `ui/components/analytics/RulesPanel.jsx`
+ - 2025-09-25T14:28:00Z — Add Analytics page with granular components and mock data; update sidebar active state.
+   - Route: `/analytics`
+   - Files: `ui/app/(dashboard)/analytics/page.jsx`, `ui/components/analytics/*`, `ui/components/PillButton.jsx`, `ui/components/TabPill.jsx`, `ui/components/Sidebar.jsx`, `ui/data/analytics/*`
+   - Deps: (no new runtime beyond existing Recharts/lucide-react)
 - 2025-09-25T13:55:00Z — Initialize living docs and sync with current state; scaffold `docs/ADNAVI_BUILD_LOG.md`.
   - Files: `docs/ADNAVI_BUILD_LOG.md`
 - 2025-09-25T13:44:00Z — Frontend foundation: created `app/` router structure, global layout, homepage, and dashboard shell; installed UI deps.
