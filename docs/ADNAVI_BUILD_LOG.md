@@ -1,6 +1,6 @@
 # AdNavi — Living Build Log
 
-_Last updated: 2025-09-25T15:15:00Z_
+_Last updated: 2025-09-25T15:58:00Z_
 
 ## 0) Monorepo Map (Current & Planned)
 - **Frontend (current):** `ui/` — Next.js 15.5.4 (App Router), **JSX only**
@@ -20,9 +20,12 @@ _Last updated: 2025-09-25T15:15:00Z_
 - Repo doc path: `docs/ADNAVI_BUILD_LOG.md`
 
 ### 1.1 Frontend — `ui/`
-- Routing: `/` (Homepage), `/dashboard`, `/analytics`, `/copilot`
+- Routing: `/` (Homepage), `/dashboard`, `/analytics`, `/copilot`, `/finance`, `/campaigns`, `/campaigns/[id]`
 - Components: granular, presentational, mock props
 - Charts: Recharts; Icons: lucide-react
+ - Campaigns sparklines: inline SVG polylines (no chart lib)
+ - Campaigns sorting fields: ROAS (default), Revenue, Spend, Conversions, CTR, CPC
+ - Pagination: 8 rows per page (client-side)
 - Styling: dark, rounded, soft shadows
 
 ### 1.2 Backend — `api/` (planned)
@@ -88,6 +91,9 @@ _Last updated: 2025-09-25T15:15:00Z_
 - `/dashboard` → `ui/app/(dashboard)/dashboard/page.jsx`
 - `/analytics` → `ui/app/(dashboard)/analytics/page.jsx`
  - `/copilot` → `ui/app/(dashboard)/copilot/page.jsx`
+ - `/finance` → `ui/app/(dashboard)/finance/page.jsx`
+ - `/campaigns` → `ui/app/(dashboard)/campaigns/page.jsx`
+ - `/campaigns/[id]` → `ui/app/(dashboard)/campaigns/[id]/page.jsx`
 
 ---
 
@@ -115,6 +121,16 @@ _Last updated: 2025-09-25T15:15:00Z_
    - `components/copilot/MiniKPI.jsx`, `components/copilot/SparklineCard.jsx`
    - `components/copilot/ExpandableSections.jsx`, `components/copilot/CampaignTile.jsx`
    - `components/copilot/SmartSuggestions.jsx`, `components/copilot/InputBar.jsx`
+ - Finance (page-specific):
+   - `components/finance/FinanceHeader.jsx`, `components/finance/KPIGrid.jsx`, `components/finance/KPICard.jsx`
+   - `components/finance/CostsPanel.jsx`, `components/finance/CostRow.jsx`, `components/finance/AddCostRow.jsx`
+   - `components/finance/RevenueChartCard.jsx`
+   - `components/finance/RulesPanel.jsx`, `components/finance/RuleBuilder.jsx`, `components/finance/RuleRow.jsx`
+ - Campaigns (page-specific):
+   - Toolbar: `components/campaigns/PlatformFilter.jsx`, `components/campaigns/StatusFilter.jsx`, `components/campaigns/TimeframeFilter.jsx`, `components/campaigns/SortDropdown.jsx`
+   - Table: `components/campaigns/CampaignTable.jsx`, `components/campaigns/CampaignRow.jsx`, `components/campaigns/PlatformBadge.jsx`, `components/campaigns/TrendSparkline.jsx`
+   - Detail: `components/campaigns/DetailHeader.jsx`, `components/campaigns/EntityTable.jsx`, `components/campaigns/EntityRow.jsx`
+   - Rules: `components/campaigns/RulesPanel.jsx`
 > Keep this list current with file paths.
 
 ---
@@ -123,6 +139,8 @@ _Last updated: 2025-09-25T15:15:00Z_
 - `ui/data/kpis.js`, `ui/data/notifications.js`, `ui/data/company.js`, `ui/data/visitors.js`, `ui/data/useCases.js`
 - Analytics: `ui/data/analytics/header.js`, `ui/data/analytics/kpis.js`, `ui/data/analytics/adsets.js`, `ui/data/analytics/chart.js`, `ui/data/analytics/opportunities.js`, `ui/data/analytics/rules.js`, `ui/data/analytics/panel.js`
  - Copilot: `ui/data/copilot/context.js`, `ui/data/copilot/seedMessages.js`, `ui/data/copilot/suggestions.js`, `ui/data/copilot/placeholders.js`
+ - Finance: `ui/data/finance/kpis.js`, `ui/data/finance/costs.js`, `ui/data/finance/series.js`, `ui/data/finance/rules.js`, `ui/data/finance/timeRanges.js`
+ - Campaigns: `ui/data/campaigns/campaigns.js`, `ui/data/campaigns/detail.js`, `ui/data/campaigns/rules.js`, `ui/data/campaigns/sorters.js`
 > Update when shapes/labels change.
 
 ---
@@ -152,6 +170,13 @@ _Last updated: 2025-09-25T15:15:00Z_
 ---
 
 ## 11) Changelog
+ - 2025-09-25T15:58:00Z — Add Campaigns list and detail pages with filters, sort, pagination, and rules.
+   - Routes: `/campaigns`, `/campaigns/[id]`
+   - Files: `ui/app/(dashboard)/campaigns/page.jsx`, `ui/app/(dashboard)/campaigns/[id]/page.jsx`, `ui/components/campaigns/*`, `ui/data/campaigns/*`, `ui/components/Sidebar.jsx`
+ - 2025-09-25T15:28:00Z — Add Finance (P&L) page with mock data, components, and sidebar active state.
+   - Route: `/finance`
+   - Files: `ui/app/(dashboard)/finance/page.jsx`, `ui/components/finance/*`, `ui/data/finance/*`, `ui/components/Sidebar.jsx`
+   - Chart lib: Recharts (line chart)
  - 2025-09-25T15:15:00Z — Copilot suggestions trimmed to 2; scrollbar removed.
    - Files: `ui/components/copilot/SmartSuggestions.jsx`
  - 2025-09-25T15:12:00Z — Add Copilot chat page with mock data and sidebar nav update.

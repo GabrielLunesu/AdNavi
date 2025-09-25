@@ -27,7 +27,7 @@ export default function Sidebar() {
         <NavItem href="/analytics" label="Analytics" icon={<BarChart3 size={16} />} active={pathname === "/analytics"} />
         <NavItem href="/copilot" label="Copilot" icon={<MessageSquare size={16} />} active={pathname?.startsWith('/copilot')} />
         <NavItem href="/finance" label="Finance (P&L)" icon={<Banknote size={16} />} active={pathname === "/finance"} />
-        <NavItem href="#" label="Campaigns" icon={<Target size={16} />} active={false} />
+        <NavItem href="/campaigns" label="Campaigns" icon={<Target size={16} />} active={pathname?.startsWith('/campaigns')} />
         <NavItem href="#" label="Settings" icon={<Settings size={16} />} active={false} />
       </SidebarSection>
     </aside>

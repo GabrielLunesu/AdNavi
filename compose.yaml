@@ -1,0 +1,26 @@
+services:
+  ui:
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ENV=production
+    ports:
+      - mode: ingress
+        target: 3000
+    x-defang:
+      description: "AdNavi Next.js UI"
+      src: ./ui
+
+  # backend:
+  #   build:
+  #     context: ./backend
+  #     dockerfile: Dockerfile
+  #   environment:
+  #     - NODE_ENV=production
+  #   ports:
+  #     - mode: ingress
+  #       target: 4000
+  #   x-defang:
+  #     description: "AdNavi API Backend"
+  #     src: ./backend
