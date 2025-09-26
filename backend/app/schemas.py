@@ -1,7 +1,9 @@
 """Pydantic schemas for request/response payloads."""
 
 from datetime import datetime
+from uuid import UUID
 from pydantic import BaseModel, EmailStr, constr
+from .models import RoleEnum
 
 
 class UserCreate(BaseModel):
@@ -21,9 +23,11 @@ class UserLogin(BaseModel):
 class UserOut(BaseModel):
     """Public representation of a user."""
 
-    id: int
+    id: UUID
     email: EmailStr
-    created_at: datetime
+    name: str
+    role: RoleEnum
+    workspace_id: UUID
 
     model_config = {"from_attributes": True}
 

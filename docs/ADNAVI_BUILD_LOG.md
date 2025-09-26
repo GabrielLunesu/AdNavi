@@ -15,8 +15,8 @@ _Last updated: 2025-09-25T16:04:00Z_
 
 ## 1) Project Snapshot
 - Framework: Next.js 15.5.4 (App Router, **JSX only**)
-- Theme: Dark default
-- Data: Mock only (no API/data fetching)
+- Backend: FastAPI + SQLAlchemy 2.x + Alembic, Postgres via Docker
+- Auth: Email/password, JWT (HTTP-only cookie), simple cookie session
 - Repo doc path: `docs/ADNAVI_BUILD_LOG.md`
 
 ### 1.1 Frontend — `ui/`
@@ -33,7 +33,7 @@ _Last updated: 2025-09-25T16:04:00Z_
 - Candidates: FastAPI (Python) or .NET Web API
 - Responsibilities (planned): auth, data aggregation, ads connectors, reporting
 
-### 1.3 Infrastructure (planned)
+### 1.3 Infrastructure
 - Envs: dev, staging, prod
 - CI/CD: lint, test, build; deploy (TBD)
 - IaC: Terraform/Pulumi (TBD)
@@ -81,8 +81,11 @@ _Last updated: 2025-09-25T16:04:00Z_
   - lucide-react provides status icons for notifications and UI affordances.
   - Tailwind v4 utilities drive dark, rounded, soft-shadow styling.
 
-### 4.2 Backend (`api/`) — planned
-- None yet. Record choices here when added.
+### 4.2 Backend (`backend/`)
+- Runtime: Python 3.11
+- Deps: fastapi, uvicorn, SQLAlchemy 2.x, alembic, pydantic v2, passlib[bcrypt], python-jose, python-dotenv, psycopg2-binary
+- Auth: bcrypt password hashing, HS256 JWT cookie `access_token`
+- DB: PostgreSQL 16 (Docker compose)
 
 ---
 
@@ -148,8 +151,14 @@ _Last updated: 2025-09-25T16:04:00Z_
 ## 8) How Things Work (Current)
 - Layout hierarchy:
   - `ui/app/layout.jsx` → global shell (adds gradient + glow background)
-  - `ui/app/(dashboard)/layout.jsx` → sidebar chrome; page renders assistant + content
+  - `ui/app/(dashboard)/layout.jsx` → sidebar chrome; guards all dashboard pages by calling backend `/auth/me` client-side
 - Assistant section is rendered at the top of the dashboard page (not fixed/sticky).
+### 8.1 Backend
+- Auth endpoints: `/auth/register`, `/auth/login`, `/auth/me`, `/auth/logout`
+- Cookie: `access_token` contains `Bearer <jwt>`, `httponly`, `samesite=lax`
+- On register: create `Workspace` named "New workspace", then `User` (role Admin for now), then `AuthCredential` with bcrypt hash
+- ORM models: UUID primary keys; enums for Role/Provider/Level/Kind/ComputeRunType
+- Migrations: Alembic configured to read `DATABASE_URL` from env; run `alembic upgrade head`
 - KPI cards render in a 3-column grid on desktop; they wrap if more than three.
 - Dashboard sections mirror wireframe; chips/CTAs non-functional.
 - Charts render static arrays (Recharts used for Analytics chart and sparklines).
@@ -170,6 +179,8 @@ _Last updated: 2025-09-25T16:04:00Z_
 ---
 
 ## 11) Changelog
+ - 2025-09-26T00:00:00Z — Backend added (FastAPI, Postgres, Alembic) with JWT cookie auth; UI auth guard + sidebar user pill.
+   - Files: `backend/app/*`, `backend/alembic/*`, `ui/lib/auth.js`, `ui/components/Sidebar.jsx`, `ui/app/(dashboard)/layout.jsx`, `ui/app/layout.jsx`, `ui/app/page.jsx`
  - 2025-09-25T16:04:00Z — Dashboard assistant hero restyled: centered, larger, extra spacing, separator.
    - Files: `ui/components/AssistantSection.jsx`
  - 2025-09-25T15:58:00Z — Add Campaigns list and detail pages with filters, sort, pagination, and rules.

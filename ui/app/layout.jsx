@@ -1,7 +1,6 @@
 // Global app layout. Provides HTML shell and imports global CSS.
 // No dashboard chrome here; that lives in the dashboard layout.
 import "./globals.css";
-import AuthStatus from "../components/AuthStatus";
 
 export const metadata = {
   title: "AdNavi",
@@ -19,7 +18,6 @@ export default function RootLayout({ children }) {
         <div aria-hidden className="pointer-events-none absolute w-28 h-28 rounded-full blur-3xl opacity-25 bg-violet-400 top-64 right-1/3" />
         <div aria-hidden className="pointer-events-none absolute w-48 h-48 rounded-full blur-3xl opacity-20 bg-teal-400 bottom-32 left-1/2" />
 
-        <AuthStatus />
         <div className="relative z-10">{children}</div>
       </body>
     </html>

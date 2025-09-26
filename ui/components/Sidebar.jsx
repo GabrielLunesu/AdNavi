@@ -33,19 +33,29 @@ export default function Sidebar() {
       </div>
 
       {/* Auth pill */}
-      <div className="mb-6">
-        {user ? (
-          <form action={async () => { await logout(); location.href = "/"; }}>
-            <button type="submit" className="w-full text-left rounded-full bg-slate-800 border border-slate-700 px-3 py-2 text-sm">
-              Signed in as {user.email} — Logout
-            </button>
-          </form>
-        ) : (
-          <Link href="/" className="inline-block rounded-full bg-cyan-500 text-slate-950 px-3 py-2 text-sm font-medium hover:bg-cyan-400 transition-colors">
-            Sign in
-          </Link>
-        )}
-      </div>
+      {user && (
+        <div className="mb-6 rounded-2xl border border-cyan-700/40 bg-cyan-950/20 p-3">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center justify-center w-9 h-9 rounded-full bg-cyan-600 text-slate-950 font-semibold">
+              {user.email?.charAt(0)?.toUpperCase() || "U"}
+            </div>
+            <div className="min-w-0">
+              <div className="text-xs uppercase tracking-wide text-cyan-300/80">Signed in</div>
+              <div className="text-sm font-medium text-cyan-200 truncate" title={user.email}>{user.email}</div>
+            </div>
+          </div>
+          <div className="mt-3">
+            <form action={async () => { await logout(); location.href = "/"; }}>
+              <button
+                type="submit"
+                className="w-full rounded-full bg-cyan-500 text-slate-950 px-3 py-2 text-sm font-medium hover:bg-cyan-400 transition-colors"
+              >
+                Logout
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Navigation */}
       <SidebarSection>

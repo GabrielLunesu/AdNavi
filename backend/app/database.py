@@ -14,7 +14,7 @@ from contextlib import contextmanager
 from typing import Generator
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker, Session
+from sqlalchemy.orm import sessionmaker, Session
 
 
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -33,7 +33,8 @@ if not DATABASE_URL:
 
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
-Base = declarative_base()
+# Base is defined in app.models to ensure a single registry across the app
+from .models import Base  # noqa: E402
 
 
 def get_db() -> Generator[Session, None, None]:

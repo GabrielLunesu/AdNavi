@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from .. import schemas
 from ..database import get_db
 from ..deps import get_current_user, get_settings
-from ..models import User
+from ..models import User, Workspace, AuthCredential, RoleEnum
 from ..security import create_access_token, get_password_hash, verify_password
 
 
@@ -15,18 +15,40 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/register", response_model=schemas.UserOut, status_code=status.HTTP_201_CREATED)
 def register_user(payload: schemas.UserCreate, db: Session = Depends(get_db)):
-    """Register a new user.
+    """Register a new user with a default workspace and local credentials.
 
     - If email already exists, respond with 400.
-    - Store a bcrypt-hashed password.
+    - Create a `Workspace` named "New workspace".
+    - Create `User` with role Admin (temporary default) and a simple `name` derived from email.
+    - Create `AuthCredential` storing the bcrypt hash.
     - Do not auto-login.
     """
     existing = db.query(User).filter(User.email == payload.email).first()
     if existing:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
 
-    user = User(email=payload.email, password_hash=get_password_hash(payload.password))
+    # Create a workspace for the new user
+    workspace = Workspace(name="New workspace")
+    db.add(workspace)
+    db.flush()  # assign workspace.id without committing yet
+
+    # Use local-part as a friendly default name
+    default_name = payload.email.split("@")[0]
+
+    # NOTE: All users are Admin for now; tighten later with invites/roles
+    user = User(
+        email=payload.email,
+        name=default_name,
+        # Persist Admin temporarily for all signups (future: invites/roles)
+        role=RoleEnum.admin,
+        workspace_id=workspace.id,
+    )
     db.add(user)
+    db.flush()  # assign user.id
+
+    credential = AuthCredential(user_id=user.id, password_hash=get_password_hash(payload.password))
+    db.add(credential)
+
     db.commit()
     db.refresh(user)
     return user
@@ -43,7 +65,11 @@ def login_user(payload: schemas.UserLogin, response: Response, db: Session = Dep
     - max_age: 7 days
     """
     user = db.query(User).filter(User.email == payload.email).first()
-    if not user or not verify_password(payload.password, user.password_hash):
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+
+    cred = db.query(AuthCredential).filter(AuthCredential.user_id == user.id).first()
+    if not cred or not verify_password(payload.password, cred.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
     token = create_access_token(subject=user.email)
