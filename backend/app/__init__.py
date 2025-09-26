@@ -1,0 +1,4 @@
+"""AdNavi FastAPI application package."""
+
+
+

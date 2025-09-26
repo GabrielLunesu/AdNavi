@@ -1,3 +1,6 @@
+"use client";
+import { useEffect, useState } from "react";
+import { currentUser } from "../../../lib/auth";
 import AssistantSection from "../../../components/AssistantSection";
 import TimeRangeChips from "../../../components/TimeRangeChips";
 import KPIStatCard from "../../../components/KPIStatCard";
@@ -8,6 +11,32 @@ import UseCasesList from "../../../components/UseCasesList";
 import { kpis } from "../../../data/kpis";
 
 export default function DashboardPage() {
+  const [authed, setAuthed] = useState(null);
+  useEffect(() => {
+    let mounted = true;
+    currentUser().then((u) => {
+      if (!mounted) return;
+      setAuthed(Boolean(u));
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  if (authed === null) {
+    return <div className="p-6">Checking authentication…</div>;
+  }
+
+  if (!authed) {
+    return (
+      <div className="p-6">
+        <div className="max-w-2xl mx-auto bg-slate-900/60 border border-slate-700 rounded-xl p-6">
+          <h2 className="text-xl font-medium mb-2">You must be signed in.</h2>
+          <a href="/" className="text-cyan-300 hover:text-cyan-200 underline">Go to sign in</a>
+        </div>
+      </div>
+    );
+  }
   const colorMap = {
     spend: '#22d3ee',
     revenue: '#34d399',
