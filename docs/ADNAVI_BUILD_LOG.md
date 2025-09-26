@@ -1,6 +1,6 @@
 # AdNavi — Living Build Log
 
-_Last updated: 2025-09-25T15:58:00Z_
+_Last updated: 2025-09-25T16:04:00Z_
 
 ## 0) Monorepo Map (Current & Planned)
 - **Frontend (current):** `ui/` — Next.js 15.5.4 (App Router), **JSX only**
@@ -170,6 +170,8 @@ _Last updated: 2025-09-25T15:58:00Z_
 ---
 
 ## 11) Changelog
+ - 2025-09-25T16:04:00Z — Dashboard assistant hero restyled: centered, larger, extra spacing, separator.
+   - Files: `ui/components/AssistantSection.jsx`
  - 2025-09-25T15:58:00Z — Add Campaigns list and detail pages with filters, sort, pagination, and rules.
    - Routes: `/campaigns`, `/campaigns/[id]`
    - Files: `ui/app/(dashboard)/campaigns/page.jsx`, `ui/app/(dashboard)/campaigns/[id]/page.jsx`, `ui/components/campaigns/*`, `ui/data/campaigns/*`, `ui/components/Sidebar.jsx`
