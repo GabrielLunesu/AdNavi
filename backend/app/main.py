@@ -6,7 +6,9 @@ Configures CORS, includes routers, and exposes a healthcheck endpoint.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqladmin import Admin, ModelView
+from starlette.middleware.sessions import SessionMiddleware
 
+from .authentication import SimpleAuth
 from .database import engine
 from .deps import get_settings
 from .routers import auth as auth_router
@@ -276,6 +278,15 @@ def create_app() -> FastAPI:
     app = FastAPI(title="AdNavi API")
 
     settings = get_settings()
+    
+    # Add session middleware for admin panel authentication
+    # This MUST be added before other middleware
+    # Secret key should be stored in environment variable in production
+    app.add_middleware(
+        SessionMiddleware,
+        secret_key="supersecretkey-change-this-in-production"
+    )
+    
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[settings.BACKEND_CORS_ORIGINS],
@@ -290,8 +301,16 @@ def create_app() -> FastAPI:
     def health():
         return {"status": "ok"}
 
-    # Initialize SQLAdmin
-    admin = Admin(app, engine, title="AdNavi Admin")
+    # Initialize authentication backend for admin panel
+    authentication_backend = SimpleAuth(secret_key="supersecretkey-change-this-in-production")
+    
+    # Initialize SQLAdmin with authentication
+    admin = Admin(
+        app, 
+        engine, 
+        title="AdNavi Admin",
+        authentication_backend=authentication_backend
+    )
     
     # Register all model views
     admin.add_view(WorkspaceAdmin)

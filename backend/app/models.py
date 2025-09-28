@@ -78,7 +78,7 @@ class Workspace(Base):
     compute_runs = relationship("ComputeRun", back_populates="workspace")  # All compute runs
     queries = relationship("QaQueryLog", back_populates="workspace")  # All queries made in workspace
     
-        # This is used to display the model in the admin interface.
+    # This is used to display the model in the admin interface.
     def __str__(self):
         return self.name
 
