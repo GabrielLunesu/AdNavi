@@ -16,6 +16,9 @@ from . import models  # noqa: F401
 
 
 # SQLAdmin ModelView classes for each model
+# WHEN MAKING CHANGES TO THESE CLASSES, MAKE SURE TO UPDATE THE __str__ METHODS IN THE MODELS.PY FILE
+# This is used to display the models in the admin interface.
+
 class WorkspaceAdmin(ModelView, model=models.Workspace):
     column_list = [models.Workspace.id, models.Workspace.name, models.Workspace.created_at]
     form_columns = ["name"]
