@@ -56,20 +56,42 @@ class ComputeRunTypeEnum(str, enum.Enum):
 # Core models ----------------------------------------------------
 
 class Workspace(Base):
+    """Workspace represents a company/organization account.
+    
+    A workspace is the top-level container that groups all resources
+    for a specific company. All data (connections, entities, metrics)
+    belongs to a workspace.
+    
+    Current relationship: One workspace can have many users (ONE-to-MANY)
+    TODO: Should be MANY-to-MANY (users can belong to multiple workspaces)
+    """
     __tablename__ = "workspaces"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    users = relationship("User", back_populates="workspace")
-    connections = relationship("Connection", back_populates="workspace")
-    entities = relationship("Entity", back_populates="workspace")
-    compute_runs = relationship("ComputeRun", back_populates="workspace")
-    queries = relationship("QaQueryLog", back_populates="workspace")
+    # Relationships - these create reverse lookups
+    users = relationship("User", back_populates="workspace")  # All users in this workspace
+    connections = relationship("Connection", back_populates="workspace")  # All ad platform connections
+    entities = relationship("Entity", back_populates="workspace")  # All entities (campaigns, ads, etc)
+    compute_runs = relationship("ComputeRun", back_populates="workspace")  # All compute runs
+    queries = relationship("QaQueryLog", back_populates="workspace")  # All queries made in workspace
+    
+    # This is used to display the model in the admin interface.
+    def __str__(self):
+        return self.name
 
 
 class User(Base):
+    """User represents a person who can access the system.
+    
+    Users authenticate via email/password and belong to workspaces.
+    Each user has a role (Owner, Admin, Viewer) within their workspace.
+    
+    CURRENT ISSUE: User can only belong to ONE workspace (via workspace_id)
+    This should be changed to MANY-to-MANY relationship.
+    """
     __tablename__ = "users"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -77,33 +99,54 @@ class User(Base):
     name = Column(String, nullable=False)
     role = Column(Enum(RoleEnum, values_callable=lambda obj: [e.value for e in obj]), nullable=False)
 
+    # Foreign key - links this user to ONE workspace
+    # When creating a user in admin, you must select which workspace they belong to
     workspace_id = Column(UUID(as_uuid=True), ForeignKey("workspaces.id"), nullable=False)
     workspace = relationship("Workspace", back_populates="users")
 
     # 1:1 credential for local password-based auth
     credential = relationship("AuthCredential", back_populates="user", uselist=False)
 
+    # All queries made by this user
     queries = relationship("QaQueryLog", back_populates="user")
+    
+    # This is used to display the model in the admin interface.
+    def __str__(self):
+        return f"{self.name} ({self.email})"
 
 
 class Connection(Base):
+    """Connection represents a link to an advertising platform account.
+    
+    Each connection belongs to ONE workspace. When you create a connection
+    in the admin panel, you MUST select which workspace it belongs to.
+    
+    Examples: Google Ads account, Facebook Ads account, TikTok Ads account
+    """
     __tablename__ = "connections"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     provider = Column(Enum(ProviderEnum, values_callable=lambda obj: [e.value for e in obj]), nullable=False)
-    external_account_id = Column(String, nullable=False)
-    name = Column(String, nullable=False)
-    status = Column(String, nullable=False)
+    external_account_id = Column(String, nullable=False)  # The account ID in the external platform
+    name = Column(String, nullable=False)  # Friendly name for this connection
+    status = Column(String, nullable=False)  # active, paused, disconnected, etc.
     connected_at = Column(DateTime, default=datetime.utcnow)
 
+    # Foreign key - EVERY connection belongs to exactly ONE workspace
+    # This ensures data isolation between different companies
     workspace_id = Column(UUID(as_uuid=True), ForeignKey("workspaces.id"), nullable=False)
     workspace = relationship("Workspace", back_populates="connections")
 
+    # Optional link to authentication token
     token_id = Column(UUID(as_uuid=True), ForeignKey("tokens.id"))
     token = relationship("Token", back_populates="connections")
 
-    entities = relationship("Entity", back_populates="connection")
-    fetches = relationship("Fetch", back_populates="connection")
+    # Reverse relationships
+    entities = relationship("Entity", back_populates="connection")  # All campaigns/ads from this connection
+    fetches = relationship("Fetch", back_populates="connection")  # All data fetch operations
+    
+    def __str__(self):
+        return f"{self.name} ({self.provider.value})"
 
 
 class Token(Base):
@@ -117,6 +160,9 @@ class Token(Base):
     scope = Column(String, nullable=True)
 
     connections = relationship("Connection", back_populates="token")
+    
+    def __str__(self):
+        return f"{self.provider.value} token (expires: {self.expires_at.strftime('%Y-%m-%d %H:%M')})"
 
 
 class Fetch(Base):
@@ -134,6 +180,9 @@ class Fetch(Base):
     connection = relationship("Connection", back_populates="fetches")
 
     imports = relationship("Import", back_populates="fetch")
+    
+    def __str__(self):
+        return f"{self.kind} ({self.status}) - {self.started_at.strftime('%Y-%m-%d %H:%M')}"
 
 
 class Import(Base):
@@ -148,6 +197,9 @@ class Import(Base):
     fetch = relationship("Fetch", back_populates="imports")
 
     facts = relationship("MetricFact", back_populates="import_")
+    
+    def __str__(self):
+        return f"Import as of {self.as_of.strftime('%Y-%m-%d')}{' - ' + self.note if self.note else ''}"
 
 
 class Entity(Base):
@@ -169,6 +221,9 @@ class Entity(Base):
     children = relationship("Entity", backref="parent", remote_side=[id])
     facts = relationship("MetricFact", back_populates="entity")
     pnls = relationship("Pnl", back_populates="entity")
+    
+    def __str__(self):
+        return f"{self.name} ({self.level.value})"
 
 
 class MetricFact(Base):
@@ -193,6 +248,9 @@ class MetricFact(Base):
     import_ = relationship("Import", back_populates="facts")
 
     entity = relationship("Entity", back_populates="facts")
+    
+    def __str__(self):
+        return f"{self.event_date.strftime('%Y-%m-%d')} - {self.provider.value} - ${self.spend}"
 
 
 class ComputeRun(Base):
@@ -209,6 +267,9 @@ class ComputeRun(Base):
     workspace = relationship("Workspace", back_populates="compute_runs")
 
     pnls = relationship("Pnl", back_populates="compute_run")
+    
+    def __str__(self):
+        return f"{self.type.value} - {self.as_of.strftime('%Y-%m-%d')} ({self.status})"
 
 
 class Pnl(Base):
@@ -233,21 +294,40 @@ class Pnl(Base):
 
     entity = relationship("Entity", back_populates="pnls")
     compute_run = relationship("ComputeRun", back_populates="pnls")
+    
+    def __str__(self):
+        date_str = self.event_date.strftime('%Y-%m-%d') if self.event_date else 'N/A'
+        return f"{self.kind.value} P&L - {date_str} - ${self.spend}"
 
 
 class QaQueryLog(Base):
+    """QaQueryLog tracks all natural language queries made by users.
+    
+    When creating a query log in the admin panel:
+    1. You MUST select a workspace_id - which workspace was this query made in?
+    2. You MUST select a user_id - which user made this query?
+    
+    This creates an audit trail of who asked what questions and when.
+    """
     __tablename__ = "qa_query_logs"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    
+    # Foreign keys - BOTH are required to track query context
     workspace_id = Column(UUID(as_uuid=True), ForeignKey("workspaces.id"), nullable=False)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    question_text = Column(String, nullable=False)
-    dsl_json = Column(JSON, nullable=False)
+    
+    question_text = Column(String, nullable=False)  # The natural language question
+    dsl_json = Column(JSON, nullable=False)  # The parsed query structure
     created_at = Column(DateTime, default=datetime.utcnow)
-    duration_ms = Column(Integer, nullable=True)
+    duration_ms = Column(Integer, nullable=True)  # How long the query took to execute
 
+    # Relationships for easy access to related objects
     workspace = relationship("Workspace", back_populates="queries")
     user = relationship("User", back_populates="queries")
+    
+    def __str__(self):
+        return f"{self.question_text[:50]}... - {self.created_at.strftime('%Y-%m-%d %H:%M')}"
 
 
 # Local auth credential (password hash stored separately) ----------
@@ -260,4 +340,7 @@ class AuthCredential(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="credential")
+    
+    def __str__(self):
+        return f"Credential for {self.user.email if self.user else 'Unknown'}"
 

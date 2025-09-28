@@ -28,10 +28,12 @@ _Last updated: 2025-09-25T16:04:00Z_
  - Pagination: 8 rows per page (client-side)
 - Styling: dark, rounded, soft shadows
 
-### 1.2 Backend — `api/` (planned)
-- Status: not implemented
-- Candidates: FastAPI (Python) or .NET Web API
-- Responsibilities (planned): auth, data aggregation, ads connectors, reporting
+### 1.2 Backend — `backend/`
+- Framework: FastAPI with SQLAlchemy 2.x + Alembic
+- Database: PostgreSQL 16 (Docker compose)
+- Auth: JWT (HTTP-only cookie), bcrypt password hashing
+- Admin: SQLAdmin on `/admin` endpoint for CRUD operations on all models
+- Models: Workspace, User, Connection, Token, Fetch, Import, Entity, MetricFact, ComputeRun, Pnl, QaQueryLog, AuthCredential
 
 ### 1.3 Infrastructure
 - Envs: dev, staging, prod
@@ -83,9 +85,10 @@ _Last updated: 2025-09-25T16:04:00Z_
 
 ### 4.2 Backend (`backend/`)
 - Runtime: Python 3.11
-- Deps: fastapi, uvicorn, SQLAlchemy 2.x, alembic, pydantic v2, passlib[bcrypt], python-jose, python-dotenv, psycopg2-binary
+- Deps: fastapi, uvicorn, SQLAlchemy 2.x, alembic, pydantic v2, passlib[bcrypt], python-jose, python-dotenv, psycopg2-binary, sqladmin
 - Auth: bcrypt password hashing, HS256 JWT cookie `access_token`
 - DB: PostgreSQL 16 (Docker compose)
+- Admin: SQLAdmin provides web UI for database CRUD operations
 
 ---
 
@@ -155,10 +158,12 @@ _Last updated: 2025-09-25T16:04:00Z_
 - Assistant section is rendered at the top of the dashboard page (not fixed/sticky).
 ### 8.1 Backend
 - Auth endpoints: `/auth/register`, `/auth/login`, `/auth/me`, `/auth/logout`
+- Admin endpoint: `/admin` - SQLAdmin UI for all models (no auth protection yet)
 - Cookie: `access_token` contains `Bearer <jwt>`, `httponly`, `samesite=lax`
 - On register: create `Workspace` named "New workspace", then `User` (role Admin for now), then `AuthCredential` with bcrypt hash
 - ORM models: UUID primary keys; enums for Role/Provider/Level/Kind/ComputeRunType
 - Migrations: Alembic configured to read `DATABASE_URL` from env; run `alembic upgrade head`
+- Admin features: List, create, update, delete for all models; searchable and sortable columns; FontAwesome icons
 - KPI cards render in a 3-column grid on desktop; they wrap if more than three.
 - Dashboard sections mirror wireframe; chips/CTAs non-functional.
 - Charts render static arrays (Recharts used for Analytics chart and sparklines).
@@ -179,6 +184,20 @@ _Last updated: 2025-09-25T16:04:00Z_
 ---
 
 ## 11) Changelog
+ - 2025-09-28T00:01:00Z — Fixed SQLAdmin foreign key dropdowns and added comprehensive documentation.
+   - Files: `backend/app/main.py`, `backend/app/models.py`
+   - Changes: 
+     - Added docstrings to all models explaining relationships and foreign key requirements
+     - Fixed ModelView form_columns to use relationship names instead of _id fields
+     - Added form_ajax_refs for searchable dropdown selectors
+     - All foreign key fields now show as proper dropdowns in admin forms
+   - Note: User-Workspace is still one-to-many (needs migration to many-to-many)
+ - 2025-09-28T00:00:00Z — Added SQLAdmin dashboard for backend CRUD operations on all models.
+   - Route: `/admin`
+   - Files: `backend/app/main.py`
+   - Models exposed: Workspace, User, Connection, Token, Fetch, Import, Entity, MetricFact, ComputeRun, Pnl, QaQueryLog, AuthCredential
+   - Features: ModelView for each model with searchable/sortable columns, FontAwesome icons, form fields
+   - Note: No auth protection yet; to be secured later
  - 2025-09-26T00:00:00Z — Backend added (FastAPI, Postgres, Alembic) with JWT cookie auth; UI auth guard + sidebar user pill.
    - Files: `backend/app/*`, `backend/alembic/*`, `ui/lib/auth.js`, `ui/components/Sidebar.jsx`, `ui/app/(dashboard)/layout.jsx`, `ui/app/layout.jsx`, `ui/app/page.jsx`
  - 2025-09-25T16:04:00Z — Dashboard assistant hero restyled: centered, larger, extra spacing, separator.
