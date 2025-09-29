@@ -51,18 +51,20 @@ _Last updated: 2025-09-25T16:04:00Z_
 - [x] Background gradient + glow orbs to match wireframe mood
 - [x] KPI grid 3-per-row on desktop; wraps to additional rows
 - [x] Backend mock data seeder for testing (`backend/app/seed_mock.py`)
-- [ ] Future: real data, auth, analytics, CI/CD
+- [x] Dashboard KPIs connected to real API data (`/workspaces/{id}/kpis` endpoint)
+- [ ] Future: remaining pages real data integration, advanced analytics, CI/CD
 
 ---
 
 ## 3) Decisions (Architecture & Conventions)
 - Repo style: **Monorepo-ready**; current active app: `ui/`
 - Files: **.jsx** only, no TS for now
-- State: none (except trivial local), mock data only
+- State: minimal (auth + local component state), transitioning from mock to real API data
 - Directory conventions:
   - `ui/components/*` — small presentational components
+  - `ui/components/sections/*` — container components with data fetching
   - `ui/data/*` — mock data modules
-  - `ui/lib/cn.js` — class util
+  - `ui/lib/*` — utilities (cn.js for classes, auth.js for auth, api.js for data fetching)
 - Charts: Recharts; Icons: lucide-react
 
 ---
@@ -109,7 +111,8 @@ _Last updated: 2025-09-25T16:04:00Z_
 - Data Viz: KPIStatCard, Sparkline, LineChart
 - Panels: NotificationsPanel, NotificationItem, CompanyCard, VisitorsChartCard, UseCasesList, UseCaseItem
 - Primitives: Card, IconBadge, KeyValue
-- Utils: cn.js
+- Utils: cn.js, lib/api.js (KPI data fetching)
+- Sections: components/sections/HomeKpiStrip.jsx (container for dashboard KPIs)
  - Assist: AssistantSection (greeting + prompt + quick actions)
  - Analytics (page-specific):
    - Controls: `components/analytics/AnalyticsControls.jsx`
@@ -184,6 +187,15 @@ _Last updated: 2025-09-25T16:04:00Z_
 ---
 
 ## 11) Changelog
+| - 2025-09-30T00:00:00Z — Added KPI aggregation endpoint and connected dashboard to real API data.
+   - Backend files: `backend/app/schemas.py`, `backend/app/routers/kpis.py`, `backend/app/main.py`
+   - Frontend files: `ui/lib/api.js`, `ui/components/sections/HomeKpiStrip.jsx`, `ui/app/(dashboard)/dashboard/page.jsx`
+   - Features:
+     - POST `/workspaces/{id}/kpis` endpoint aggregates MetricFact data with time ranges, previous period comparison, and sparklines
+     - Supports filtering by provider, level, and entity status
+     - Computes derived metrics (ROAS, CPA) with divide-by-zero protection
+     - Dashboard now fetches real KPIs instead of using mock data
+   - Design: Separation of concerns with API client in lib/, container component in sections/, presentation in existing KPIStatCard
 | - 2025-09-29T12:00:00Z — Added comprehensive database seed script for testing with realistic mock data.
    - Files: `backend/app/seed_mock.py`
    - Features: Creates "Defang Labs" workspace with 2 users (owner/viewer), mock connection, entity hierarchy (2 campaigns > 4 adsets > 8 ads), 30 days of MetricFact data (240 records), ComputeRun with P&L snapshots including CPA/ROAS calculations

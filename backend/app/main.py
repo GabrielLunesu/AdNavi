@@ -19,6 +19,7 @@ from .routers import connections as connections_router
 from .routers import entities as entities_router
 from .routers import metrics as metrics_router
 from .routers import pnl as pnl_router
+from .routers import kpis as kpis_router
 from . import schemas
 
 # Import models so Alembic can discover metadata
@@ -357,6 +358,7 @@ def create_app() -> FastAPI:
     app.include_router(entities_router.router)
     app.include_router(metrics_router.router)
     app.include_router(pnl_router.router)
+    app.include_router(kpis_router.router)
 
     @app.get(
         "/health",
