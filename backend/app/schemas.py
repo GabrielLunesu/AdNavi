@@ -449,3 +449,91 @@ class KpiValue(BaseModel):
 
 
 
+# --- AI / QA schemas ---
+# We introduce a small, explicit DSL to keep AI-generated queries safe and
+# backend-controlled. The AI only proposes JSON matching this schema; the
+# backend validates with Pydantic and executes using our own metric logic.
+
+MetricLiteral = Literal[
+    "spend",
+    "revenue",
+    "clicks",
+    "impressions",
+    "conversions",
+    "roas",
+    "cpa",
+    "cvr",
+]
+
+
+class MetricQuery(BaseModel):
+    """
+    DSL (Domain Specific Language) for metrics queries.
+
+    WHY DSL?
+    - Keeps AI output constrained and safe.
+    - Prevents LLM from inventing SQL or breaking the DB.
+    - Ensures backend is the single source of truth for metrics math.
+
+    Fields
+    - metric: which metric to aggregate
+    - time_range: either {"last_n_days": int} or {"start": YYYY-MM-DD, "end": YYYY-MM-DD}
+    - compare_to_previous: include previous-period comparison
+    - group_by: optional breakdown (none|campaign|adset|ad)
+    - filters: reserved for future provider/entity filters
+    """
+
+    metric: MetricLiteral
+    time_range: dict = Field(
+        ...,
+        description="Either {last_n_days:int} or {start:YYYY-MM-DD, end:YYYY-MM-DD}",
+        json_schema_extra={
+            "examples": [
+                {"last_n_days": 7},
+                {"start": "2025-09-01", "end": "2025-09-30"},
+            ]
+        },
+    )
+    compare_to_previous: bool = False
+    group_by: Optional[Literal["none", "campaign", "adset", "ad"]] = "none"
+    filters: dict = Field(default_factory=dict)
+
+
+class QARequest(BaseModel):
+    """Natural language question from the user."""
+
+    question: str
+
+
+class QAResult(BaseModel):
+    """
+    Response returned by /qa.
+    Contains both a human-readable answer and the machine-executed DSL.
+    """
+
+    answer: str
+    executed_dsl: MetricQuery
+    data: dict
+
+
+# --- QA query log schemas ---
+# We purposely avoid changing DB models right now (no migration) and keep
+# the response contract simple. If we later add a dedicated `answer_text`
+# column, these schemas already match the intended API.
+
+class QaLogEntry(BaseModel):
+    id: str
+    question_text: str
+    answer_text: str | None
+    dsl_json: dict | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class QaLogCreate(BaseModel):
+    question_text: str
+    answer_text: str
+    dsl_json: dict | None = None
+
+

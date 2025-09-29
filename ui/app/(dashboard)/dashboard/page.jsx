@@ -8,6 +8,7 @@ import NotificationsPanel from "../../../components/NotificationsPanel";
 import CompanyCard from "../../../components/CompanyCard";
 import VisitorsChartCard from "../../../components/VisitorsChartCard";
 import UseCasesList from "../../../components/UseCasesList";
+import ChatInput from "@/components/ui/ChatInput";
 
 export default function DashboardPage() {
   const [user, setUser] = useState(null);
@@ -74,7 +75,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-8">
       {/* Assistant section at top (not fixed) */}
-      <AssistantSection />
+      <AssistantSection workspaceId={user.workspace_id} />
 
       {/* Overview header with timeframe chips */}
       <div className="flex items-center justify-between">
@@ -100,6 +101,14 @@ export default function DashboardPage() {
       <CompanyCard />
       <VisitorsChartCard />
       <UseCasesList />
+
+      {/* Copilot quick chat */}
+      {/* <section className="mt-8">
+        <h2 className="text-lg font-semibold mb-2">Copilot</h2>
+        <div className="sticky bottom-6">
+          <ChatInput workspaceId={user.workspace_id} />
+        </div>
+      </section> */}
     </div>
   );
 }

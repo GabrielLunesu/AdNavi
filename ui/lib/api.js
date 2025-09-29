@@ -64,6 +64,25 @@ export async function fetchWorkspaceKpis({
   return res.json();
 }
 
+// Call backend QA endpoint.
+// WHY: isolate fetch logic, keeps components testable and clean.
+export async function fetchQA({ workspaceId, question }) {
+  const res = await fetch(
+    `${BASE}/qa?workspace_id=${workspaceId}`,
+    {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question })
+    }
+  );
+  if (!res.ok) {
+    const msg = await res.text();
+    throw new Error(`QA failed: ${res.status} ${msg}`);
+  }
+  return res.json();
+}
+
 // Fetch workspace summary for sidebar.
 // WHY: one tiny endpoint keeps sidebar up to date without heavy joins.
 export async function fetchWorkspaceInfo(workspaceId) {
@@ -75,6 +94,33 @@ export async function fetchWorkspaceInfo(workspaceId) {
   if (!res.ok) {
     const msg = await res.text();
     throw new Error(`Failed to load workspace info: ${res.status} ${msg}`);
+  }
+  return res.json();
+}
+
+export async function fetchQaLog(workspaceId) {
+  const res = await fetch(`${BASE}/qa-log/${workspaceId}`, {
+    method: "GET",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" }
+  });
+  if (!res.ok) {
+    const msg = await res.text();
+    throw new Error(`Failed to fetch QA log: ${res.status} ${msg}`);
+  }
+  return res.json();
+}
+
+export async function createQaLog(workspaceId, { question_text, answer_text, dsl_json }) {
+  const res = await fetch(`${BASE}/qa-log/${workspaceId}`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ question_text, answer_text, dsl_json })
+  });
+  if (!res.ok) {
+    const msg = await res.text();
+    throw new Error(`Failed to create QA log: ${res.status} ${msg}`);
   }
   return res.json();
 }
