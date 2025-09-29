@@ -42,3 +42,12 @@ body {
 .shadow-soft {
   box-shadow: 0 4px 16px rgba(0,0,0,0.24);
 }
+
+/* Hide scrollbars utility (used for horizontal chips row) */
+.no-scrollbar {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}

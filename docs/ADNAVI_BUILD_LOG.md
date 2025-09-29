@@ -196,11 +196,11 @@ _Last updated: 2025-09-25T16:04:00Z_
 ## 11) Changelog
 | - 2025-09-30T03:00:00Z — QA history: endpoints + Copilot chat UI with bubbles.
    - Backend files: `backend/app/schemas.py`, `backend/app/routers/qa_log.py`, `backend/app/services/qa_service.py`, `backend/app/routers/qa.py`, `backend/app/main.py`
-   - Frontend files: `ui/lib/api.js`, `ui/components/ui/ChatBubble.jsx`, `ui/app/(dashboard)/copilot/page.jsx`
+   - Frontend files: `ui/lib/api.js`, `ui/components/ui/ChatBubble.jsx`, `ui/components/ui/ChatComposer.jsx`, `ui/app/(dashboard)/copilot/page.jsx`
    - Features:
      - GET/POST `/qa-log/{workspace_id}` to fetch/store chat history (auth-scoped)
      - `/qa` now auto-logs queries with answer embedded in `dsl_json`
-     - Copilot shows history as user/AI bubbles, "Typing…" while waiting, animations
+     - Copilot redesigned: glassmorphic container, animated orb, suggestion chips, sticky composer; history as user/AI bubbles with animations
    - Notes: avoided DB migration by embedding `answer_text` in `dsl_json` for now
 | - 2025-09-30T02:20:00Z — Copilot UI: chat input → /copilot, framer-motion, QA call.
    - Frontend files: `ui/lib/api.js`, `ui/components/ui/ChatInput.jsx`, `ui/app/(dashboard)/dashboard/page.jsx`, `ui/app/(dashboard)/copilot/page.jsx`, `ui/package.json`
