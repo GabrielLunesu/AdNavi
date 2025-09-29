@@ -1,6 +1,6 @@
 "use client";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { fetchQA, fetchQaLog } from "@/lib/api";
 import { motion } from "framer-motion";
 import ChatInput from "@/components/ui/ChatInput";
@@ -20,6 +20,8 @@ export default function CopilotPage() {
   const [log, setLog] = useState([]);
   const [err, setErr] = useState(null);
   const [resolvedWs, setResolvedWs] = useState(workspaceId || null);
+  const processedRef = useRef(false); // guard to process ?q only once per mount
+  const [historyLoaded, setHistoryLoaded] = useState(false);
 
   // Resolve workspace id from session if not present in URL
   useEffect(() => {
@@ -44,26 +46,29 @@ export default function CopilotPage() {
     if (!resolvedWs) return;
     fetchQaLog(resolvedWs)
       .then((rows) => setLog(rows.reverse())) // oldest first for natural flow
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setHistoryLoaded(true));
   }, [resolvedWs]);
 
-  // If a question is passed via query, append it and ask immediately
+  // If ?q is present, only process once per mount and only if not already in history
   useEffect(() => {
-    if (!question || !resolvedWs) return;
+    if (!resolvedWs) return;
+    if (!question) return;
+    if (!historyLoaded) return;
+    if (processedRef.current) return;
+
     const q = question.trim();
-    if (!q) return;
-    setLog((prev) => [...prev, { id: Date.now(), question_text: q, answer_text: null }]);
-    setLoading(true);
-    setErr(null);
-    fetchQA({ workspaceId: resolvedWs, question: q })
-      .then((res) => {
-        setLog((prev) =>
-          prev.map((e) => (e.question_text === q && e.answer_text === null ? { ...e, answer_text: res.answer } : e))
-        );
-      })
-      .catch((e) => setErr(e.message))
-      .finally(() => setLoading(false));
-  }, [question, resolvedWs]);
+    if (!q) {
+      processedRef.current = true;
+      return;
+    }
+
+    const alreadyInLog = log.some((e) => (e.question_text || "").trim().toLowerCase() === q.toLowerCase() && e.answer_text != null);
+    processedRef.current = true;
+    if (alreadyInLog) return; // do not re-send duplicate question
+
+    handleSubmit(q);
+  }, [question, resolvedWs, historyLoaded, log]);
 
   const handleSubmit = (q) => {
     if (!resolvedWs) return;
@@ -86,7 +91,7 @@ export default function CopilotPage() {
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <span className="text-slate-400 text-xs">{resolvedWs ? "Workspace" : "Resolving..."}</span>
-              <span className="text-sm text-slate-200">{resolvedWs ? "Current" : "Resolving..."}</span>
+              <span className="text-sm text-slate-200">{resolvedWs}</span>
             </div>
             <div className="hidden sm:block w-px h-4 bg-slate-700/40"></div>
            
