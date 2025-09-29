@@ -1,17 +1,104 @@
 // Workspace summary block shows current workspace and quick meta
-export default function WorkspaceSummary() {
+// WHY: Container component that fetches workspace info from API
+// This allows the sidebar to show real-time sync status
+
+import { useEffect, useState } from "react";
+import { fetchWorkspaceInfo } from "../lib/api";
+
+export default function WorkspaceSummary({ workspaceId }) {
+  const [info, setInfo] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!workspaceId) return;
+    
+    let mounted = true;
+    
+    // Fetch workspace info
+    fetchWorkspaceInfo(workspaceId)
+      .then((data) => {
+        if (mounted) {
+          setInfo(data);
+          setError(null);
+        }
+      })
+      .catch((err) => {
+        if (mounted) {
+          setError(err.message);
+        }
+      })
+      .finally(() => {
+        if (mounted) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [workspaceId]);
+
+  // Format last sync time
+  const formatLastSync = (timestamp) => {
+    if (!timestamp) return "Never";
+    
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins} min ago`;
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+    
+    // For older dates, show the actual date
+    return date.toLocaleDateString();
+  };
+
+  if (loading) {
+    return (
+      <div className="rounded-xl p-4 border border-slate-800/60 bg-slate-900/40">
+        <h4 className="text-sm font-medium text-slate-300 mb-3">Current Workspace</h4>
+        <div className="space-y-2 text-xs text-slate-400">
+          <div className="animate-pulse">
+            <div className="h-4 bg-slate-700 rounded w-24 mb-2"></div>
+            <div className="h-3 bg-slate-700 rounded w-32"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-xl p-4 border border-red-800/60 bg-red-900/20">
+        <h4 className="text-sm font-medium text-red-300 mb-1">Workspace Error</h4>
+        <div className="text-xs text-red-400">{error}</div>
+      </div>
+    );
+  }
+
+  if (!info) return null;
+
   return (
     <div className="rounded-xl p-4 border border-slate-800/60 bg-slate-900/40">
       <h4 className="text-sm font-medium text-slate-300 mb-3">Current Workspace</h4>
       <div className="space-y-2 text-xs text-slate-400">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-emerald-400" aria-hidden />
-          <span>Defang Labs</span>
+          <span className="text-slate-200">{info.name}</span>
         </div>
-        <div>Active platforms: Meta, Google</div>
         <div className="flex items-center justify-between pt-2">
-          <span>Last sync: 13 min ago</span>
-          <button className="hover:text-white" aria-label="Refresh">
+          <span>Last sync: {formatLastSync(info.last_sync)}</span>
+          <button 
+            className="hover:text-white transition-colors" 
+            aria-label="Refresh"
+            onClick={() => window.location.reload()}
+          >
             ↻
           </button>
         </div>

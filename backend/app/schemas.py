@@ -209,6 +209,21 @@ class WorkspaceOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class WorkspaceInfo(BaseModel):
+    """
+    Summary info for sidebar display.
+    Includes workspace name and last sync timestamp.
+    last_sync is taken from Fetch (raw data sync) because:
+    - It tells us the freshest point we ingested data from an ad platform.
+    - ComputeRun may happen later, but Fetch = ground truth of availability.
+    """
+    id: str = Field(description="Workspace ID")
+    name: str = Field(description="Workspace name")
+    last_sync: Optional[datetime] = Field(description="Last successful sync timestamp")
+    
+    model_config = {"from_attributes": True}
+
+
 # Connection Schemas
 class ConnectionCreate(BaseModel):
     """Schema for creating a new ad platform connection."""

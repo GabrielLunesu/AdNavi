@@ -29,7 +29,7 @@ export default function Sidebar() {
 
       {/* Workspace summary */}
       <div className="mb-6">
-        <WorkspaceSummary />
+        <WorkspaceSummary workspaceId={user?.workspace_id} />
       </div>
 
       {/* Auth pill */}

@@ -63,3 +63,18 @@ export async function fetchWorkspaceKpis({
   }
   return res.json();
 }
+
+// Fetch workspace summary for sidebar.
+// WHY: one tiny endpoint keeps sidebar up to date without heavy joins.
+export async function fetchWorkspaceInfo(workspaceId) {
+  const res = await fetch(`${BASE}/workspaces/${workspaceId}/info`, {
+    method: "GET",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" }
+  });
+  if (!res.ok) {
+    const msg = await res.text();
+    throw new Error(`Failed to load workspace info: ${res.status} ${msg}`);
+  }
+  return res.json();
+}
