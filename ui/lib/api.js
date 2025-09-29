@@ -64,6 +64,25 @@ export async function fetchWorkspaceKpis({
   return res.json();
 }
 
+// Call backend QA endpoint.
+// WHY: isolate fetch logic, keeps components testable and clean.
+export async function fetchQA({ workspaceId, question }) {
+  const res = await fetch(
+    `${BASE}/qa?workspace_id=${workspaceId}`,
+    {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question })
+    }
+  );
+  if (!res.ok) {
+    const msg = await res.text();
+    throw new Error(`QA failed: ${res.status} ${msg}`);
+  }
+  return res.json();
+}
+
 // Fetch workspace summary for sidebar.
 // WHY: one tiny endpoint keeps sidebar up to date without heavy joins.
 export async function fetchWorkspaceInfo(workspaceId) {

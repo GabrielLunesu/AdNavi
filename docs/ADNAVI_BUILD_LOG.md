@@ -193,6 +193,13 @@ _Last updated: 2025-09-25T16:04:00Z_
 ---
 
 ## 11) Changelog
+| - 2025-09-30T02:20:00Z — Copilot UI: chat input → /copilot, framer-motion, QA call.
+   - Frontend files: `ui/lib/api.js`, `ui/components/ui/ChatInput.jsx`, `ui/app/(dashboard)/dashboard/page.jsx`, `ui/app/(dashboard)/copilot/page.jsx`, `ui/package.json`
+   - Features:
+     - Chat bar on dashboard redirects to `/copilot?q=...&ws=...`
+     - Copilot page reads query params, calls backend `/qa`, shows loader then answer
+     - Framer-motion animations for entrance, spinner, and answer reveal
+   - Design: API logic in `lib/api.js`; input atomized in `components/ui/ChatInput.jsx`
 | - 2025-09-30T02:00:00Z — Added /qa endpoint with DSL translation and execution.
    - Backend files: `backend/app/schemas.py`, `backend/app/services/metric_service.py`, `backend/app/services/qa_service.py`, `backend/app/routers/qa.py`, `backend/app/main.py`, `backend/app/deps.py`, `backend/requirements.txt`
    - Features:
