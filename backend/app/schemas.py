@@ -1,8 +1,8 @@
 """Pydantic schemas for request/response payloads."""
 
-from datetime import datetime
+from datetime import datetime, date
 from uuid import UUID
-from typing import Optional, List
+from typing import Optional, List, Literal, Union
 from pydantic import BaseModel, EmailStr, constr, Field
 from .models import RoleEnum, ProviderEnum, LevelEnum, KindEnum, ComputeRunTypeEnum
 
@@ -209,6 +209,21 @@ class WorkspaceOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class WorkspaceInfo(BaseModel):
+    """
+    Summary info for sidebar display.
+    Includes workspace name and last sync timestamp.
+    last_sync is taken from Fetch (raw data sync) because:
+    - It tells us the freshest point we ingested data from an ad platform.
+    - ComputeRun may happen later, but Fetch = ground truth of availability.
+    """
+    id: str = Field(description="Workspace ID")
+    name: str = Field(description="Workspace name")
+    last_sync: Optional[datetime] = Field(description="Last successful sync timestamp")
+    
+    model_config = {"from_attributes": True}
+
+
 # Connection Schemas
 class ConnectionCreate(BaseModel):
     """Schema for creating a new ad platform connection."""
@@ -378,6 +393,59 @@ class PnlListResponse(BaseModel):
     
     pnl_data: List[PnlOut] = Field(description="List of P&L records")
     total: int = Field(description="Total number of P&L records")
+
+
+# --- KPI request/response schemas ---
+# We keep this small & stable so both UI and (later) AI can rely on it.
+
+MetricKey = Literal["spend","revenue","clicks","impressions","conversions","roas","cpa"]
+
+class TimeRange(BaseModel):
+    """
+    TimeRange supports either:
+    - last_n_days (easiest for UI quick filters)
+    - explicit start/end (YYYY-MM-DD)
+    Exactly one style is sufficient; last_n_days has priority if set.
+    """
+    last_n_days: Optional[int] = 7
+    start: Optional[date] = None
+    end: Optional[date] = None
+
+class KpiRequest(BaseModel):
+    """
+    The UI tells us which metrics it wants to render as cards.
+    We also support:
+    - compare_to_previous: return previous-period totals for delta%
+    - sparkline: daily series for small inline charts
+    """
+    metrics: List[MetricKey] = Field(default_factory=lambda: ["spend","revenue","conversions","roas"])
+    time_range: TimeRange = TimeRange()
+    compare_to_previous: bool = True
+    sparkline: bool = True
+
+# Sparkline = that tiny mini-chart under each KPI card (like you see on your dashboard design).
+# A sparkline needs a series of points over time, not just one number.
+# Each point in that series is a SparkPoint:
+# - date: the day (string, e.g. "2025-09-01")
+# - value: the metric's value for that day (or None if missing)
+
+class SparkPoint(BaseModel):
+    date: str
+    value: Optional[float] = None
+
+class KpiValue(BaseModel):
+    """
+    Single card payload.
+    value: current-period aggregated value
+    prev: previous-period aggregated value (optional)
+    delta_pct: percentage change vs previous (optional)
+    sparkline: daily values over the selected range (optional)
+    """
+    key: MetricKey
+    value: Optional[float] = None
+    prev: Optional[float] = None
+    delta_pct: Optional[float] = None
+    sparkline: Optional[List[SparkPoint]] = None
 
 
 

@@ -51,18 +51,20 @@ _Last updated: 2025-09-25T16:04:00Z_
 - [x] Background gradient + glow orbs to match wireframe mood
 - [x] KPI grid 3-per-row on desktop; wraps to additional rows
 - [x] Backend mock data seeder for testing (`backend/app/seed_mock.py`)
-- [ ] Future: real data, auth, analytics, CI/CD
+- [x] Dashboard KPIs connected to real API data (`/workspaces/{id}/kpis` endpoint)
+- [ ] Future: remaining pages real data integration, advanced analytics, CI/CD
 
 ---
 
 ## 3) Decisions (Architecture & Conventions)
 - Repo style: **Monorepo-ready**; current active app: `ui/`
 - Files: **.jsx** only, no TS for now
-- State: none (except trivial local), mock data only
+- State: minimal (auth + local component state), transitioning from mock to real API data
 - Directory conventions:
   - `ui/components/*` — small presentational components
+  - `ui/components/sections/*` — container components with data fetching
   - `ui/data/*` — mock data modules
-  - `ui/lib/cn.js` — class util
+  - `ui/lib/*` — utilities (cn.js for classes, auth.js for auth, api.js for data fetching)
 - Charts: Recharts; Icons: lucide-react
 
 ---
@@ -104,12 +106,13 @@ _Last updated: 2025-09-25T16:04:00Z_
 ---
 
 ## 6) Components Inventory (Frontend `ui/`)
-- Shell: Logo, Sidebar, SidebarSection, NavItem, WorkspaceSummary, UserMini, Topbar
+- Shell: Logo, Sidebar, SidebarSection, NavItem, WorkspaceSummary (now fetches real data), UserMini, Topbar
 - Inputs: PromptInput, QuickAction, TimeRangeChips
 - Data Viz: KPIStatCard, Sparkline, LineChart
 - Panels: NotificationsPanel, NotificationItem, CompanyCard, VisitorsChartCard, UseCasesList, UseCaseItem
 - Primitives: Card, IconBadge, KeyValue
-- Utils: cn.js
+- Utils: cn.js, lib/api.js (KPI data fetching, workspace info)
+- Sections: components/sections/HomeKpiStrip.jsx (container for dashboard KPIs)
  - Assist: AssistantSection (greeting + prompt + quick actions)
  - Analytics (page-specific):
    - Controls: `components/analytics/AnalyticsControls.jsx`
@@ -158,15 +161,20 @@ _Last updated: 2025-09-25T16:04:00Z_
 - Assistant section is rendered at the top of the dashboard page (not fixed/sticky).
 ### 8.1 Backend
 - Auth endpoints: `/auth/register`, `/auth/login`, `/auth/me`, `/auth/logout`
+- Workspace endpoints: `/workspaces/{id}/info` (sidebar summary)
+- KPI endpoints: `/workspaces/{id}/kpis` (dashboard metrics)
 - Admin endpoint: `/admin` - SQLAdmin UI for all models (no auth protection yet)
 - Cookie: `access_token` contains `Bearer <jwt>`, `httponly`, `samesite=lax`
 - On register: create `Workspace` named "New workspace", then `User` (role Admin for now), then `AuthCredential` with bcrypt hash
 - ORM models: UUID primary keys; enums for Role/Provider/Level/Kind/ComputeRunType
 - Migrations: Alembic configured to read `DATABASE_URL` from env; run `alembic upgrade head`
 - Admin features: List, create, update, delete for all models; searchable and sortable columns; FontAwesome icons
-- KPI cards render in a 3-column grid on desktop; they wrap if more than three.
-- Dashboard sections mirror wireframe; chips/CTAs non-functional.
-- Charts render static arrays (Recharts used for Analytics chart and sparklines).
+### 8.2 Frontend
+- Sidebar shows real workspace name and last sync timestamp (fetched from API)
+- KPI cards render real data from MetricFact table with time range filtering
+- Time range selector functional: Today, Yesterday, Last 7 days, Last 30 days
+- Dashboard sections fetch real data; other pages still use mock data
+- Charts use Recharts for sparklines and visualizations
 
 ---
 
@@ -184,6 +192,32 @@ _Last updated: 2025-09-25T16:04:00Z_
 ---
 
 ## 11) Changelog
+| - 2025-09-30T01:00:00Z — Added workspace info endpoint and real-time sync status in sidebar.
+   - Backend files: `backend/app/schemas.py`, `backend/app/routers/workspaces.py`
+   - Frontend files: `ui/lib/api.js`, `ui/components/WorkspaceSummary.jsx`, `ui/components/Sidebar.jsx`
+   - Features:
+     - GET `/workspaces/{id}/info` endpoint returns workspace name and last sync timestamp
+     - Last sync determined by latest successful Fetch (raw data import) or ComputeRun (fallback)
+     - Sidebar now displays real workspace name and formatted last sync time (e.g., "13 min ago")
+     - Auto-refresh functionality when clicking the refresh button
+   - Design: Clear separation of concerns with API fetch logic in WorkspaceSummary container component
+| - 2025-09-30T00:30:00Z — Made time range selector functional on dashboard.
+   - Frontend files: `ui/components/TimeRangeChips.jsx`, `ui/app/(dashboard)/dashboard/page.jsx`, `ui/components/sections/HomeKpiStrip.jsx`, `ui/lib/api.js`
+   - Features:
+     - Time range buttons now functional: Today, Yesterday, Last 7 days, Last 30 days
+     - Dashboard KPIs update based on selected time range
+     - Support for both last_n_days and explicit date ranges in API
+     - "Yesterday" uses offset calculation for precise date range
+   - UI: Selected time range highlighted and displayed next to "Overview" header
+| - 2025-09-30T00:00:00Z — Added KPI aggregation endpoint and connected dashboard to real API data.
+   - Backend files: `backend/app/schemas.py`, `backend/app/routers/kpis.py`, `backend/app/main.py`
+   - Frontend files: `ui/lib/api.js`, `ui/components/sections/HomeKpiStrip.jsx`, `ui/app/(dashboard)/dashboard/page.jsx`
+   - Features:
+     - POST `/workspaces/{id}/kpis` endpoint aggregates MetricFact data with time ranges, previous period comparison, and sparklines
+     - Supports filtering by provider, level, and entity status
+     - Computes derived metrics (ROAS, CPA) with divide-by-zero protection
+     - Dashboard now fetches real KPIs instead of using mock data
+   - Design: Separation of concerns with API client in lib/, container component in sections/, presentation in existing KPIStatCard
 | - 2025-09-29T12:00:00Z — Added comprehensive database seed script for testing with realistic mock data.
    - Files: `backend/app/seed_mock.py`
    - Features: Creates "Defang Labs" workspace with 2 users (owner/viewer), mock connection, entity hierarchy (2 campaigns > 4 adsets > 8 ads), 30 days of MetricFact data (240 records), ComputeRun with P&L snapshots including CPA/ROAS calculations

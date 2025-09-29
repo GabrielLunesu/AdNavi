@@ -3,31 +3,61 @@ import { useEffect, useState } from "react";
 import { currentUser } from "../../../lib/auth";
 import AssistantSection from "../../../components/AssistantSection";
 import TimeRangeChips from "../../../components/TimeRangeChips";
-import KPIStatCard from "../../../components/KPIStatCard";
+import HomeKpiStrip from "../../../components/sections/HomeKpiStrip";
 import NotificationsPanel from "../../../components/NotificationsPanel";
 import CompanyCard from "../../../components/CompanyCard";
 import VisitorsChartCard from "../../../components/VisitorsChartCard";
 import UseCasesList from "../../../components/UseCasesList";
-import { kpis } from "../../../data/kpis";
 
 export default function DashboardPage() {
-  const [authed, setAuthed] = useState(null);
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedRange, setSelectedRange] = useState('7d');
+  const [rangeDays, setRangeDays] = useState(7);
+  const [rangeOffset, setRangeOffset] = useState(0);
+  
   useEffect(() => {
     let mounted = true;
-    currentUser().then((u) => {
-      if (!mounted) return;
-      setAuthed(Boolean(u));
-    });
+    currentUser()
+      .then((u) => {
+        if (!mounted) return;
+        setUser(u);
+      })
+      .catch((err) => {
+        console.error("Failed to get user:", err);
+        if (mounted) setUser(null);
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
     return () => {
       mounted = false;
     };
   }, []);
 
-  if (authed === null) {
+  // Handle time range changes
+  const handleRangeChange = (rangeId, days, offset = 0) => {
+    setSelectedRange(rangeId);
+    setRangeDays(days);
+    setRangeOffset(offset);
+  };
+
+  // Get display text for the selected range
+  const getRangeText = () => {
+    const rangeMap = {
+      'today': 'Today',
+      'yesterday': 'Yesterday',
+      '7d': 'Last 7 days',
+      '30d': 'Last 30 days'
+    };
+    return rangeMap[selectedRange] || 'Last 7 days';
+  };
+
+  if (loading) {
     return <div className="p-6">Checking authentication…</div>;
   }
 
-  if (!authed) {
+  if (!user) {
     return (
       <div className="p-6">
         <div className="max-w-2xl mx-auto bg-slate-900/60 border border-slate-700 rounded-xl p-6">
@@ -37,14 +67,9 @@ export default function DashboardPage() {
       </div>
     );
   }
-  const colorMap = {
-    spend: '#22d3ee',
-    revenue: '#34d399',
-    conversions: '#f59e0b',
-    roas: '#a78bfa',
-    clicks: '#60a5fa',
-    leads: '#fb7185',
-  };
+  
+  // Define which metrics to show on the dashboard
+  const dashboardMetrics = ["spend", "revenue", "conversions", "roas", "clicks", "impressions"];
 
   return (
     <div className="space-y-8">
@@ -55,24 +80,21 @@ export default function DashboardPage() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h2 className="text-2xl md:text-3xl font-medium tracking-tight">Overview</h2>
-          <span className="text-sm text-slate-400 hidden sm:inline-block">Last 7 days</span>
+          <span className="text-sm text-slate-400 hidden sm:inline-block">{getRangeText()}</span>
         </div>
-        <TimeRangeChips />
+        <TimeRangeChips 
+          activeRange={selectedRange} 
+          onRangeChange={handleRangeChange} 
+        />
       </div>
 
       {/* KPI grid: 3 per row on desktop, wrap to next row if more */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {kpis.map((k) => (
-          <KPIStatCard
-            key={k.id}
-            label={k.label}
-            value={k.value}
-            deltaPct={k.deltaPct}
-            sparklineData={k.sparkline}
-            color={colorMap[k.id]}
-          />
-        ))}
-      </div>
+      <HomeKpiStrip 
+        workspaceId={user.workspace_id} 
+        metrics={dashboardMetrics}
+        lastNDays={rangeDays}
+        dayOffset={rangeOffset}
+      />
 
       <NotificationsPanel />
       <CompanyCard />

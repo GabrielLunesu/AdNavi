@@ -5,11 +5,12 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy import desc
 
 from .. import schemas
 from ..database import get_db
 from ..deps import get_current_user
-from ..models import User, Workspace
+from ..models import User, Workspace, Fetch, ComputeRun
 
 
 router = APIRouter(
@@ -163,3 +164,79 @@ def list_workspace_users(
     # Get all users in the workspace
     users = db.query(User).filter(User.workspace_id == workspace_id).all()
     return users
+
+
+@router.get(
+    "/{workspace_id}/info",
+    response_model=schemas.WorkspaceInfo,
+    summary="Get workspace info for sidebar",
+    description="""
+    Get workspace summary for sidebar.
+    
+    Returns workspace name and last sync timestamp.
+    Last sync is determined by:
+    - First priority: latest successful Fetch (raw data import)
+    - Fallback: latest successful ComputeRun (aggregated snapshot)
+    
+    No authentication required since this is public info for the sidebar.
+    """
+)
+def get_workspace_info(
+    workspace_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Get workspace summary for sidebar.
+    Logic for last_sync:
+    - First try latest successful Fetch (freshest import timestamp).
+    - If no Fetch exists, fallback to latest successful ComputeRun (aggregated snapshot).
+    """
+    # Convert string ID to UUID for query
+    try:
+        workspace_uuid = UUID(workspace_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid workspace ID format"
+        )
+    
+    # Get workspace
+    ws = db.query(Workspace).filter(Workspace.id == workspace_uuid).first()
+    if not ws:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Workspace not found"
+        )
+
+    # Latest Fetch (status=success)
+    # Note: Fetch connects to Connection which has workspace_id
+    last_fetch = (
+        db.query(Fetch)
+        .join(Fetch.connection)
+        .filter(Fetch.connection.has(workspace_id=workspace_uuid))
+        .filter(Fetch.status == "success")
+        .order_by(desc(Fetch.finished_at))
+        .first()
+    )
+
+    # Fallback: latest ComputeRun
+    last_compute = (
+        db.query(ComputeRun)
+        .filter(ComputeRun.workspace_id == workspace_uuid)
+        .filter(ComputeRun.status == "success")
+        .order_by(desc(ComputeRun.computed_at))
+        .first()
+    )
+
+    # Determine last sync time
+    last_sync = None
+    if last_fetch and last_fetch.finished_at:
+        last_sync = last_fetch.finished_at
+    elif last_compute and last_compute.computed_at:
+        last_sync = last_compute.computed_at
+
+    return schemas.WorkspaceInfo(
+        id=str(ws.id),
+        name=ws.name,
+        last_sync=last_sync
+    )
