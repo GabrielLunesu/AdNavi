@@ -5,13 +5,21 @@ Configures CORS, includes routers, and exposes a healthcheck endpoint.
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.utils import get_openapi
 from sqladmin import Admin, ModelView
 from starlette.middleware.sessions import SessionMiddleware
+import os
 
 from .authentication import SimpleAuth
 from .database import engine
 from .deps import get_settings
 from .routers import auth as auth_router
+from .routers import workspaces as workspaces_router
+from .routers import connections as connections_router
+from .routers import entities as entities_router
+from .routers import metrics as metrics_router
+from .routers import pnl as pnl_router
+from . import schemas
 
 # Import models so Alembic can discover metadata
 from . import models  # noqa: F401
@@ -275,16 +283,63 @@ class AuthCredentialAdmin(ModelView, model=models.AuthCredential):
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="AdNavi API")
+    app = FastAPI(
+        title="AdNavi API",
+        description="""
+        AdNavi is a comprehensive advertising analytics and optimization platform.
+        
+        This API provides endpoints for:
+        - User authentication and workspace management
+        - Ad platform connections (Google Ads, Meta, TikTok)
+        - Campaign, ad set, and ad entity management
+        - Performance metrics and analytics
+        - P&L calculations and financial reporting
+        - AI-powered query analytics
+        
+        ## Authentication
+        
+        The API uses JWT-based authentication with HTTP-only cookies for security.
+        All authenticated endpoints require a valid JWT token obtained through the login endpoint.
+        
+        ## Data Model
+        
+        - **Workspaces**: Top-level containers for companies/organizations
+        - **Users**: Individuals with access to workspaces (Owner, Admin, Viewer roles)
+        - **Connections**: Links to advertising platform accounts
+        - **Entities**: Hierarchical campaign structure (Account > Campaign > Ad Set > Ad)
+        - **Metrics**: Performance data and analytics
+        - **P&L**: Profit and loss calculations
+        """,
+        version="1.0.0",
+        contact={
+            "name": "AdNavi Support",
+            "email": "support@adnavi.com",
+        },
+        license_info={
+            "name": "Proprietary",
+        },
+        servers=[
+            {
+                "url": "http://localhost:8000",
+                "description": "Development server"
+            },
+            {
+                "url": "https://api.adnavi.com",
+                "description": "Production server"
+            }
+        ]
+    )
 
     settings = get_settings()
     
     # Add session middleware for admin panel authentication
     # This MUST be added before other middleware
-    # Secret key should be stored in environment variable in production
+    if settings.ADMIN_SECRET_KEY == "supersecretkey-change-this-in-production":
+        print("WARNING: Using default admin secret key. Set ADMIN_SECRET_KEY environment variable for production.")
+    
     app.add_middleware(
         SessionMiddleware,
-        secret_key="supersecretkey-change-this-in-production"
+        secret_key=settings.ADMIN_SECRET_KEY
     )
     
     app.add_middleware(
@@ -295,14 +350,34 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    # Include all API routers
     app.include_router(auth_router.router)
+    app.include_router(workspaces_router.router)
+    app.include_router(connections_router.router)
+    app.include_router(entities_router.router)
+    app.include_router(metrics_router.router)
+    app.include_router(pnl_router.router)
 
-    @app.get("/health")
+    @app.get(
+        "/health",
+        response_model=schemas.HealthResponse,
+        tags=["Health"],
+        summary="Health check",
+        description="""
+        Simple health check endpoint to verify the API is running.
+        
+        This endpoint:
+        - Does not require authentication
+        - Returns basic service status
+        - Can be used for load balancer health checks
+        - Indicates the API is responsive
+        """
+    )
     def health():
-        return {"status": "ok"}
+        return schemas.HealthResponse(status="ok")
 
     # Initialize authentication backend for admin panel
-    authentication_backend = SimpleAuth(secret_key="supersecretkey-change-this-in-production")
+    authentication_backend = SimpleAuth(secret_key=settings.ADMIN_SECRET_KEY)
     
     # Initialize SQLAdmin with authentication
     admin = Admin(
@@ -326,6 +401,48 @@ def create_app() -> FastAPI:
     admin.add_view(QaQueryLogAdmin)
     admin.add_view(AuthCredentialAdmin)
 
+    # Custom OpenAPI schema with security definitions
+    def custom_openapi():
+        if app.openapi_schema:
+            return app.openapi_schema
+        
+        openapi_schema = get_openapi(
+            title=app.title,
+            version=app.version,
+            description=app.description,
+            routes=app.routes,
+            servers=app.servers
+        )
+        
+        # Add security schemes
+        openapi_schema["components"]["securitySchemes"] = {
+            "cookieAuth": {
+                "type": "apiKey",
+                "in": "cookie",
+                "name": "access_token",
+                "description": "JWT token stored in HTTP-only cookie. Format: 'Bearer <token>'"
+            }
+        }
+        
+        # Add security requirement to protected endpoints
+        public_endpoints = ["/health", "/auth/register", "/auth/login"]
+        
+        for path in openapi_schema["paths"]:
+            for method in openapi_schema["paths"][path]:
+                # Skip adding security to public endpoints
+                if path in public_endpoints:
+                    continue
+                
+                # Add security requirement for all other endpoints
+                if "security" not in openapi_schema["paths"][path][method]:
+                    openapi_schema["paths"][path][method]["security"] = [
+                        {"cookieAuth": []}
+                    ]
+        
+        app.openapi_schema = openapi_schema
+        return app.openapi_schema
+    
+    app.openapi = custom_openapi
     return app
 
 

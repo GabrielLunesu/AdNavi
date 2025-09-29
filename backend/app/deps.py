@@ -18,6 +18,7 @@ class Settings(BaseSettings):
 
     BACKEND_CORS_ORIGINS: str = "http://localhost:3000"
     COOKIE_DOMAIN: str = "localhost"
+    ADMIN_SECRET_KEY: str = "supersecretkey-change-this-in-production"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

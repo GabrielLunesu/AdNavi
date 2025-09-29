@@ -10,10 +10,61 @@ from ..models import User, Workspace, AuthCredential, RoleEnum
 from ..security import create_access_token, get_password_hash, verify_password
 
 
-router = APIRouter(prefix="/auth", tags=["auth"])
+router = APIRouter(
+    prefix="/auth", 
+    tags=["Authentication"],
+    responses={
+        400: {"model": schemas.ErrorResponse, "description": "Bad Request"},
+        401: {"model": schemas.ErrorResponse, "description": "Unauthorized"},
+        500: {"model": schemas.ErrorResponse, "description": "Internal Server Error"},
+    }
+)
 
 
-@router.post("/register", response_model=schemas.UserOut, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/register", 
+    response_model=schemas.UserOut, 
+    status_code=status.HTTP_201_CREATED,
+    summary="Register a new user",
+    description="""
+    Create a new user account with a default workspace.
+    
+    This endpoint:
+    - Creates a new workspace named "New workspace" for the user
+    - Creates a user with Admin role (temporary default)
+    - Stores encrypted password credentials
+    - Returns user information without auto-login
+    
+    **Note**: All new users are currently given Admin role. This will be updated
+    in the future to support invitation-based role assignment.
+    """,
+    responses={
+        201: {
+            "model": schemas.UserOut,
+            "description": "User successfully created",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "id": "123e4567-e89b-12d3-a456-426614174000",
+                        "email": "john.doe@company.com",
+                        "name": "john.doe",
+                        "role": "Admin",
+                        "workspace_id": "456e7890-e89b-12d3-a456-426614174001"
+                    }
+                }
+            }
+        },
+        400: {
+            "model": schemas.ErrorResponse,
+            "description": "Email already registered",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Email already registered"}
+                }
+            }
+        }
+    }
+)
 def register_user(payload: schemas.UserCreate, db: Session = Depends(get_db)):
     """Register a new user with a default workspace and local credentials.
 
@@ -54,7 +105,53 @@ def register_user(payload: schemas.UserCreate, db: Session = Depends(get_db)):
     return user
 
 
-@router.post("/login")
+@router.post(
+    "/login",
+    response_model=schemas.LoginResponse,
+    summary="Authenticate user",
+    description="""
+    Authenticate a user with email and password.
+    
+    On successful authentication:
+    - Sets an HTTP-only JWT cookie named `access_token`
+    - Cookie contains JWT token with format "Bearer <token>"
+    - Cookie is valid for 7 days
+    - Returns user information
+    
+    **Security Features**:
+    - HTTP-only cookie prevents XSS attacks
+    - SameSite=Lax prevents CSRF attacks
+    - Secure flag enabled in production
+    """,
+    responses={
+        200: {
+            "model": schemas.LoginResponse,
+            "description": "Login successful",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "user": {
+                            "id": "123e4567-e89b-12d3-a456-426614174000",
+                            "email": "john.doe@company.com",
+                            "name": "John Doe",
+                            "role": "Admin",
+                            "workspace_id": "456e7890-e89b-12d3-a456-426614174001"
+                        }
+                    }
+                }
+            }
+        },
+        401: {
+            "model": schemas.ErrorResponse,
+            "description": "Invalid credentials",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Invalid credentials"}
+                }
+            }
+        }
+    }
+)
 def login_user(payload: schemas.UserLogin, response: Response, db: Session = Depends(get_db)):
     """Authenticate a user and set an HTTP-only JWT cookie.
 
@@ -88,16 +185,76 @@ def login_user(payload: schemas.UserLogin, response: Response, db: Session = Dep
         path="/",
     )
 
-    return {"user": schemas.UserOut.model_validate(user)}
+    return schemas.LoginResponse(user=schemas.UserOut.model_validate(user))
 
 
-@router.get("/me", response_model=schemas.UserOut)
+@router.get(
+    "/me", 
+    response_model=schemas.UserOut,
+    summary="Get current user",
+    description="""
+    Retrieve information about the currently authenticated user.
+    
+    Requires a valid JWT token in the `access_token` cookie.
+    Returns user details including role and workspace information.
+    """,
+    responses={
+        200: {
+            "model": schemas.UserOut,
+            "description": "Current user information",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "id": "123e4567-e89b-12d3-a456-426614174000",
+                        "email": "john.doe@company.com",
+                        "name": "John Doe",
+                        "role": "Admin",
+                        "workspace_id": "456e7890-e89b-12d3-a456-426614174001"
+                    }
+                }
+            }
+        },
+        401: {
+            "model": schemas.ErrorResponse,
+            "description": "Not authenticated or invalid token",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Not authenticated"}
+                }
+            }
+        }
+    },
+    dependencies=[Depends(get_current_user)]
+)
 def get_me(user: User = Depends(get_current_user)):
     """Return the current authenticated user."""
     return user
 
 
-@router.post("/logout")
+@router.post(
+    "/logout",
+    response_model=schemas.SuccessResponse,
+    summary="Logout user",
+    description="""
+    Log out the current user by clearing the authentication cookie.
+    
+    This endpoint:
+    - Clears the `access_token` HTTP-only cookie
+    - Invalidates the current session
+    - Does not require authentication (can be called even with invalid token)
+    """,
+    responses={
+        200: {
+            "model": schemas.SuccessResponse,
+            "description": "Successfully logged out",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "logged out"}
+                }
+            }
+        }
+    }
+)
 def logout_user(response: Response):
     """Clear the access token cookie."""
     response.set_cookie(
@@ -110,7 +267,7 @@ def logout_user(response: Response):
         domain=get_settings().COOKIE_DOMAIN,
         path="/",
     )
-    return {"detail": "logged out"}
+    return schemas.SuccessResponse(detail="logged out")
 
 
 
