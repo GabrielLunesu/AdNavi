@@ -75,7 +75,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-8">
       {/* Assistant section at top (not fixed) */}
-      <AssistantSection />
+      <AssistantSection workspaceId={user.workspace_id} />
 
       {/* Overview header with timeframe chips */}
       <div className="flex items-center justify-between">
@@ -103,12 +103,12 @@ export default function DashboardPage() {
       <UseCasesList />
 
       {/* Copilot quick chat */}
-      <section className="mt-8">
+      {/* <section className="mt-8">
         <h2 className="text-lg font-semibold mb-2">Copilot</h2>
         <div className="sticky bottom-6">
           <ChatInput workspaceId={user.workspace_id} />
         </div>
-      </section>
+      </section> */}
     </div>
   );
 }

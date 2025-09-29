@@ -39,8 +39,8 @@ export default function ChatComposer({
 
   return (
     <form onSubmit={handleSubmit} className="w-full">
-      <div className="flex items-center gap-2">
-        <div className="flex-1 rounded-full border border-slate-700/40 bg-slate-900/40 backdrop-blur px-3 py-2.5 flex items-center gap-2 ring-1 ring-white/5 focus-within:ring-cyan-400/30 transition">
+      <div className="flex items-center gap-2 no-scrollbar">
+        <div className="flex-1 rounded-full border border-slate-700/40 bg-transparent backdrop-blur px-3 py-2.5 flex items-center gap-2 ring-1 ring-white/5 focus-within:ring-cyan-400/30 transition">
           <Sparkles className="w-4 h-4 text-cyan-300" />
           <input
             ref={inputRef}
@@ -55,9 +55,7 @@ export default function ChatComposer({
             <button type="button" className="p-1.5 rounded-full hover:bg-slate-800/60 border border-transparent hover:border-slate-700/50 transition" aria-label="Attach" disabled={disabled}>
               <Plus className="w-4 h-4 text-slate-300" />
             </button>
-            <button type="button" className="p-1.5 rounded-full hover:bg-slate-800/60 border border-transparent hover:border-slate-700/50 transition" aria-label="Voice" disabled={disabled}>
-              <Mic className="w-4 h-4 text-slate-300" />
-            </button>
+           
             <button type="submit" className="p-1.5 rounded-full bg-cyan-500/20 hover:bg-cyan-500/30 ring-1 ring-cyan-400/40 transition disabled:opacity-60" aria-label="Send" disabled={disabled || !value.trim()}>
               <ArrowUpRight className="w-4 h-4 text-cyan-300" />
             </button>
