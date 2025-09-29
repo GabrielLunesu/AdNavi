@@ -44,13 +44,13 @@ _Last updated: 2025-09-25T16:04:00Z_
 ---
 
 ## 2) Plan / Next Steps
-- [x] Step 1: Homepage in `ui/app/page.jsx` (h1 “AdNavi”, button → `/dashboard`)
+- [x] Step 1: Homepage in `ui/app/page.jsx` (h1 "AdNavi", button → `/dashboard`)
 - [x] Step 2: Layouts in `ui/app/layout.jsx` and `ui/app/(dashboard)/layout.jsx`
 - [x] Step 3: Dashboard `ui/app/(dashboard)/dashboard/page.jsx`
 - [x] Assistant section integrated inside dashboard page (not sticky)
 - [x] Background gradient + glow orbs to match wireframe mood
 - [x] KPI grid 3-per-row on desktop; wraps to additional rows
-- [ ] Prep for backend: scaffold `api/` folder with README and ADRs (no code yet)
+- [x] Backend mock data seeder for testing (`backend/app/seed_mock.py`)
 - [ ] Future: real data, auth, analytics, CI/CD
 
 ---
@@ -184,6 +184,11 @@ _Last updated: 2025-09-25T16:04:00Z_
 ---
 
 ## 11) Changelog
+| - 2025-09-29T12:00:00Z — Added comprehensive database seed script for testing with realistic mock data.
+   - Files: `backend/app/seed_mock.py`
+   - Features: Creates "Defang Labs" workspace with 2 users (owner/viewer), mock connection, entity hierarchy (2 campaigns > 4 adsets > 8 ads), 30 days of MetricFact data (240 records), ComputeRun with P&L snapshots including CPA/ROAS calculations
+   - Usage: `cd backend && python3 -m app.seed_mock`
+   - Credentials: owner@defanglabs.com / viewer@defanglabs.com (password: password123)
  - 2025-09-28T00:01:00Z — Fixed SQLAdmin foreign key dropdowns and added comprehensive documentation.
    - Files: `backend/app/main.py`, `backend/app/models.py`
    - Changes: 

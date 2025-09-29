@@ -48,6 +48,21 @@ pip install -r requirements.txt
 alembic upgrade head
 ```
 
+## Seed Mock Data (Optional)
+To populate the database with test data for development:
+```bash
+python -m app.seed_mock
+```
+
+This creates:
+- Workspace: "Defang Labs"
+- Users: owner@defanglabs.com / viewer@defanglabs.com (password: password123)
+- Mock connection with entity hierarchy (2 campaigns > 4 adsets > 8 ads)
+- 30 days of metric data (240 records)
+- P&L snapshots with calculated CPA/ROAS
+
+View the data at: http://localhost:8000/admin
+
 ## Run API
 ```bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
