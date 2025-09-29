@@ -87,7 +87,7 @@ _Last updated: 2025-09-25T16:04:00Z_
 
 ### 4.2 Backend (`backend/`)
 - Runtime: Python 3.11
-- Deps: fastapi, uvicorn, SQLAlchemy 2.x, alembic, pydantic v2, passlib[bcrypt], python-jose, python-dotenv, psycopg2-binary, sqladmin
+- Deps: fastapi, uvicorn, SQLAlchemy 2.x, alembic, pydantic v2, passlib[bcrypt], python-jose, python-dotenv, psycopg2-binary, sqladmin, openai
 - Auth: bcrypt password hashing, HS256 JWT cookie `access_token`
 - DB: PostgreSQL 16 (Docker compose)
 - Admin: SQLAdmin provides web UI for database CRUD operations
@@ -163,6 +163,7 @@ _Last updated: 2025-09-25T16:04:00Z_
 - Auth endpoints: `/auth/register`, `/auth/login`, `/auth/me`, `/auth/logout`
 - Workspace endpoints: `/workspaces/{id}/info` (sidebar summary)
 - KPI endpoints: `/workspaces/{id}/kpis` (dashboard metrics)
+- QA endpoint: `/qa` (natural language → metrics DSL → execution)
 - Admin endpoint: `/admin` - SQLAdmin UI for all models (no auth protection yet)
 - Cookie: `access_token` contains `Bearer <jwt>`, `httponly`, `samesite=lax`
 - On register: create `Workspace` named "New workspace", then `User` (role Admin for now), then `AuthCredential` with bcrypt hash
@@ -192,6 +193,15 @@ _Last updated: 2025-09-25T16:04:00Z_
 ---
 
 ## 11) Changelog
+| - 2025-09-30T02:00:00Z — Added /qa endpoint with DSL translation and execution.
+   - Backend files: `backend/app/schemas.py`, `backend/app/services/metric_service.py`, `backend/app/services/qa_service.py`, `backend/app/routers/qa.py`, `backend/app/main.py`, `backend/app/deps.py`, `backend/requirements.txt`
+   - Features:
+     - POST `/qa?workspace_id=UUID` accepts `{ question }`
+     - Translates to JSON DSL (Pydantic `MetricQuery`) via OpenAI, validates
+     - Executes via `MetricService.execute` against `MetricFact`
+     - Returns `answer`, `executed_dsl`, and `data` (summary/breakdown)
+   - Security: OpenAI key loaded from `.env` via settings; no keys hardcoded
+   - Design: Clear service layer (`qa_service`, `metric_service`) for scalability
 | - 2025-09-30T01:00:00Z — Added workspace info endpoint and real-time sync status in sidebar.
    - Backend files: `backend/app/schemas.py`, `backend/app/routers/workspaces.py`
    - Frontend files: `ui/lib/api.js`, `ui/components/WorkspaceSummary.jsx`, `ui/components/Sidebar.jsx`
