@@ -97,3 +97,30 @@ export async function fetchWorkspaceInfo(workspaceId) {
   }
   return res.json();
 }
+
+export async function fetchQaLog(workspaceId) {
+  const res = await fetch(`${BASE}/qa-log/${workspaceId}`, {
+    method: "GET",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" }
+  });
+  if (!res.ok) {
+    const msg = await res.text();
+    throw new Error(`Failed to fetch QA log: ${res.status} ${msg}`);
+  }
+  return res.json();
+}
+
+export async function createQaLog(workspaceId, { question_text, answer_text, dsl_json }) {
+  const res = await fetch(`${BASE}/qa-log/${workspaceId}`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ question_text, answer_text, dsl_json })
+  });
+  if (!res.ok) {
+    const msg = await res.text();
+    throw new Error(`Failed to create QA log: ${res.status} ${msg}`);
+  }
+  return res.json();
+}

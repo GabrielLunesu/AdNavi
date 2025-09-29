@@ -516,3 +516,24 @@ class QAResult(BaseModel):
     data: dict
 
 
+# --- QA query log schemas ---
+# We purposely avoid changing DB models right now (no migration) and keep
+# the response contract simple. If we later add a dedicated `answer_text`
+# column, these schemas already match the intended API.
+
+class QaLogEntry(BaseModel):
+    id: str
+    question_text: str
+    answer_text: str | None
+    dsl_json: dict | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class QaLogCreate(BaseModel):
+    question_text: str
+    answer_text: str
+    dsl_json: dict | None = None
+
+

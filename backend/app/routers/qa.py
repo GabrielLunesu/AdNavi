@@ -12,6 +12,7 @@ from app.schemas import QARequest, QAResult
 from app.services.qa_service import QAService
 from app.services.metric_service import MetricService
 from app.database import get_db
+from app.deps import get_current_user
 
 
 router = APIRouter(prefix="/qa", tags=["qa"])
@@ -22,6 +23,7 @@ def ask_question(
     req: QARequest,
     workspace_id: str = Query(..., description="Workspace context for scoping queries"),
     db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
 ):
     """
     POST /qa
@@ -36,7 +38,7 @@ def ask_question(
     qa_service = QAService(metric_service)
 
     try:
-        return qa_service.answer(req.question, workspace_id)
+        return qa_service.answer(req.question, workspace_id, db=db, user_id=current_user.id)
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=400, detail=str(exc))
 

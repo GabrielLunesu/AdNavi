@@ -23,6 +23,8 @@ from openai import OpenAI
 from app.schemas import MetricQuery
 from app.services.metric_service import MetricService
 from app.deps import get_settings
+from app import models
+from datetime import datetime
 
 
 class QAService:
@@ -72,7 +74,7 @@ User question: "{question}"
             raise ValueError(f"Failed to parse JSON from LLM: {raw}") from exc
         return MetricQuery(**dsl_dict)
 
-    def answer(self, question: str, workspace_id: str) -> Dict[str, Any]:
+    def answer(self, question: str, workspace_id: str, db=None, user_id=None) -> Dict[str, Any]:
         """
         1) Translate → DSL (Pydantic-validated)
         2) Execute DSL via MetricService
@@ -85,6 +87,24 @@ User question: "{question}"
         answer = f"Your {dsl.metric.upper()} for the selected period is {result.get('summary')} ."
         if dsl.compare_to_previous and isinstance(result.get("delta"), (int, float)):
             answer += f" That is a {round(result['delta'], 2)}% change vs previous."
+
+        # Persist query log for history. We avoid schema changes by embedding
+        # the answer text inside dsl_json (under key `answer_text`).
+        if db is not None:
+            dsl_payload = dsl.model_dump()
+            dsl_payload["answer_text"] = answer
+            try:
+                log = models.QaQueryLog(
+                    workspace_id=workspace_id,
+                    user_id=user_id if user_id else None,  # attach if available
+                    question_text=question,
+                    dsl_json=dsl_payload,
+                    created_at=datetime.utcnow(),
+                )
+                db.add(log)
+                db.commit()
+            except Exception:
+                db.rollback()
 
         return {
             "answer": answer,

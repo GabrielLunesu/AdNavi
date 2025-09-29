@@ -164,6 +164,7 @@ _Last updated: 2025-09-25T16:04:00Z_
 - Workspace endpoints: `/workspaces/{id}/info` (sidebar summary)
 - KPI endpoints: `/workspaces/{id}/kpis` (dashboard metrics)
 - QA endpoint: `/qa` (natural language → metrics DSL → execution)
+- QA log endpoints: `/qa-log/{workspace_id}` [GET, POST] (chat history)
 - Admin endpoint: `/admin` - SQLAdmin UI for all models (no auth protection yet)
 - Cookie: `access_token` contains `Bearer <jwt>`, `httponly`, `samesite=lax`
 - On register: create `Workspace` named "New workspace", then `User` (role Admin for now), then `AuthCredential` with bcrypt hash
@@ -193,6 +194,14 @@ _Last updated: 2025-09-25T16:04:00Z_
 ---
 
 ## 11) Changelog
+| - 2025-09-30T03:00:00Z — QA history: endpoints + Copilot chat UI with bubbles.
+   - Backend files: `backend/app/schemas.py`, `backend/app/routers/qa_log.py`, `backend/app/services/qa_service.py`, `backend/app/routers/qa.py`, `backend/app/main.py`
+   - Frontend files: `ui/lib/api.js`, `ui/components/ui/ChatBubble.jsx`, `ui/app/(dashboard)/copilot/page.jsx`
+   - Features:
+     - GET/POST `/qa-log/{workspace_id}` to fetch/store chat history (auth-scoped)
+     - `/qa` now auto-logs queries with answer embedded in `dsl_json`
+     - Copilot shows history as user/AI bubbles, "Typing…" while waiting, animations
+   - Notes: avoided DB migration by embedding `answer_text` in `dsl_json` for now
 | - 2025-09-30T02:20:00Z — Copilot UI: chat input → /copilot, framer-motion, QA call.
    - Frontend files: `ui/lib/api.js`, `ui/components/ui/ChatInput.jsx`, `ui/app/(dashboard)/dashboard/page.jsx`, `ui/app/(dashboard)/copilot/page.jsx`, `ui/package.json`
    - Features:
