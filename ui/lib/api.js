@@ -64,8 +64,24 @@ export async function fetchWorkspaceKpis({
   return res.json();
 }
 
-// Call backend QA endpoint.
+// Call backend QA endpoint (DSL v1.1).
 // WHY: isolate fetch logic, keeps components testable and clean.
+//
+// Returns:
+// {
+//   answer: "Your ROAS for the selected period is 2.45. That's a +19.0% change vs the previous period.",
+//   executed_dsl: { metric: "roas", time_range: {...}, ... },
+//   data: { summary: 2.45, previous: 2.06, delta_pct: 0.189, timeseries: [...], breakdown: [...] }
+// }
+//
+// The backend uses a DSL pipeline:
+// 1. Canonicalize question (synonym mapping)
+// 2. Translate to DSL via LLM (GPT-4o-mini, temp=0, JSON mode)
+// 3. Validate DSL (Pydantic)
+// 4. Plan execution (resolve dates, map metrics)
+// 5. Execute via SQLAlchemy (workspace-scoped, safe math)
+// 6. Build human-readable answer (template-based)
+// 7. Log to telemetry (success/failure tracking)
 export async function fetchQA({ workspaceId, question }) {
   const res = await fetch(
     `${BASE}/qa?workspace_id=${workspaceId}`,
