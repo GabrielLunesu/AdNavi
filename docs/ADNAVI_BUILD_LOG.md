@@ -34,11 +34,11 @@ _Last updated: 2025-09-25T16:04:00Z_
 - Auth: JWT (HTTP-only cookie), bcrypt password hashing
 - Admin: SQLAdmin on `/admin` endpoint for CRUD operations on all models
 - Models: Workspace, User, Connection, Token, Fetch, Import, Entity, MetricFact, ComputeRun, Pnl, QaQueryLog, AuthCredential
-- QA System (DSL v1.1):
-  - `app/dsl/`: Domain-Specific Language for metrics queries (schema, canonicalize, validate, planner, executor)
+- QA System (DSL v1.2):
+  - `app/dsl/`: Domain-Specific Language for queries (schema, canonicalize, validate, planner, executor)
   - `app/nlp/`: Natural language translation via OpenAI (translator, prompts)
   - `app/telemetry/`: Structured logging and observability
-  - `app/tests/`: Unit tests for DSL validation, executor, translator
+  - `app/tests/`: Unit tests for DSL validation, executor, translator, v1.2 extensions
 
 ### 1.3 Infrastructure
 - Envs: dev, staging, prod
@@ -199,6 +199,42 @@ _Last updated: 2025-09-25T16:04:00Z_
 ---
 
 ## 11) Changelog
+| - 2025-09-30T18:00:00Z — DSL v1.2 extensions: added support for providers and entities queries beyond metrics.
+  - Backend files:
+    - `backend/app/dsl/schema.py`: Added QueryType enum (metrics, providers, entities); made metric/time_range optional
+    - `backend/app/dsl/planner.py`: Returns None for non-metrics queries (handled directly in executor)
+    - `backend/app/dsl/executor.py`: Added handlers for providers (list platforms) and entities (list campaigns/adsets/ads) queries
+    - `backend/app/dsl/examples.md`: Added 3 new examples for providers and entities queries
+    - `backend/app/nlp/prompts.py`: Updated system prompt and added 2 new few-shot examples for v1.2
+    - `backend/app/services/qa_service.py`: Updated answer builder to handle providers and entities responses
+    - `backend/app/tests/test_dsl_v12.py`: Comprehensive tests for v1.2 query types (12 tests total)
+  - Documentation files:
+    - `backend/docs/dsl-spec.md`: Added DSL v1.2 Extensions section with full documentation
+  - Features:
+    - **Providers queries**: List distinct ad platforms in workspace ("Which platforms am I on?")
+      - Returns: `{"providers": ["google", "meta", "tiktok"]}`
+      - No metric or time_range needed
+      - Workspace-scoped, no cross-tenant leaks
+    - **Entities queries**: List campaigns/adsets/ads with optional filters ("List my active campaigns")
+      - Returns: `{"entities": [{"name": "...", "status": "...", "level": "..."}, ...]}`
+      - Supports filters: level (campaign/adset/ad), status (active/paused), entity_ids
+      - Respects top_n limit (default 5, max 50)
+      - Workspace-scoped, no cross-tenant leaks
+    - **Backward compatibility**: All v1.1 metrics queries work unchanged; query_type defaults to "metrics"
+    - **Answer generation**: Natural language responses for all query types
+      - Providers: "You are running ads on Google, Meta, and TikTok."
+      - Entities: "Here are your campaigns: Summer Sale, Winter Promo, Spring Launch."
+      - Metrics: Existing v1.1 logic (ROAS, CPA, comparisons, breakdowns)
+  - Design principles:
+    - Separation of concerns: Planner returns None for non-metrics; executor branches by query_type
+    - Workspace safety: All queries filter by workspace_id at SQL level
+    - Comprehensive testing: 12 new tests covering all v1.2 scenarios + workspace isolation
+    - Documentation-first: Every function has detailed docstrings with WHY, WHAT, WHERE, and examples
+  - Use cases enabled:
+    - "Which platforms am I advertising on?" → providers query
+    - "List my active campaigns" → entities query with filters
+    - "Show me all paused adsets" → entities query with level and status filters
+    - All existing metrics queries continue to work
 | - 2025-09-30T15:00:00Z — DSL v1.1 refactor: comprehensive QA system with enhanced DSL, NLP translation, telemetry, tests, and docs.
    - Backend files:
      - `backend/app/dsl/__init__.py`, `backend/app/dsl/schema.py`, `backend/app/dsl/canonicalize.py`, `backend/app/dsl/validate.py`

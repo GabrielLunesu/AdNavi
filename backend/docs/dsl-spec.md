@@ -1,8 +1,13 @@
-# DSL Specification v1.1
+# DSL Specification v1.2
 
 ## Overview
 
-The AdNavi Metrics DSL (Domain-Specific Language) is a JSON-based query language for marketing analytics. It provides a safe, validated way to query metrics without exposing SQL or database internals.
+The AdNavi DSL (Domain-Specific Language) is a JSON-based query language for marketing analytics. It provides a safe, validated way to query data without exposing SQL or database internals.
+
+**DSL v1.2** extends the original metrics-only DSL to support structural queries:
+- **Metrics queries**: Aggregate metrics data (ROAS, spend, revenue, etc.)
+- **Providers queries**: List distinct ad platforms in workspace
+- **Entities queries**: List entities (campaigns, adsets, ads) with filters
 
 ## Why DSL?
 
@@ -228,7 +233,95 @@ This prevents cross-workspace data leaks.
 - Cohort analysis
 - Forecasting and trend detection
 
+## DSL v1.2 Extensions
+
+### Query Types
+
+DSL v1.2 introduces the `query_type` field to support three types of queries:
+
+1. **metrics** (default): Aggregate metrics data
+   - Requires: `metric`, `time_range`
+   - Example: "What's my ROAS this week?"
+   
+2. **providers**: List distinct ad platforms
+   - Requires: (none, all fields optional)
+   - Example: "Which platforms am I advertising on?"
+   
+3. **entities**: List entities with filters
+   - Requires: (none, but filters recommended)
+   - Example: "List my active campaigns"
+
+### Providers Queries
+
+Providers queries return a list of distinct ad platforms (providers) configured in the workspace.
+
+**Example Query:**
+```json
+{
+  "query_type": "providers"
+}
+```
+
+**Example Response:**
+```json
+{
+  "providers": ["google", "meta", "tiktok"]
+}
+```
+
+**Use Cases:**
+- "Which platforms am I advertising on?"
+- "What ad channels do I have?"
+- "List my providers"
+
+### Entities Queries
+
+Entities queries return a list of entities (campaigns, adsets, ads) with optional filters.
+
+**Example Query:**
+```json
+{
+  "query_type": "entities",
+  "filters": {
+    "level": "campaign",
+    "status": "active"
+  },
+  "top_n": 10
+}
+```
+
+**Example Response:**
+```json
+{
+  "entities": [
+    {"name": "Summer Sale", "status": "active", "level": "campaign"},
+    {"name": "Winter Promo", "status": "active", "level": "campaign"}
+  ]
+}
+```
+
+**Use Cases:**
+- "List my active campaigns"
+- "Show me all adsets"
+- "What campaigns do I have?"
+
+**Filters:**
+- `level`: Filter by entity type (campaign, adset, ad)
+- `status`: Filter by entity status (active, paused)
+- `entity_ids`: Filter by specific UUIDs
+
+**Limit:**
+- `top_n`: Controls how many entities to return (default: 5, max: 50)
+
+### Backward Compatibility
+
+DSL v1.2 is fully backward compatible with v1.1:
+- Existing metrics queries work unchanged
+- `query_type` defaults to `"metrics"` if not specified
+- All v1.1 fields and behaviors preserved
+
 ## Version History
 
+- **v1.2** (2025-09-30): Added query_type field for providers and entities queries; made metric/time_range optional
 - **v1.1** (2025-09-30): Enhanced DSL with proper Pydantic models, canonicalization, validation
 - **v1.0** (2025-09-30): Initial DSL with basic metrics and filters

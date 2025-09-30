@@ -509,10 +509,14 @@ class QAResult(BaseModel):
     """
     Response returned by /qa.
     Contains both a human-readable answer and the machine-executed DSL.
+    
+    DSL v1.2 note:
+    - executed_dsl is a dict (not MetricQuery model) to support all query types
+    - For providers/entities queries, some fields like metric/time_range may be null
     """
 
     answer: str
-    executed_dsl: MetricQuery
+    executed_dsl: dict  # Changed from MetricQuery to dict to support v1.2 query types with optional fields
     data: dict
 
 
