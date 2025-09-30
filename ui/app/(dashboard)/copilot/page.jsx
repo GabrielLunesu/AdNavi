@@ -89,7 +89,15 @@ export default function CopilotPage() {
     setErr(null);
     fetchQA({ workspaceId: resolvedWs, question: q })
       .then((res) => {
-        setLog((prev) => prev.map((e) => (e.question_text === q && e.answer_text === null ? { ...e, answer_text: res.answer } : e)));
+        // res contains: { answer, executed_dsl, data }
+        // The answer is human-readable, executed_dsl is the validated query, data has raw metrics
+        setLog((prev) => prev.map((e) => (e.question_text === q && e.answer_text === null ? { 
+          ...e, 
+          answer_text: res.answer,
+          // Store the DSL and data for potential future use (charts, breakdowns, etc.)
+          dsl: res.executed_dsl,
+          metrics: res.data
+        } : e)));
       })
       .catch((e) => setErr(e.message))
       .finally(() => setLoading(false));
