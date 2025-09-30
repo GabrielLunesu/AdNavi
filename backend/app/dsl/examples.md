@@ -268,15 +268,88 @@ These examples are embedded in the system prompt to guide structured output gene
 
 ---
 
+## Example 13: Providers Query (DSL v1.2)
+
+**Question:** "Which platforms am I running ads on?"
+
+**DSL:**
+```json
+{
+  "query_type": "providers"
+}
+```
+
+**Why:** Providers query lists distinct ad platforms in the workspace. No metric or time_range needed.
+
+---
+
+## Example 14: Entities Query - Active Campaigns (DSL v1.2)
+
+**Question:** "List my active campaigns"
+
+**DSL:**
+```json
+{
+  "query_type": "entities",
+  "filters": {
+    "level": "campaign",
+    "status": "active"
+  },
+  "top_n": 10
+}
+```
+
+**Why:** Entities query with filters for level and status. Returns top 10 entities.
+
+---
+
+## Example 15: Entities Query - All Adsets (DSL v1.2)
+
+**Question:** "Show me all my adsets"
+
+**DSL:**
+```json
+{
+  "query_type": "entities",
+  "filters": {
+    "level": "adset"
+  },
+  "top_n": 20
+}
+```
+
+**Why:** Entities query filtered by level only. Returns top 20 adsets.
+
+---
+
 ## Notes for LLM
 
-1. **Metric field:** Must be one of: spend, revenue, clicks, impressions, conversions, roas, cpa, cvr
-2. **Time range:** Use `last_n_days` for relative, or `start`/`end` for absolute dates (YYYY-MM-DD)
-3. **Compare to previous:** Set to `true` only when user explicitly asks for comparison or change
-4. **Group by and breakdown:** Usually the same value; set to "none" if no breakdown requested
-5. **Top N:** Default to 5; increase to 10-20 if user asks for "top X" or "best/worst"
-6. **Filters:** Only include if explicitly mentioned (provider, level, status)
-7. **Default time range:** If not specified, use `{"last_n_days": 7}`
+### DSL v1.2 Updates:
+
+1. **Query Type** (new): Choose based on question intent:
+   - `"metrics"`: For metric aggregations (ROAS, spend, revenue, etc.) — DEFAULT
+   - `"providers"`: For listing ad platforms ("Which platforms?", "What channels?")
+   - `"entities"`: For listing campaigns/adsets/ads ("List my campaigns", "Show me adsets")
+
+2. **Metric field:** Required for `query_type: "metrics"` only. Must be one of: spend, revenue, clicks, impressions, conversions, roas, cpa, cvr
+
+3. **Time range:** Required for metrics queries, optional for providers/entities
+
+4. **Compare to previous:** Set to `true` only when user explicitly asks for comparison or change
+
+5. **Group by and breakdown:** Usually the same value; set to "none" if no breakdown requested
+
+6. **Top N:** Default to 5; increase to 10-20 if user asks for "top X" or "best/worst". For entities queries, this controls how many entities to return.
+
+7. **Filters:** Only include if explicitly mentioned (provider, level, status). For entities queries, use level filter to specify campaign/adset/ad.
+
+8. **Default time range:** For metrics queries, if not specified, use `{"last_n_days": 7}`
+
+### When to use each query_type:
+
+- **metrics**: "What's my ROAS?", "How much did I spend?", "Show me conversions"
+- **providers**: "Which platforms am I on?", "What ad channels?", "List my providers"
+- **entities**: "List my campaigns", "Show me active adsets", "What campaigns do I have?"
 
 ---
 

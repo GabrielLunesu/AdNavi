@@ -30,7 +30,7 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Optional, List
 
-from app.dsl.schema import MetricQuery
+from app.dsl.schema import MetricQuery, TimeRange
 
 
 @dataclass
@@ -88,19 +88,27 @@ class Plan:
     top_n: int
 
 
-def build_plan(query: MetricQuery) -> Plan:
+def build_plan(query: MetricQuery) -> Optional[Plan]:
     """
     Build an execution plan from a MetricQuery.
+    
+    DSL v1.2 changes:
+    - Returns None for non-metrics queries (providers, entities)
+    - These queries are handled directly in the executor
+    - Only metrics queries need a plan with time ranges and derived metric logic
     
     Args:
         query: Validated DSL query
         
     Returns:
-        Low-level execution plan
+        Low-level execution plan for metrics queries, or None for others
         
     Examples:
-        >>> from app.dsl.schema import MetricQuery, TimeRange, Filters
+        >>> from app.dsl.schema import MetricQuery, TimeRange, Filters, QueryType
+        >>> 
+        >>> # Metrics query: returns Plan
         >>> q = MetricQuery(
+        ...     query_type=QueryType.METRICS,
         ...     metric="roas",
         ...     time_range=TimeRange(last_n_days=7),
         ...     compare_to_previous=True
@@ -110,15 +118,34 @@ def build_plan(query: MetricQuery) -> Plan:
         'roas'
         >>> plan.base_measures
         ['revenue', 'spend']
+        >>> 
+        >>> # Providers query: returns None (no plan needed)
+        >>> q2 = MetricQuery(query_type=QueryType.PROVIDERS)
+        >>> build_plan(q2)
+        None
     
     Logic:
-    1. Resolve time range (relative → absolute dates)
-    2. Determine if metric is derived (roas/cpa/cvr) or base
-    3. Map derived metrics to required base measures
-    4. Set flags for timeseries and previous period
-    5. Pass through filters and breakdown settings
+    1. Check query_type: if not metrics, return None (executor handles it)
+    2. Resolve time range (relative → absolute dates)
+    3. Determine if metric is derived (roas/cpa/cvr) or base
+    4. Map derived metrics to required base measures
+    5. Set flags for timeseries and previous period
+    6. Pass through filters and breakdown settings
     """
+    # DSL v1.2: Non-metrics queries don't need a plan
+    # Providers and entities queries are handled directly in executor
+    if query.query_type != "metrics":
+        return None
+    
+    # Metrics queries require a metric field
+    if not query.metric:
+        raise ValueError("metric field is required for metrics queries")
+    
     # Step 1: Resolve time range to absolute dates
+    # For metrics queries, use default if not specified
+    if not query.time_range:
+        query.time_range = TimeRange(last_n_days=7)
+    
     if query.time_range.start and query.time_range.end:
         # Absolute date range provided
         start = query.time_range.start

@@ -31,7 +31,7 @@ from typing import Optional, Dict, Any, List
 from sqlalchemy.orm import Session
 from sqlalchemy import func, cast, Date
 
-from app.dsl.schema import MetricResult
+from app.dsl.schema import MetricResult, MetricQuery
 from app.dsl.planner import Plan
 from app import models
 
@@ -94,29 +94,134 @@ def _derive_metric(metric_name: str, totals: Dict[str, Any]) -> Optional[float]:
 def execute_plan(
     db: Session, 
     workspace_id: str, 
-    plan: Plan
-) -> MetricResult:
+    plan: Optional[Plan],
+    query: MetricQuery
+) -> Dict[str, Any]:
     """
-    Execute a query plan and return aggregated results.
+    Execute a query plan and return results.
+    
+    DSL v1.2 changes:
+    - Accepts both plan (Optional) and query (MetricQuery)
+    - Handles three query types:
+      1. METRICS: Execute plan (existing logic)
+      2. PROVIDERS: List distinct ad platforms in workspace
+      3. ENTITIES: List entities with filters
+    - Returns either MetricResult (metrics) or dict (providers/entities)
     
     Args:
         db: SQLAlchemy database session
         workspace_id: Workspace UUID for scoping (tenant safety)
-        plan: Execution plan from build_plan()
+        plan: Execution plan from build_plan() (None for non-metrics queries)
+        query: Original MetricQuery with query_type and filters
+        
+    Returns:
+        For metrics: MetricResult with summary, comparison, timeseries, and breakdown
+        For providers: {"providers": ["google", "meta", ...]}
+        For entities: {"entities": [{"name": "...", "status": "...", "level": "..."}, ...]}
+        
+    Examples:
+        >>> # Metrics query
+        >>> query = MetricQuery(query_type="metrics", metric="roas", time_range=TimeRange(last_n_days=7))
+        >>> plan = build_plan(query)
+        >>> result = execute_plan(db, workspace_id="...", plan=plan, query=query)
+        >>> print(result.summary)
+        2.45
+        >>> 
+        >>> # Providers query
+        >>> query = MetricQuery(query_type="providers")
+        >>> result = execute_plan(db, workspace_id="...", plan=None, query=query)
+        >>> print(result["providers"])
+        ["google", "meta", "tiktok"]
+        >>> 
+        >>> # Entities query
+        >>> query = MetricQuery(query_type="entities", filters={"level": "campaign", "status": "active"})
+        >>> result = execute_plan(db, workspace_id="...", plan=None, query=query)
+        >>> print(result["entities"])
+        [{"name": "Summer Sale", "status": "active", "level": "campaign"}, ...]
+    
+    Tenant safety:
+    - ALL queries filter by workspace_id at the database level
+    - No cross-workspace data leaks possible
+    
+    Related:
+    - Input: app/dsl/planner.Plan, app/dsl/schema.MetricQuery
+    - Output: app/dsl/schema.MetricResult or dict
+    - Called by: app/services/qa_service.py
+    """
+    # DSL v1.2: Route to appropriate handler based on query_type
+    
+    # PROVIDERS: List distinct ad platforms in this workspace
+    # Returns: {"providers": ["google", "meta", ...]}
+    # Example question: "Which platforms am I advertising on?"
+    if query.query_type == "providers":
+        rows = (
+            db.query(models.Connection.provider)
+            .filter(models.Connection.workspace_id == workspace_id)
+            .distinct()
+            .all()
+        )
+        return {"providers": [row.provider for row in rows]}
+    
+    # ENTITIES: List entities (campaigns/adsets/ads) with optional filters
+    # Returns: {"entities": [{"name": "...", "status": "...", "level": "..."}, ...]}
+    # Example question: "List my active campaigns"
+    if query.query_type == "entities":
+        E = models.Entity
+        
+        # Base query: all entities in workspace
+        q_entities = (
+            db.query(E.name, E.status, E.level)
+            .filter(E.workspace_id == workspace_id)
+        )
+        
+        # Apply filters from DSL
+        if query.filters.level:
+            q_entities = q_entities.filter(E.level == query.filters.level)
+        if query.filters.status:
+            q_entities = q_entities.filter(E.status == query.filters.status)
+        if query.filters.entity_ids:
+            q_entities = q_entities.filter(E.id.in_(query.filters.entity_ids))
+        
+        # Limit results by top_n
+        rows = q_entities.limit(query.top_n).all()
+        
+        return {
+            "entities": [
+                {"name": row.name, "status": row.status, "level": row.level} 
+                for row in rows
+            ]
+        }
+    
+    # METRICS: Execute the plan (existing v1.1 logic)
+    # This is the default/legacy behavior
+    if query.query_type == "metrics":
+        if not plan:
+            raise ValueError("Plan is required for metrics queries")
+        return _execute_metrics_plan(db, workspace_id, plan)
+    
+    # Unknown query type
+    raise ValueError(f"Unsupported query_type: {query.query_type}")
+
+
+def _execute_metrics_plan(
+    db: Session,
+    workspace_id: str,
+    plan: Plan
+) -> MetricResult:
+    """
+    Execute a metrics plan (DSL v1.1 logic).
+    
+    This is the original executor logic, now extracted as a separate function
+    to keep the main execute_plan() function clean.
+    
+    Args:
+        db: SQLAlchemy database session
+        workspace_id: Workspace UUID for scoping
+        plan: Execution plan with dates, metrics, filters
         
     Returns:
         MetricResult with summary, comparison, timeseries, and breakdown
         
-    Examples:
-        >>> from app.dsl.planner import build_plan
-        >>> from app.dsl.schema import MetricQuery, TimeRange
-        >>> 
-        >>> query = MetricQuery(metric="roas", time_range=TimeRange(last_n_days=7))
-        >>> plan = build_plan(query)
-        >>> result = execute_plan(db, workspace_id="...", plan=plan)
-        >>> print(result.summary)
-        2.45
-    
     Process:
     1. Build base query (MetricFact JOIN Entity, filter by workspace)
     2. Apply date range and filters
@@ -125,15 +230,6 @@ def execute_plan(
     5. Optionally compute previous period comparison
     6. Optionally compute daily timeseries
     7. Optionally compute breakdown by dimension
-    
-    Tenant safety:
-    - ALL queries filter by workspace_id at the JOIN level
-    - No cross-workspace data leaks possible
-    
-    Related:
-    - Input: app/dsl/planner.Plan
-    - Output: app/dsl/schema.MetricResult
-    - Called by: app/services/qa_service.py
     """
     MF, E = models.MetricFact, models.Entity
     

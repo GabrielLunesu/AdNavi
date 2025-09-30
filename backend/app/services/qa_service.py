@@ -115,14 +115,15 @@ class QAService:
                 log_latency=True
             )
             
-            # Step 2: Plan execution
+            # Step 2: Plan execution (may return None for non-metrics queries)
             plan = build_plan(dsl)
             
-            # Step 3: Execute plan
+            # Step 3: Execute plan (pass both plan and query for DSL v1.2)
             result = execute_plan(
                 db=self.db,
                 workspace_id=workspace_id,
-                plan=plan
+                plan=plan,
+                query=dsl
             )
             
             # Step 4: Build human-readable answer
@@ -141,10 +142,18 @@ class QAService:
                 answer_text=answer_text
             )
             
+            # Step 6: Serialize result based on type
+            # For metrics queries: result is a MetricResult (Pydantic model)
+            # For providers/entities queries: result is already a dict
+            if hasattr(result, 'model_dump'):
+                result_data = result.model_dump()
+            else:
+                result_data = result  # Already a dict
+            
             return {
                 "answer": answer_text,
                 "executed_dsl": dsl.model_dump(),  # Convert Pydantic model to dict
-                "data": result.model_dump()
+                "data": result_data
             }
             
         except TranslationError as e:
@@ -205,9 +214,14 @@ class QAService:
         """
         Build a human-readable answer from DSL + results.
         
+        DSL v1.2 changes:
+        - Handles providers queries: "You are running ads on Google, Meta, TikTok."
+        - Handles entities queries: "Here are your campaigns: Summer Sale, Winter Promo, ..."
+        - Handles metrics queries: existing logic (ROAS, CPA, etc.)
+        
         Args:
             dsl: MetricQuery that was executed
-            result: MetricResult from execution
+            result: MetricResult (metrics) or dict (providers/entities) from execution
             
         Returns:
             Human-readable answer text
@@ -215,15 +229,67 @@ class QAService:
         Design:
         - Deterministic (no LLM)
         - Template-based for consistency
-        - Includes comparison delta if available
-        - Mentions breakdown if present
+        - Includes comparison delta if available (metrics only)
+        - Mentions breakdown if present (metrics only)
         
         Future enhancement:
         - Could use LLM to generate more natural answers
         - For now, keep it simple and predictable
         """
-        metric_display = dsl.metric.upper()
-        value = result.summary
+        # DSL v1.2: Handle providers queries
+        # Example: "Which platforms am I advertising on?"
+        # Result: {"providers": ["google", "meta", "tiktok"]}
+        if dsl.query_type == "providers":
+            providers = result.get("providers", [])
+            if not providers:
+                return "No active ad platforms found for this workspace."
+            
+            # Format provider names nicely (capitalize first letter)
+            formatted = [p.capitalize() for p in providers]
+            
+            if len(formatted) == 1:
+                return f"You are running ads on {formatted[0]}."
+            elif len(formatted) == 2:
+                return f"You are running ads on {formatted[0]} and {formatted[1]}."
+            else:
+                # Oxford comma for 3+
+                all_but_last = ", ".join(formatted[:-1])
+                return f"You are running ads on {all_but_last}, and {formatted[-1]}."
+        
+        # DSL v1.2: Handle entities queries
+        # Example: "List my active campaigns"
+        # Result: {"entities": [{"name": "...", "status": "...", "level": "..."}, ...]}
+        if dsl.query_type == "entities":
+            entities = result.get("entities", [])
+            if not entities:
+                return "No entities matched your filters."
+            
+            # Determine what we're listing (campaigns, adsets, ads)
+            level = dsl.filters.level if dsl.filters and dsl.filters.level else "entities"
+            level_plural = level if level.endswith("s") else f"{level}s"
+            
+            # List entity names
+            names = [e["name"] for e in entities]
+            
+            if len(names) <= 3:
+                # Short list: enumerate all
+                names_str = ", ".join(names)
+                return f"Here are your {level_plural}: {names_str}."
+            else:
+                # Long list: show first 3 and count
+                first_three = ", ".join(names[:3])
+                remaining = len(names) - 3
+                return f"Here are your {level_plural}: {first_three}, and {remaining} more."
+        
+        # METRICS: Original logic (DSL v1.1)
+        # Existing answer building for metrics queries
+        metric_display = dsl.metric.upper() if dsl.metric else "METRIC"
+        
+        # For metrics, result is a MetricResult or dict with .summary
+        if isinstance(result, dict):
+            value = result.get("summary")
+        else:
+            value = result.summary
         
         # Format value based on metric type
         if value is None:
@@ -241,13 +307,15 @@ class QAService:
         answer = f"Your {metric_display} for the selected period is {value_str}."
         
         # Add comparison if available
-        if result.delta_pct is not None:
-            delta_display = f"{result.delta_pct * 100:+.1f}%"
+        delta_pct = result.get("delta_pct") if isinstance(result, dict) else getattr(result, "delta_pct", None)
+        if delta_pct is not None:
+            delta_display = f"{delta_pct * 100:+.1f}%"
             answer += f" That's a {delta_display} change vs the previous period."
         
         # Mention breakdown if available
-        if result.breakdown and len(result.breakdown) > 0:
-            top_item = result.breakdown[0]
+        breakdown = result.get("breakdown") if isinstance(result, dict) else getattr(result, "breakdown", None)
+        if breakdown and len(breakdown) > 0:
+            top_item = breakdown[0]
             answer += f" Top performer: {top_item['label']}."
         
         return answer

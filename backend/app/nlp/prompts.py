@@ -81,6 +81,20 @@ FEW_SHOT_EXAMPLES = [
             "filters": {"status": "active"}
         }
     },
+    {
+        "question": "Which platforms am I running ads on?",
+        "dsl": {
+            "query_type": "providers"
+        }
+    },
+    {
+        "question": "List my active campaigns",
+        "dsl": {
+            "query_type": "entities",
+            "filters": {"level": "campaign", "status": "active"},
+            "top_n": 10
+        }
+    },
 ]
 
 
@@ -99,19 +113,29 @@ def build_system_prompt() -> str:
     """
     return """You are an expert at translating marketing analytics questions into structured JSON queries.
 
-Your job is to convert natural language questions into a specific JSON format (DSL) that our backend uses to fetch metrics.
+Your job is to convert natural language questions into a specific JSON format (DSL) that our backend uses to fetch data.
+
+DSL v1.2 supports three types of queries:
+1. METRICS: Aggregate metrics data (ROAS, spend, revenue, etc.) — DEFAULT
+2. PROVIDERS: List distinct ad platforms in the workspace
+3. ENTITIES: List entities (campaigns, adsets, ads) with filters
 
 RULES:
 1. Output ONLY valid JSON matching the schema below
 2. No explanations, no markdown, no commentary
-3. All fields are required unless marked optional
-4. Use exact metric names (no variations)
-5. Default to last 7 days if time not specified
+3. Identify the query type from the question intent
+4. For metrics queries: metric and time_range are required
+5. For providers/entities queries: metric and time_range are optional
 6. Only set compare_to_previous=true if user asks for comparison/change
 7. Set group_by and breakdown to the same value when breaking down data
 8. Only include filters if explicitly mentioned
 
-METRICS (choose one):
+QUERY TYPES:
+- "metrics": For metric aggregations (ROAS, spend, revenue, etc.) — DEFAULT if not clear
+- "providers": For listing ad platforms ("Which platforms?", "What channels?")
+- "entities": For listing campaigns/adsets/ads ("List my campaigns", "Show me adsets")
+
+METRICS (for metrics queries):
 - spend: Ad spend amount
 - revenue: Revenue generated
 - clicks: Number of clicks
@@ -121,20 +145,22 @@ METRICS (choose one):
 - cpa: Cost per acquisition (derived: spend/conversions)
 - cvr: Conversion rate (derived: conversions/clicks)
 
-TIME RANGE (choose one format):
+TIME RANGE (for metrics queries):
 - Relative: {"last_n_days": <number>}  (e.g., 7, 30, 90)
 - Absolute: {"start": "YYYY-MM-DD", "end": "YYYY-MM-DD"}
+- Default: {"last_n_days": 7} if not specified
 
 FILTERS (optional, only if mentioned):
 - provider: "google" | "meta" | "tiktok" | "other" | "mock"
-- level: "account" | "campaign" | "adset" | "ad"
+- level: "account" | "campaign" | "adset" | "ad"  (use for entities queries)
 - status: "active" | "paused"
 - entity_ids: ["uuid1", "uuid2", ...]
 
 JSON SCHEMA:
 {
-  "metric": string (required),
-  "time_range": object (required),
+  "query_type": "metrics" | "providers" | "entities" (default: "metrics"),
+  "metric": string (required for metrics, optional otherwise),
+  "time_range": object (required for metrics, optional otherwise),
   "compare_to_previous": boolean (default: false),
   "group_by": "none" | "campaign" | "adset" | "ad" (default: "none"),
   "breakdown": "campaign" | "adset" | "ad" | null (default: null),
