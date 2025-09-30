@@ -1,4 +1,9 @@
 Defang Marketing Dashboard
+
+test login
+owner@defanglabs.com
+password123
+
 📌 Overview
 
 This project is a cloud-hosted marketing dashboard built as part of a graduation project at Defang Labs.

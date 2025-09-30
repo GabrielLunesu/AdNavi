@@ -7,6 +7,8 @@ This service provides email/password authentication using JWT stored in an HTTP-
 - Docker (for PostgreSQL)
 - A virtual environment (recommended)
 
+to run: uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 
+
 ## .env
 Create a `.env` file in this directory with the following keys:
 
@@ -100,6 +102,59 @@ alembic upgrade head
 - Do not call `Base.metadata.create_all()`; use migrations only.
 - JWT is stored as an HTTP-only cookie named `access_token` with value `Bearer <jwt>`.
 - CORS allows `http://localhost:3000` with credentials.
+
+## How the AI andpoints (chat and answer work with user data)
+
+
+User asks a question
+Example: “Why is my CVR down this week?”
+
+AI translates question → DSL (Domain-Specific Language)
+
+We send the question to OpenAI with a system prompt that says: “Always output JSON following this schema…”.
+
+The LLM doesn’t do any math — it just produces structured JSON.
+
+Example DSL:
+
+{
+  "metric": "cvr",
+  "time_range": { "last_n_days": 7 },
+  "compare_to_previous": true,
+  "group_by": "campaign",
+  "filters": {}
+}
+
+
+Backend validates DSL
+
+We use Pydantic (MetricQuery) to ensure the JSON is valid.
+
+If invalid, we reject the request (safe against prompt injection).
+
+Metrics Service executes DSL
+
+DSL is passed to our MetricService, which queries MetricFact in Postgres.
+
+It computes totals, derived metrics (ROAS, CPA, CVR), comparisons, and groupings.
+
+AI Service builds an answer
+
+Results from MetricService are turned into a human-readable summary.
+
+Example: “Your CVR decreased by 12% compared to last week. Campaign ‘Shoes’ dropped the most.”
+
+Everything is logged
+
+The full interaction (question, DSL, answer, duration) is stored in QaQueryLog for history.
+
+Frontend renders chat
+
+User’s question → user bubble.
+
+Copilot answer → AI bubble.
+
+History is pulled from QaQueryLog so the conversation feels persistent.
 
 
 
