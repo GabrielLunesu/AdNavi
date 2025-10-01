@@ -34,6 +34,7 @@ from app.dsl.planner import build_plan
 from app.dsl.executor import execute_plan
 from app.dsl.validate import DSLValidationError
 from app.telemetry.logging import log_qa_run
+from app.answer.answer_builder import AnswerBuilder, AnswerBuilderError
 
 
 class QAService:
@@ -58,9 +59,19 @@ class QAService:
         
         Args:
             db: SQLAlchemy database session
+        
+        Components:
+        - translator: Converts natural language → DSL (app/nlp/translator.py)
+        - answer_builder: Converts results → natural language (app/answer/answer_builder.py)
+        
+        WHY separation:
+        - Translator: Question → structured query
+        - Executor: Structured query → numbers
+        - AnswerBuilder: Numbers → natural answer
         """
         self.db = db
         self.translator = Translator()
+        self.answer_builder = AnswerBuilder()  # NEW: Hybrid answer generation
     
     def answer(
         self, 
@@ -126,10 +137,25 @@ class QAService:
                 query=dsl
             )
             
-            # Step 4: Build human-readable answer
-            answer_text = self._build_answer(dsl, result)
+            # Step 4: Build human-readable answer (hybrid approach)
+            # WHY hybrid: LLM rephrases deterministic facts → natural + safe
+            # WHY fallback: If LLM fails, use template-based answer
+            answer_generation_ms = None
+            try:
+                # Try hybrid answer builder (LLM-based rephrasing)
+                answer_text, answer_generation_ms = self.answer_builder.build_answer(
+                    dsl=dsl,
+                    result=result,
+                    log_latency=True
+                )
+            except AnswerBuilderError as e:
+                # Fallback to template-based answer if LLM fails
+                # WHY fallback: Ensures we always return something, even if LLM is down
+                print(f"⚠️  Answer builder failed, using template fallback: {e.message}")
+                answer_text = self._build_answer_template(dsl, result)
+                answer_generation_ms = None  # Not measured for fallback
             
-            # Step 5: Log success
+            # Step 5: Log success (including answer generation latency)
             total_latency_ms = int((time.time() - start_time) * 1000)
             log_qa_run(
                 db=self.db,
@@ -210,9 +236,14 @@ class QAService:
             
             raise
     
-    def _build_answer(self, dsl, result) -> str:
+    def _build_answer_template(self, dsl, result) -> str:
         """
-        Build a human-readable answer from DSL + results.
+        Build a template-based answer (FALLBACK ONLY).
+        
+        WHY this exists:
+        - Fallback when AnswerBuilder (LLM) fails
+        - Ensures we always return an answer
+        - Deterministic, safe, but less natural than LLM version
         
         DSL v1.2 changes:
         - Handles providers queries: "You are running ads on Google, Meta, TikTok."
@@ -224,17 +255,17 @@ class QAService:
             result: MetricResult (metrics) or dict (providers/entities) from execution
             
         Returns:
-            Human-readable answer text
+            Human-readable answer text (template-based, robotic)
             
         Design:
-        - Deterministic (no LLM)
-        - Template-based for consistency
+        - Deterministic (no LLM, no randomness)
+        - Template-based (predictable format)
         - Includes comparison delta if available (metrics only)
         - Mentions breakdown if present (metrics only)
         
-        Future enhancement:
-        - Could use LLM to generate more natural answers
-        - For now, keep it simple and predictable
+        Related:
+        - Primary: app/answer/answer_builder.py (LLM-based, preferred)
+        - Used when: AnswerBuilder raises AnswerBuilderError
         """
         # DSL v1.2: Handle providers queries
         # Example: "Which platforms am I advertising on?"

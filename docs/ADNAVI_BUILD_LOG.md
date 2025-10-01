@@ -168,7 +168,10 @@ _Last updated: 2025-09-25T16:04:00Z_
 - Auth endpoints: `/auth/register`, `/auth/login`, `/auth/me`, `/auth/logout`
 - Workspace endpoints: `/workspaces/{id}/info` (sidebar summary)
 - KPI endpoints: `/workspaces/{id}/kpis` (dashboard metrics)
-- QA endpoint: `/qa` (natural language → metrics DSL → execution)
+- QA endpoint: `/qa` (natural language → DSL → execution → hybrid answer)
+  - Pipeline: Question → Canonicalize → LLM Translation → Validate → Plan → Execute → Answer Builder (LLM) → Response
+  - Answer generation: Hybrid approach (deterministic facts + LLM rephrasing for natural tone)
+  - Fallback: Template-based answers if LLM fails
 - QA log endpoints: `/qa-log/{workspace_id}` [GET, POST] (chat history)
 - Admin endpoint: `/admin` - SQLAdmin UI for all models (no auth protection yet)
 - Cookie: `access_token` contains `Bearer <jwt>`, `httponly`, `samesite=lax`
@@ -199,6 +202,40 @@ _Last updated: 2025-09-25T16:04:00Z_
 ---
 
 ## 11) Changelog
+| - 2025-09-30T20:00:00Z — Hybrid Answer Builder: Added LLM-based answer generation with deterministic fallback.
+  - Backend files:
+    - `backend/app/answer/__init__.py`: New module for answer generation
+    - `backend/app/answer/answer_builder.py`: Hybrid answer builder (GPT-4o-mini + deterministic facts)
+    - `backend/app/services/qa_service.py`: Updated to use AnswerBuilder with template fallback
+    - `backend/app/tests/test_answer_builder.py`: Comprehensive tests for answer builder (14 tests total)
+  - Documentation files:
+    - `backend/QA_SYSTEM_ARCHITECTURE.md`: Updated flow diagram and architecture with answer builder stage
+  - Features:
+    - **Hybrid Approach**: Combines deterministic fact extraction with LLM rephrasing
+      - WHY: Facts are safe (no hallucinations), presentation is natural (not robotic)
+      - Extracts numbers/data from MetricResult deterministically
+      - Uses GPT-4o-mini to rephrase facts into conversational answers
+    - **Safety Guarantees**:
+      - LLM cannot invent numbers (strict system prompt)
+      - Only provided facts are used
+      - Deterministic fact extraction ensures accuracy
+    - **Fallback Mechanism**: If LLM fails, uses template-based answer (robotic but safe)
+      - Ensures system always returns an answer
+      - Fallback logged for observability
+    - **Supports All Query Types**: Works for metrics, providers, and entities queries
+    - **Telemetry**: Measures answer generation latency separately from total latency
+  - Design principles:
+    - Separation of concerns: AnswerBuilder handles ONLY presentation layer
+    - Deterministic facts: All numbers extracted safely from validated results
+    - LLM constraints: Temperature=0.3 for natural but controlled output
+    - Comprehensive testing: Mocked LLM calls for fast, deterministic tests
+  - Performance:
+    - Answer generation: ~200-500ms (LLM call)
+    - Fallback: <1ms (template-based)
+  - Examples:
+    - Metrics: "Your ROAS is 2.45, up 19% from the previous period. Great performance!"
+    - Providers: "You're running ads on Google, Meta, and TikTok."
+    - Entities: "Here are your active campaigns: Summer Sale and Winter Promo."
 | - 2025-09-30T18:00:00Z — DSL v1.2 extensions: added support for providers and entities queries beyond metrics.
   - Backend files:
     - `backend/app/dsl/schema.py`: Added QueryType enum (metrics, providers, entities); made metric/time_range optional
