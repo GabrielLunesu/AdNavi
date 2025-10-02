@@ -161,7 +161,7 @@ class AnswerBuilder:
             # WHY gpt-4o-mini: Cost-effective, good at instruction-following
             # WHY temperature=0.3: Some naturalness, but still deterministic
             response = self.client.chat.completions.create(
-                model="gpt-4o-mini",
+                model="gpt-5-mini",
                 temperature=0.3,  # Slightly creative for natural flow, but controlled
                 messages=[
                     {"role": "system", "content": system_prompt},

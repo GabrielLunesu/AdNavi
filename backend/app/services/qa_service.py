@@ -35,7 +35,7 @@ from app.dsl.executor import execute_plan
 from app.dsl.validate import DSLValidationError
 from app.telemetry.logging import log_qa_run
 from app.answer.answer_builder import AnswerBuilder, AnswerBuilderError
-from app.context.context_manager import ContextManager
+from app import state  # Import shared application state
 
 
 class QAService:
@@ -66,18 +66,25 @@ class QAService:
         Components:
         - translator: Converts natural language → DSL (app/nlp/translator.py)
         - answer_builder: Converts results → natural language (app/answer/answer_builder.py)
-        - context_manager: Stores conversation history for follow-ups (app/context/context_manager.py)
+        - context_manager: SHARED singleton for conversation history (app/state.py)
         
         WHY separation:
         - Translator: Question → structured query
         - Executor: Structured query → numbers
         - AnswerBuilder: Numbers → natural answer
-        - ContextManager: Multi-turn conversation support
+        - ContextManager: Multi-turn conversation support (shared across requests)
+        
+        WHY shared context_manager:
+        - Each HTTP request creates a new QAService instance
+        - If each instance had its own ContextManager, context would be lost between requests
+        - Using shared singleton from app.state ensures context persists
         """
         self.db = db
         self.translator = Translator()
         self.answer_builder = AnswerBuilder()
-        self.context_manager = ContextManager()  # NEW: Conversation history
+        # Use SHARED context manager from application state (not a new instance)
+        # WHY: Context must persist across HTTP requests
+        self.context_manager = state.context_manager
     
     def answer(
         self, 

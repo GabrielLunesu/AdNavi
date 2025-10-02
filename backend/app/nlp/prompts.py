@@ -101,7 +101,20 @@ FEW_SHOT_EXAMPLES = [
 # These show how to handle pronouns and implicit references
 FOLLOW_UP_EXAMPLES = [
     {
-        "context": "Previous: 'What's my ROAS this week?' → metric: roas",
+        "context": "Previous: 'How many conversions this week?' → Metric Used: conversions",
+        "question": "And the week before?",
+        "dsl": {
+            "metric": "conversions",  # INHERITED - DO NOT change to different metric!
+            "time_range": {"last_n_days": 14},
+            "compare_to_previous": False,
+            "group_by": "none",
+            "breakdown": None,
+            "top_n": 5,
+            "filters": {}
+        }
+    },
+    {
+        "context": "Previous: 'What's my ROAS this week?' → Metric Used: roas",
         "question": "And yesterday?",
         "dsl": {
             "metric": "roas",  # INHERITED from context
@@ -114,25 +127,38 @@ FOLLOW_UP_EXAMPLES = [
         }
     },
     {
-        "context": "Previous: 'How many conversions this week?' → metric: conversions",
-        "question": "And the week before?",
+        "context": "Previous: 'Which campaigns are live?' → Entity Names: Campaign 1, Campaign 2",
+        "question": "Which one performed best?",
         "dsl": {
-            "metric": "conversions",  # INHERITED from context
-            "time_range": {"last_n_days": 14},  # "week before" = previous 7 days, so 14 total
+            "query_type": "metrics",
+            "metric": "roas",  # Default performance metric
+            "time_range": {"last_n_days": 7},
+            "breakdown": "campaign",
+            "top_n": 1,  # "which one" + "best" = top 1
+            "filters": {"status": "active"}  # inherited from "live"
+        }
+    },
+    {
+        "context": "Previous: 'Which campaigns are live?' → First Entity: 'Campaign 1 - Holiday Promotion'",
+        "question": "How many conversions did that campaign deliver?",
+        "dsl": {
+            "metric": "conversions",
+            "time_range": {"last_n_days": 7},
             "compare_to_previous": False,
             "group_by": "none",
             "breakdown": None,
             "top_n": 5,
-            "filters": {}
+            "filters": {"level": "campaign"}  # filter to campaign level to narrow down
+            # Note: We can't filter by entity name in DSL v1.2, but level helps
         }
     },
     {
-        "context": "Previous: 'Show me ROAS by campaign' → breakdown results available",
-        "question": "Which one performed best?",
+        "context": "Previous: 'List my campaigns' → Entity Names: Summer Sale, Winter Promo",
+        "question": "Give me more details",
         "dsl": {
             "query_type": "entities",
             "filters": {"level": "campaign"},
-            "top_n": 1  # "which one" + "best" implies top 1
+            "top_n": 10  # Show more entities for details
         }
     },
 ]
@@ -161,13 +187,30 @@ DSL v1.2 supports three types of queries:
 2. PROVIDERS: List distinct ad platforms in the workspace
 3. ENTITIES: List entities (campaigns, adsets, ads) with filters
 
-CONVERSATION CONTEXT (CRITICAL):
-- If a CONVERSATION HISTORY section is provided, USE IT to resolve follow-up questions
-- For questions like "and yesterday?", "and the week before?", "what about last month?" → INHERIT the metric from the previous query
-- For questions like "which one?", "what about that campaign?", "and the top performer?" → reference entities from previous results
-- ALWAYS include the metric field for metrics queries, even when not explicitly mentioned in the follow-up
-- If the user asks about a different time period but doesn't specify a metric → reuse the previous metric
-- Context helps resolve pronouns: "it", "that", "this", "which one", "the same" → look at previous queries
+CONVERSATION CONTEXT (CRITICAL - READ CAREFULLY):
+When a CONVERSATION HISTORY section is provided:
+
+1. METRIC INHERITANCE (MOST IMPORTANT):
+   - Look at the "Metric Used:" line in the previous question
+   - If the current question asks about a TIME PERIOD (yesterday, last week, this month) but doesn't mention a NEW metric
+   - YOU MUST USE THE SAME METRIC from the previous question
+   - Example: Previous had "Metric Used: conversions", user asks "and the week before?" → USE "conversions" again
+   - DO NOT randomly switch metrics (conversions → roas, spend → revenue, etc.)
+
+2. ENTITY REFERENCE:
+   - Look for "Top Items:" or "Entity Names:" or "First Entity:" markers in context
+   - Questions like "which one?", "that campaign", "it", "them" → reference those entities
+   - If user asks "which one performed best?" → use query_type "entities" with top_n=1 and the entity level from context
+
+3. PRONOUNS ("that", "it", "this", "those"):
+   - "that campaign" → use the campaign name from "First Entity:" marker
+   - "how many X did that deliver?" → apply filters for the entity mentioned in previous context
+   - ALWAYS check context before generating a generic query
+
+4. FOLLOW-UP SIGNALS:
+   - Questions starting with "and..." → inherit previous metric AND filters
+   - "more details" → generate entities query with info from previous context
+   - "what about..." → keep metric, change only what's explicitly mentioned
 
 RULES:
 1. Output ONLY valid JSON matching the schema below

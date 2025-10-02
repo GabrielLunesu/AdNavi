@@ -287,20 +287,27 @@ Output the JSON DSL:"""
                 main_value = "N/A"
                 top_items = ""
             
-            # Build summary for this entry
+            # Build summary for this entry with EXPLICIT instructions
             entry_summary = f"Previous Question #{idx}: {question}\n"
             
             if query_type == "metrics":
-                entry_summary += f"  Metric: {metric}\n"
+                entry_summary += f"  Query Type: METRICS\n"
+                entry_summary += f"  Metric Used: {metric} ← INHERIT THIS if user asks about different time period\n"
+                entry_summary += f"  Time Range: {dsl.get('time_range', 'N/A')}\n"
                 entry_summary += f"  Result: {main_value}\n"
                 if top_items:
-                    entry_summary += f"  Top items: {top_items}\n"
+                    entry_summary += f"  Top Items: {top_items} ← REFERENCE THESE if user asks 'which one?'\n"
             elif query_type == "providers":
-                entry_summary += f"  Type: List of advertising platforms\n"
+                entry_summary += f"  Query Type: PROVIDERS\n"
                 entry_summary += f"  Platforms: {main_value}\n"
             elif query_type == "entities":
-                entry_summary += f"  Type: List of entities\n"
-                entry_summary += f"  Entities: {main_value}\n"
+                entry_summary += f"  Query Type: ENTITIES\n"
+                entry_summary += f"  Entity Names: {main_value} ← REFERENCE THESE if user asks about 'that', 'it', 'them'\n"
+                # Get first entity name for easy reference
+                if entities and len(entities) > 0:
+                    first_entity = entities[0].get("name", "")
+                    if first_entity:
+                        entry_summary += f"  First Entity: '{first_entity}' ← USE THIS if user says 'that campaign', 'it', 'that one'\n"
             
             summary_parts.append(entry_summary)
         
