@@ -35,21 +35,24 @@ from app.dsl.executor import execute_plan
 from app.dsl.validate import DSLValidationError
 from app.telemetry.logging import log_qa_run
 from app.answer.answer_builder import AnswerBuilder, AnswerBuilderError
+from app.context.context_manager import ContextManager
 
 
 class QAService:
     """
-    High-level QA orchestrator using the DSL v1.1 pipeline.
+    High-level QA orchestrator using the DSL v1.2 pipeline with conversation context.
     
     This service:
-    1. Translates questions to DSL via LLM
-    2. Plans the query execution
-    3. Executes against the database
-    4. Builds human-readable answers
-    5. Logs everything for telemetry
+    1. Retrieves conversation history for context
+    2. Translates questions to DSL via LLM (context-aware)
+    3. Plans the query execution
+    4. Executes against the database
+    5. Builds human-readable answers
+    6. Stores conversation history for follow-ups
+    7. Logs everything for telemetry
     
     Related:
-    - Uses: Translator, build_plan, execute_plan
+    - Uses: Translator, build_plan, execute_plan, ContextManager
     - Called by: app/routers/qa.py
     """
     
@@ -63,15 +66,18 @@ class QAService:
         Components:
         - translator: Converts natural language → DSL (app/nlp/translator.py)
         - answer_builder: Converts results → natural language (app/answer/answer_builder.py)
+        - context_manager: Stores conversation history for follow-ups (app/context/context_manager.py)
         
         WHY separation:
         - Translator: Question → structured query
         - Executor: Structured query → numbers
         - AnswerBuilder: Numbers → natural answer
+        - ContextManager: Multi-turn conversation support
         """
         self.db = db
         self.translator = Translator()
-        self.answer_builder = AnswerBuilder()  # NEW: Hybrid answer generation
+        self.answer_builder = AnswerBuilder()
+        self.context_manager = ContextManager()  # NEW: Conversation history
     
     def answer(
         self, 
@@ -108,11 +114,13 @@ class QAService:
             "Your ROAS for the selected period is 2.45."
         
         Pipeline:
-        1. Translate question → DSL (via LLM)
-        2. Build execution plan
-        3. Execute plan → results
-        4. Format human-readable answer
-        5. Log run for telemetry
+        1. Retrieve conversation history (context)
+        2. Translate question → DSL (via LLM, with context)
+        3. Build execution plan
+        4. Execute plan → results
+        5. Format human-readable answer
+        6. Store in conversation history
+        7. Log run for telemetry
         """
         start_time = time.time()
         error_message = None
@@ -120,16 +128,25 @@ class QAService:
         answer_text = None
         
         try:
-            # Step 1: Translate to DSL
-            dsl, translation_latency = self.translator.to_dsl(
-                question, 
-                log_latency=True
+            # Step 1: Fetch prior context (last N Q&A for this user+workspace)
+            # WHY: Enables follow-up questions like "Which one performed best?"
+            context = self.context_manager.get_context(
+                user_id or "anon", 
+                workspace_id
             )
             
-            # Step 2: Plan execution (may return None for non-metrics queries)
+            # Step 2: Translate to DSL with context awareness
+            # WHY context: LLM can resolve pronouns ("that", "this", "which one")
+            dsl, translation_latency = self.translator.to_dsl(
+                question, 
+                log_latency=True,
+                context=context  # NEW: Pass conversation history
+            )
+            
+            # Step 3: Plan execution (may return None for non-metrics queries)
             plan = build_plan(dsl)
             
-            # Step 3: Execute plan (pass both plan and query for DSL v1.2)
+            # Step 4: Execute plan (pass both plan and query for DSL v1.2)
             result = execute_plan(
                 db=self.db,
                 workspace_id=workspace_id,
@@ -137,7 +154,7 @@ class QAService:
                 query=dsl
             )
             
-            # Step 4: Build human-readable answer (hybrid approach)
+            # Step 5: Build human-readable answer (hybrid approach)
             # WHY hybrid: LLM rephrases deterministic facts → natural + safe
             # WHY fallback: If LLM fails, use template-based answer
             answer_generation_ms = None
@@ -155,7 +172,24 @@ class QAService:
                 answer_text = self._build_answer_template(dsl, result)
                 answer_generation_ms = None  # Not measured for fallback
             
-            # Step 5: Log success (including answer generation latency)
+            # Step 6: Save to conversation context for follow-ups
+            # WHY: Enables next question to reference this query
+            # Example: User asks "Which one performed best?" → needs this result
+            # Serialize result based on type
+            if hasattr(result, 'model_dump'):
+                result_data = result.model_dump()
+            else:
+                result_data = result  # Already a dict
+            
+            self.context_manager.add_entry(
+                user_id=user_id or "anon",
+                workspace_id=workspace_id,
+                question=question,
+                dsl=dsl.model_dump(),
+                result=result_data
+            )
+            
+            # Step 7: Log success (including answer generation latency)
             total_latency_ms = int((time.time() - start_time) * 1000)
             log_qa_run(
                 db=self.db,
@@ -167,14 +201,6 @@ class QAService:
                 user_id=user_id,
                 answer_text=answer_text
             )
-            
-            # Step 6: Serialize result based on type
-            # For metrics queries: result is a MetricResult (Pydantic model)
-            # For providers/entities queries: result is already a dict
-            if hasattr(result, 'model_dump'):
-                result_data = result.model_dump()
-            else:
-                result_data = result  # Already a dict
             
             return {
                 "answer": answer_text,

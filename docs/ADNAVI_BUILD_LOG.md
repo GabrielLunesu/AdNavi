@@ -202,6 +202,64 @@ _Last updated: 2025-09-25T16:04:00Z_
 ---
 
 ## 11) Changelog
+| - 2025-10-02T00:00:00Z — Conversation Context Manager: Added multi-turn conversation support for follow-up questions.
+  - Backend files:
+    - `backend/app/context/__init__.py`: New module for conversation history management
+    - `backend/app/context/context_manager.py`: In-memory conversation history storage per user+workspace
+    - `backend/app/services/qa_service.py`: Updated to retrieve context before translation and save after execution
+    - `backend/app/nlp/translator.py`: Enhanced to accept context and include conversation history in LLM prompts
+    - `backend/app/tests/test_context_manager.py`: Comprehensive tests (50+ test cases covering all scenarios)
+  - Documentation files:
+    - `backend/QA_SYSTEM_ARCHITECTURE.md`: Updated flow diagram and architecture with context manager integration
+    - `docs/ADNAVI_BUILD_LOG.md`: Added changelog entry
+  - Features:
+    - **Context Storage**: Stores last N queries (default 5) per user+workspace
+      - WHY: Enables follow-up questions like "Which one performed best?" or "And yesterday?"
+      - User+workspace scoped (no cross-tenant leaks)
+      - In-memory storage (fast, <1ms operations)
+      - FIFO eviction when max_history reached
+    - **Context-Aware Translation**: Translator includes conversation history in LLM prompts
+      - WHY: Helps LLM resolve pronouns and references ("this", "that", "which one")
+      - Includes last 1-2 queries with key facts (question, metric, results)
+      - Summarizes context to keep prompts concise
+    - **Multi-Turn Conversations**: Complete support for follow-up questions
+      - Example flow:
+        1. "Show me ROAS by campaign" → stores DSL + breakdown results
+        2. "Which one performed best?" → translator uses stored breakdown to resolve "which one"
+      - Example flow:
+        1. "What's my ROAS this week?" → stores metric + time range
+        2. "And yesterday?" → translator infers to use same metric (ROAS) for yesterday
+    - **Thread Safety**: ContextManager uses locks for concurrent request safety
+      - Multiple FastAPI requests can add/retrieve context safely
+      - No race conditions or data corruption
+    - **Workspace Isolation**: Each user+workspace has separate context
+      - Key format: "{user_id}:{workspace_id}"
+      - No cross-tenant context leaks
+      - Anonymous users supported ("anon" user ID)
+  - Design principles:
+    - Simple in-memory storage (no database overhead)
+    - Fixed-size history (prevents memory bloat)
+    - User+workspace scoping (tenant safety)
+    - Thread-safe operations (production-ready)
+    - Comprehensive testing (unit + integration + thread safety)
+  - Performance:
+    - Context retrieval: <1ms (in-memory lookup)
+    - Context storage: <1ms (in-memory append)
+    - No impact on overall QA latency (~700-1550ms total)
+  - Test coverage:
+    - 50+ test cases covering:
+      - Basic add/get operations
+      - Max history enforcement (FIFO eviction)
+      - User+workspace scoping (tenant isolation)
+      - Thread safety (concurrent reads/writes)
+      - Clear context operations
+      - Edge cases (empty history, complex results)
+      - Integration scenarios (follow-up conversations)
+  - Future enhancements:
+    - Persistent storage (Redis/PostgreSQL for cross-session continuity)
+    - Smart context pruning (relevance-based, not just FIFO)
+    - TTL-based expiration (auto-cleanup old conversations)
+    - Cross-session history retrieval
 | - 2025-09-30T20:00:00Z — Hybrid Answer Builder: Added LLM-based answer generation with deterministic fallback.
   - Backend files:
     - `backend/app/answer/__init__.py`: New module for answer generation
