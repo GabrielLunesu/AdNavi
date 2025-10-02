@@ -202,6 +202,45 @@ _Last updated: 2025-09-25T16:04:00Z_
 ---
 
 ## 11) Changelog
+| - 2025-10-02T01:00:00Z — **BUG FIX**: Context-aware prompts for follow-up questions (critical fix for conversation context).
+  - Backend files:
+    - `backend/app/nlp/prompts.py`: Added context-awareness instructions and follow-up examples
+    - `backend/app/nlp/translator.py`: Updated to include follow-up examples when context is available
+  - **What was broken**:
+    - Context manager stored conversation history ✅
+    - Translator passed context to LLM ✅
+    - BUT: System prompt didn't tell LLM how to USE the context ❌
+    - Result: Follow-up questions like "and the week before?" failed with validation errors
+  - **Root cause**:
+    - LLM received context but had no instructions to inherit metrics from previous queries
+    - Missing guidance on resolving pronouns ("that", "it", "which one")
+    - No few-shot examples demonstrating follow-up question patterns
+  - **The fix**:
+    - **Added CONVERSATION CONTEXT section** to system prompt with explicit instructions:
+      - "For questions like 'and yesterday?' → INHERIT the metric from previous query"
+      - "ALWAYS include the metric field for metrics queries, even when not explicit"
+      - "Context helps resolve pronouns: 'it', 'that', 'this', 'which one'"
+    - **Added FOLLOW_UP_EXAMPLES** array with 3 follow-up patterns:
+      - Time period changes: "And yesterday?" (inherits ROAS from context)
+      - Relative time: "And the week before?" (inherits conversions, calculates 14 days)
+      - Entity reference: "Which one performed best?" (references campaign breakdown)
+    - **Dynamic example inclusion**: Show follow-up examples ONLY when context is available
+  - **Example scenarios now working**:
+    1. "How many conversions this week?" → "And the week before?" ✅
+       - LLM inherits "conversions" metric from context
+       - Changes time_range to last 14 days
+    2. "What's my ROAS?" → "And yesterday?" ✅
+       - LLM inherits "roas" metric
+       - Changes time_range to last 1 day
+    3. "Show me campaigns by ROAS" → "Which one performed best?" ✅
+       - LLM references breakdown from previous query
+       - Generates entities query for top campaign
+  - **Testing**:
+    - Verified prompts.py imports successfully
+    - Verified translator.py imports successfully
+    - Follow-up examples match DSL schema
+    - No linting errors
+  - **Impact**: Critical fix - without this, conversation context was non-functional
 | - 2025-10-02T00:00:00Z — Conversation Context Manager: Added multi-turn conversation support for follow-up questions.
   - Backend files:
     - `backend/app/context/__init__.py`: New module for conversation history management

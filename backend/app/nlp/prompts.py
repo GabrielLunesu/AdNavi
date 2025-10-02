@@ -97,6 +97,46 @@ FEW_SHOT_EXAMPLES = [
     },
 ]
 
+# Follow-up examples (demonstrating context usage)
+# These show how to handle pronouns and implicit references
+FOLLOW_UP_EXAMPLES = [
+    {
+        "context": "Previous: 'What's my ROAS this week?' → metric: roas",
+        "question": "And yesterday?",
+        "dsl": {
+            "metric": "roas",  # INHERITED from context
+            "time_range": {"last_n_days": 1},
+            "compare_to_previous": False,
+            "group_by": "none",
+            "breakdown": None,
+            "top_n": 5,
+            "filters": {}
+        }
+    },
+    {
+        "context": "Previous: 'How many conversions this week?' → metric: conversions",
+        "question": "And the week before?",
+        "dsl": {
+            "metric": "conversions",  # INHERITED from context
+            "time_range": {"last_n_days": 14},  # "week before" = previous 7 days, so 14 total
+            "compare_to_previous": False,
+            "group_by": "none",
+            "breakdown": None,
+            "top_n": 5,
+            "filters": {}
+        }
+    },
+    {
+        "context": "Previous: 'Show me ROAS by campaign' → breakdown results available",
+        "question": "Which one performed best?",
+        "dsl": {
+            "query_type": "entities",
+            "filters": {"level": "campaign"},
+            "top_n": 1  # "which one" + "best" implies top 1
+        }
+    },
+]
+
 
 def build_system_prompt() -> str:
     """
@@ -105,6 +145,7 @@ def build_system_prompt() -> str:
     This prompt:
     - Explains the task (translate question → DSL JSON)
     - Provides JSON schema constraints
+    - Includes context-awareness instructions (for follow-ups)
     - Includes few-shot examples
     - Sets expectations for output format
     
@@ -120,11 +161,19 @@ DSL v1.2 supports three types of queries:
 2. PROVIDERS: List distinct ad platforms in the workspace
 3. ENTITIES: List entities (campaigns, adsets, ads) with filters
 
+CONVERSATION CONTEXT (CRITICAL):
+- If a CONVERSATION HISTORY section is provided, USE IT to resolve follow-up questions
+- For questions like "and yesterday?", "and the week before?", "what about last month?" → INHERIT the metric from the previous query
+- For questions like "which one?", "what about that campaign?", "and the top performer?" → reference entities from previous results
+- ALWAYS include the metric field for metrics queries, even when not explicitly mentioned in the follow-up
+- If the user asks about a different time period but doesn't specify a metric → reuse the previous metric
+- Context helps resolve pronouns: "it", "that", "this", "which one", "the same" → look at previous queries
+
 RULES:
 1. Output ONLY valid JSON matching the schema below
 2. No explanations, no markdown, no commentary
 3. Identify the query type from the question intent
-4. For metrics queries: metric and time_range are required
+4. For metrics queries: metric and time_range are REQUIRED (inherit from context if not explicit)
 5. For providers/entities queries: metric and time_range are optional
 6. Only set compare_to_previous=true if user asks for comparison/change
 7. Set group_by and breakdown to the same value when breaking down data
@@ -171,9 +220,12 @@ JSON SCHEMA:
 Remember: Output ONLY the JSON object, nothing else."""
 
 
-def build_few_shot_prompt() -> str:
+def build_few_shot_prompt(include_followups: bool = False) -> str:
     """
     Build the few-shot examples section of the prompt.
+    
+    Args:
+        include_followups: Whether to include follow-up examples (only when context is provided)
     
     Returns:
         Few-shot examples formatted for the prompt
@@ -184,6 +236,14 @@ def build_few_shot_prompt() -> str:
     for i, example in enumerate(FEW_SHOT_EXAMPLES, 1):
         examples_text += f"\n{i}. Question: \"{example['question']}\"\n"
         examples_text += f"   DSL: {json.dumps(example['dsl'], indent=None)}\n"
+    
+    # Add follow-up examples when context is available
+    if include_followups:
+        examples_text += "\n\nFOLLOW-UP EXAMPLES (with context):\n"
+        for i, example in enumerate(FOLLOW_UP_EXAMPLES, 1):
+            examples_text += f"\n{i}. Context: {example['context']}\n"
+            examples_text += f"   Question: \"{example['question']}\"\n"
+            examples_text += f"   DSL: {json.dumps(example['dsl'], indent=None)}\n"
     
     return examples_text
 

@@ -149,7 +149,11 @@ class Translator:
         
         # Step 3: Build prompt
         system_prompt = build_system_prompt()
-        few_shots = build_few_shot_prompt()
+        
+        # Include follow-up examples when context is available
+        # WHY: Help LLM understand how to inherit metrics and resolve pronouns
+        has_context = context_summary != ""
+        few_shots = build_few_shot_prompt(include_followups=has_context)
         
         # Include context in user message if available
         if context_summary:
