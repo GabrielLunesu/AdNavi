@@ -1,4 +1,4 @@
-# QA System Architecture - DSL v1.1
+# QA System Architecture - DSL v1.2 + Hybrid Answer Builder
 
 ## System Flow Diagram
 
@@ -27,9 +27,13 @@ graph TD
     
     Query --> Result["MetricResult<br/>app/dsl/schema.py<br/><br/>- summary: 2.45<br/>- delta_pct: 0.19<br/>- timeseries: [...]<br/>- breakdown: [...]"]
     
-    Result --> Answer["Build Answer<br/>app/services/qa_service.py<br/><br/>Template-based<br/>Deterministic<br/>No LLM"]
+    Result --> AnswerBuilder["Answer Builder (Hybrid)<br/>app/answer/answer_builder.py<br/><br/>1. Extract facts (deterministic)<br/>2. LLM rephrase (GPT-4o-mini)<br/>Safety: No number invention"]
     
-    Answer --> Log["Log to Telemetry<br/>app/telemetry/logging.py<br/><br/>Success/failure<br/>Latency<br/>DSL validity<br/>Errors"]
+    AnswerBuilder -->|Success| Answer["Natural Answer<br/><br/>Conversational<br/>Fact-based<br/>LLM-rephrased"]
+    AnswerBuilder -->|LLM Fails| Fallback["Template Fallback<br/>app/services/qa_service.py<br/><br/>Robotic but safe<br/>Always works"]
+    
+    Answer --> Log["Log to Telemetry<br/>app/telemetry/logging.py<br/><br/>Success/failure<br/>Latency (total + answer)<br/>DSL validity<br/>Errors"]
+    Fallback --> Log
     
     Log --> Response["HTTP Response<br/><br/>{<br/>  answer: '...',<br/>  executed_dsl: {...},<br/>  data: {...}<br/>}"]
     
@@ -123,17 +127,26 @@ WHERE e.workspace_id = :workspace_id
   - `timeseries`: Daily values `[{date, value}, ...]`
   - `breakdown`: Top entities `[{label, value}, ...]`
 
-### 1️⃣1️⃣ **Answer Generation** (`app/services/qa_service.py`)
-- **Template-based** (deterministic, no LLM)
-- **Formats**:
-  - ROAS/CVR: `2.45` (2 decimals)
-  - CPA: `$12.50` (currency)
-  - Spend/Revenue: `$1,250.00` (currency with commas)
-  - Clicks/Conversions: `1,250` (whole numbers)
-- **Includes**:
-  - Base answer: `"Your ROAS for the selected period is 2.45."`
-  - Comparison: `"That's a +19.0% change vs the previous period."`
-  - Top performer: `"Top performer: Summer Sale."`
+### 1️⃣1️⃣ **Answer Generation (Hybrid)** (`app/answer/answer_builder.py`)
+- **Hybrid approach** (deterministic facts + LLM rephrasing)
+- **Process**:
+  1. **Extract facts** deterministically from results
+     - Summary value, delta %, top performer
+     - No hallucinations possible (comes from validated DB results)
+  2. **LLM rephrase** with GPT-4o-mini
+     - Temperature: 0.3 (natural but controlled)
+     - Strict instructions: "Do NOT invent numbers"
+     - Max tokens: 150 (concise answers)
+  3. **Fallback** to template if LLM fails
+     - Always returns an answer
+     - Fallback is robotic but safe
+- **Examples**:
+  - **LLM version**: `"Your ROAS is 2.45, up 19% from the previous period. Great performance!"`
+  - **Template fallback**: `"Your ROAS for the selected period is 2.45. That's a +19.0% change vs the previous period."`
+- **Safety**:
+  - LLM cannot invent numbers (only rephrases provided facts)
+  - Deterministic extraction ensures accuracy
+  - Fallback ensures reliability
 
 ### 1️⃣2️⃣ **Telemetry** (`app/telemetry/logging.py`)
 - **Logs every run** to `qa_query_logs` table
@@ -207,11 +220,13 @@ if metric == "roas":
 | Stage | Latency | Notes |
 |-------|---------|-------|
 | Canonicalization | <1ms | Simple string replacements |
-| LLM Translation | 500-1000ms | OpenAI API call |
+| LLM Translation | 500-1000ms | OpenAI API call (DSL) |
 | Validation | 1-5ms | Pydantic validation |
 | Planning | <1ms | Pure Python logic |
 | Database Query | 10-50ms | Depends on data volume |
-| **Total** | **~500-1050ms** | End-to-end |
+| **Answer Generation** | **200-500ms** | **LLM rephrase (hybrid)** |
+| Answer Fallback | <1ms | Template-based (if LLM fails) |
+| **Total** | **~700-1550ms** | End-to-end (with LLM answer) |
 
 ## File Reference
 
@@ -224,8 +239,9 @@ if metric == "roas":
 | **Validation** | `app/dsl/validate.py` | DSL validation |
 | **Planning** | `app/dsl/planner.py` | Query planning |
 | **Execution** | `app/dsl/executor.py` | SQL execution |
-| **Translation** | `app/nlp/translator.py` | LLM integration |
-| **Prompts** | `app/nlp/prompts.py` | System prompts |
+| **Translation** | `app/nlp/translator.py` | LLM integration (DSL) |
+| **Prompts** | `app/nlp/prompts.py` | System prompts (DSL) |
+| **Answer Builder** | `app/answer/answer_builder.py` | Hybrid answer generation |
 | **Telemetry** | `app/telemetry/logging.py` | Structured logging |
 | **Examples** | `app/dsl/examples.md` | Few-shot examples |
 
@@ -272,6 +288,8 @@ curl -X POST "http://localhost:8000/qa?workspace_id=<UUID>" \
 - **Phase 5**: Validation repair (re-ask LLM with errors) + rule-based fallbacks
 - **Phase 6**: Comprehensive evaluation harness with golden outputs
 - **Phase 7**: Multi-metric queries, nested breakdowns, forecasting, anomaly detection
+- **Phase 8**: Enhanced answer personalization (user preferences, tone adaptation)
+- **Phase 9**: Multi-language support for answers
 
 ## Documentation
 
