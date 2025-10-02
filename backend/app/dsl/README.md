@@ -221,3 +221,29 @@ DSL v1.4 (Phase 5–6): Context + multi-metric + comparisons 🚧
 DSL v1.5 (Phase 7): Insights, anomalies, recommendations → “feels like a strategist”
 
 Phase 8: Eval harness + explainability → trust & scale
+
+###########
+
+DSL v1.1 – Metrics Foundation
+
+The first version of the DSL focused entirely on metrics queries. It allowed users to ask simple performance questions like “What was my ROAS last week?” or “How much did I spend yesterday?”. The system translated natural language into a structured query, validated it, and executed safe aggregations in the database. Results included a summary, optional time comparisons, and daily timeseries. While functional, this stage was limited to numeric reporting. Users could not explore campaign structures or platforms, and answers were deterministic but robotic. Still, v1.1 provided a strong foundation: safe tenant isolation, reliable numbers, and a pipeline architecture that could be extended later without rewriting core logic.
+
+DSL v1.2 – Structural Awareness
+
+Version 1.2 introduced structural queries alongside metrics. Users could now ask, “Which platforms am I running ads on?” or “List my active campaigns.” The schema gained a new field, query_type, which let the system distinguish between metrics, providers, and entity queries. The executor branched accordingly, either aggregating facts, listing distinct providers, or fetching entities with filters. This change opened the door to non-numeric insights, giving marketers a sense of “inventory” and campaign scope. With DSL v1.2, the Copilot felt more versatile and useful for day-to-day tasks, not just number crunching. It was the first step toward a holistic assistant rather than a glorified calculator.
+
+DSL v1.3 – Natural Communication
+
+The third version focused on how answers are delivered. Until now, Copilot spoke like a machine, outputting rigid templates. In v1.3, we introduced a hybrid answer builder: deterministic numbers came from the DSL executor, but GPT-5-mini phrased them naturally. For example, instead of “Your ROAS is 2.45”, the assistant might say, “Your ROAS averaged 2.45 this week, which is slightly higher than last week’s 2.1. Campaign A is leading performance.” This balance preserved accuracy (no hallucinated numbers) while creating a conversational, human-like tone. Users began to perceive the system less as a query tool and more as a true marketing assistant.
+
+DSL v1.4 – Multi-Metric & Comparisons
+
+The next evolution is about expressiveness. Version 1.4 extends the schema to handle multiple metrics and cross-dimension comparisons. Marketers will be able to ask questions like “Show me spend, revenue, and ROAS for the last 30 days” or “Compare Google vs Meta CPC this week.” The executor will support multi-metric queries in a single pass and structured outputs for provider- or campaign-level comparisons. The answer builder will summarize insights and, when helpful, include inline tables or charts. This marks a shift from answering single, isolated questions to providing multi-faceted views of performance. At this stage, Copilot becomes not only conversational but also analytically powerful.
+
+DSL v1.5 – Insights & Recommendations
+
+In v1.5, Copilot begins to act as a strategist, not just a reporter. Beyond raw metrics, it will highlight anomalies, explain why performance changed, and suggest next actions. For example, “ROAS dropped 20% last week due to Campaign X’s rising CPC. You might reduce its budget or pause it.” This requires driver analysis in the executor (breaking down deltas into contributors) and heuristic or ML-driven recommendation logic. GPT-5-mini will package these findings into actionable insights. At this stage, the assistant moves closer to decision support, helping marketers not just see what happened, but also understand causes and plan next steps.
+
+DSL v1.6 – Evaluation & Trust
+
+The final planned stage focuses on trust and robustness. A golden set of 100+ benchmark questions will be created and re-run weekly to measure translation accuracy, coverage, and latency. Copilot will also provide “Explain Mode,” showing the executed DSL and raw data tables behind any answer. This transparency ensures users can trust insights, even when phrased naturally by GPT. With rigorous evaluation and explainability features, Copilot will mature into a reliable partner: conversational, analytical, prescriptive, and transparent. DSL v1.6 cements the system as a production-grade AI assistant for marketing analytics.
