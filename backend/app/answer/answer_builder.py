@@ -152,7 +152,7 @@ class AnswerBuilder:
             else:  # metrics (default)
                 facts = self._extract_metrics_facts(dsl, result)
             
-            # Step 2: Build LLM prompt
+            # Step 2: Build LLM promptt
             # WHY strict instructions: Prevent hallucinations, ensure facts-only rephrasing
             system_prompt = self._build_system_prompt()
             user_prompt = self._build_user_prompt(dsl, facts)
