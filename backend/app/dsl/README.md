@@ -208,3 +208,16 @@ pytest backend/app/tests/ -v --integration
 - `app/routers/qa_refactored.py`: HTTP endpoint
 - `app/models.py`: QaQueryLog table
 - `app/schemas.py`: Request/response models
+
+
+## Big Picture Roadmap
+
+DSL v1.1–1.2: Basic metrics + structural queries ✅
+
+DSL v1.3 (Phase 4): Hybrid natural answers ✅
+
+DSL v1.4 (Phase 5–6): Context + multi-metric + comparisons 🚧
+
+DSL v1.5 (Phase 7): Insights, anomalies, recommendations → “feels like a strategist”
+
+Phase 8: Eval harness + explainability → trust & scale
