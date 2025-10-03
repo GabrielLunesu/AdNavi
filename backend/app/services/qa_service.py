@@ -196,7 +196,12 @@ class QAService:
                 result=result_data
             )
             
-            # Step 7: Log success (including answer generation latency)
+            # Step 7: Build context summary for response (for debugging in Swagger)
+            # WHY: Makes it visible what context was used for this query
+            # Useful for testing follow-up questions in Swagger UI
+            context_summary = self._build_context_summary_for_response(context)
+            
+            # Step 8: Log success (including answer generation latency)
             total_latency_ms = int((time.time() - start_time) * 1000)
             log_qa_run(
                 db=self.db,
@@ -212,7 +217,8 @@ class QAService:
             return {
                 "answer": answer_text,
                 "executed_dsl": dsl.model_dump(),  # Convert Pydantic model to dict
-                "data": result_data
+                "data": result_data,
+                "context_used": context_summary  # NEW: Show what context was available
             }
             
         except TranslationError as e:
@@ -383,3 +389,64 @@ class QAService:
             answer += f" Top performer: {top_item['label']}."
         
         return answer
+    
+    def _build_context_summary_for_response(self, context: list) -> list:
+        """
+        Build a simplified context summary for API response.
+        
+        WHY this exists:
+        - Makes context visible in Swagger UI responses
+        - Helps users debug follow-up question behavior
+        - Shows what information was available when translating the query
+        
+        Args:
+            context: Full context list from context_manager.get_context()
+                     Each entry: {"question": str, "dsl": dict, "result": dict}
+        
+        Returns:
+            Simplified list of dicts with only key info for debugging
+            Empty list if no context available
+        
+        Examples:
+            >>> context = [{"question": "how much revenue?", "dsl": {"metric": "revenue"}, "result": {...}}]
+            >>> summary = self._build_context_summary_for_response(context)
+            >>> summary
+            [{"question": "how much revenue?", "metric": "revenue"}]
+        
+        Design decisions:
+        - Only include question + key DSL fields (metric, query_type)
+        - Omit full result data to keep response size small
+        - Empty list (not null) when no context for consistent typing
+        
+        Related:
+        - Used in: answer() method to populate response
+        - Visible in: Swagger UI /qa endpoint responses
+        - Helps debug: Follow-up questions ("and the week before?")
+        """
+        if not context or len(context) == 0:
+            return []
+        
+        summary = []
+        for entry in context:
+            question = entry.get("question", "")
+            dsl = entry.get("dsl", {})
+            
+            # Extract only the most relevant DSL fields for debugging
+            context_item = {
+                "question": question,
+                "query_type": dsl.get("query_type", "metrics"),
+            }
+            
+            # Add metric if present (helps debug metric inheritance)
+            if "metric" in dsl and dsl["metric"]:
+                context_item["metric"] = dsl["metric"]
+            
+            # Add time range if present (helps debug time period changes)
+            if "time_range" in dsl and dsl["time_range"]:
+                time_range = dsl["time_range"]
+                if isinstance(time_range, dict) and "last_n_days" in time_range:
+                    context_item["time_period"] = f"last_{time_range['last_n_days']}_days"
+            
+            summary.append(context_item)
+        
+        return summary

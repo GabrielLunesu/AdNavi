@@ -513,11 +513,30 @@ class QAResult(BaseModel):
     DSL v1.2 note:
     - executed_dsl is a dict (not MetricQuery model) to support all query types
     - For providers/entities queries, some fields like metric/time_range may be null
+    
+    Context note:
+    - context_used: Shows previous queries that were available for this request
+    - Helps debug follow-up question behavior in Swagger UI
+    - Empty list means no prior context (first question in conversation)
     """
 
-    answer: str
-    executed_dsl: dict  # Changed from MetricQuery to dict to support v1.2 query types with optional fields
-    data: dict
+    answer: str = Field(
+        description="Human-readable answer to the question",
+        example="Your REVENUE for the selected period is $58,300.90."
+    )
+    executed_dsl: dict = Field(
+        description="The validated DSL query that was executed",
+        example={"metric": "revenue", "time_range": {"last_n_days": 7}}
+    )
+    data: dict = Field(
+        description="Query execution results (summary, timeseries, breakdown)",
+        example={"summary": 58300.9}
+    )
+    context_used: Optional[List[dict]] = Field(
+        default=None,
+        description="Previous queries used for context (for debugging follow-ups)",
+        example=[{"question": "how much revenue this week?", "metric": "revenue"}]
+    )
 
 
 # --- QA query log schemas ---

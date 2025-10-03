@@ -202,6 +202,47 @@ _Last updated: 2025-09-25T16:04:00Z_
 ---
 
 ## 11) Changelog
+| - 2025-10-02T04:00:00Z — **FEATURE**: Context visibility in API responses (Swagger UI debugging support).
+  - Backend files:
+    - `backend/app/schemas.py`: Added `context_used` field to QAResult response model
+    - `backend/app/services/qa_service.py`: Added `_build_context_summary_for_response()` method
+  - **What's new**:
+    - `/qa` endpoint now returns `context_used` field in response
+    - Shows what previous queries were available when processing current question
+    - Makes context inheritance visible and testable in Swagger UI
+  - **Response format**:
+    ```json
+    {
+      "answer": "Your REVENUE is $58,300.90",
+      "executed_dsl": {"metric": "revenue", ...},
+      "data": {...},
+      "context_used": [
+        {
+          "question": "how much revenue this week?",
+          "query_type": "metrics",
+          "metric": "revenue",
+          "time_period": "last_7_days"
+        }
+      ]
+    }
+    ```
+  - **Benefits**:
+    - ✅ Swagger UI testing: Can see what context the LLM received
+    - ✅ Debugging: Understand why follow-up questions work or fail
+    - ✅ Transparency: Clear visibility into conversation state
+    - ✅ Validation: Verify metric inheritance is working correctly
+  - **Example workflow in Swagger**:
+    1. POST /qa: "how much revenue this week?" → `context_used: []` (empty, first question)
+    2. POST /qa: "and the week before?" → `context_used: [{question: "how much revenue...", metric: "revenue"}]`
+    3. Can verify the follow-up inherited the correct metric!
+  - **Implementation details**:
+    - Context simplified to show only key fields (question, metric, query_type, time_period)
+    - Full result data omitted to keep response size manageable
+    - Returns empty array `[]` when no context (first question)
+  - **Testing**:
+    - ✅ First question shows empty context_used
+    - ✅ Follow-up shows previous question in context_used
+    - ✅ Visible in Swagger UI /docs endpoint
 | - 2025-10-02T03:00:00Z — **CRITICAL FIX**: Context manager singleton (fixes context loss between HTTP requests).
   - Backend files:
     - `backend/app/state.py`: NEW - Application-level state for shared context manager
