@@ -1,4 +1,4 @@
-# QA System Architecture - DSL v1.2 + Hybrid Answer Builder + Conversation Context
+# QA System Architecture - DSL v1.2 + Hybrid Answer Builder + Conversation Context (DSL v1.5)
 
 ## System Flow Diagram
 
