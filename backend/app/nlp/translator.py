@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import json
 import time
-from typing import Optional
+from typing import Optional, List, Dict, Any
 
 from openai import OpenAI
 
@@ -94,7 +94,8 @@ class Translator:
     def to_dsl(
         self, 
         question: str,
-        log_latency: bool = False
+        log_latency: bool = False,
+        context: Optional[List[Dict[str, Any]]] = None
     ) -> tuple[MetricQuery, Optional[int]]:
         """
         Translate a natural language question into a validated DSL query.
@@ -102,6 +103,8 @@ class Translator:
         Args:
             question: User's natural language question
             log_latency: Whether to track translation latency
+            context: Optional conversation history for follow-up resolution
+                     List of {"question": str, "dsl": dict, "result": dict}
             
         Returns:
             Tuple of (MetricQuery, latency_ms)
@@ -114,29 +117,59 @@ class Translator:
             
         Examples:
             >>> translator = Translator()
+            >>> # Simple query (no context)
             >>> dsl, latency = translator.to_dsl("What's my spend today?")
             >>> print(dsl.metric, dsl.time_range)
             spend TimeRange(last_n_days=1)
+            
+            >>> # Follow-up query (with context)
+            >>> context = [{"question": "Show me ROAS by campaign", "dsl": {...}, "result": {...}}]
+            >>> dsl, latency = translator.to_dsl("Which one performed best?", context=context)
+            >>> print(dsl.breakdown)
+            campaign
         
         Process:
         1. Canonicalize question (map synonyms, normalize time phrases)
-        2. Build prompt with system instructions + few-shots + question
-        3. Call OpenAI with JSON mode
-        4. Parse JSON response
-        5. Validate via Pydantic
-        6. Return validated MetricQuery
+        2. Build context summary if history provided (for follow-ups)
+        3. Build prompt with system instructions + context + few-shots + question
+        4. Call OpenAI with JSON mode
+        5. Parse JSON response
+        6. Validate via Pydantic
+        7. Return validated MetricQuery
         """
         start_time = time.time() if log_latency else None
         
         # Step 1: Canonicalize to reduce LLM variance
         canonical_question = canonicalize_question(question)
         
-        # Step 2: Build prompt
-        system_prompt = build_system_prompt()
-        few_shots = build_few_shot_prompt()
-        user_message = f"{few_shots}\n\nNow translate this question:\n\"{canonical_question}\"\n\nOutput the JSON DSL:"
+        # Step 2: Build context summary for follow-up resolution
+        # WHY: User might ask "Which one performed best?" after "Show me campaigns"
+        # We include the last 1-2 queries to help LLM resolve pronouns
+        context_summary = self._build_context_summary(context) if context else ""
         
-        # Step 3: Call OpenAI
+        # Step 3: Build prompt
+        system_prompt = build_system_prompt()
+        
+        # Include follow-up examples when context is available
+        # WHY: Help LLM understand how to inherit metrics and resolve pronouns
+        has_context = context_summary != ""
+        few_shots = build_few_shot_prompt(include_followups=has_context)
+        
+        # Include context in user message if available
+        if context_summary:
+            user_message = f"""{few_shots}
+
+CONVERSATION HISTORY (for reference if needed):
+{context_summary}
+
+Now translate this question:
+"{canonical_question}"
+
+Output the JSON DSL:"""
+        else:
+            user_message = f"{few_shots}\n\nNow translate this question:\n\"{canonical_question}\"\n\nOutput the JSON DSL:"
+        
+        # Step 4: Call OpenAI
         try:
             response = self.client.chat.completions.create(
                 model="gpt-4o-mini",  # Cost-effective for structured tasks
@@ -154,7 +187,7 @@ class Translator:
                 raw_response=""
             )
         
-        # Step 4: Parse JSON
+        # Step 5: Parse JSON
         raw_content = response.choices[0].message.content.strip()
         
         try:
@@ -166,16 +199,119 @@ class Translator:
                 raw_response=raw_content
             )
         
-        # Step 5: Validate via Pydantic
+        # Step 6: Validate via Pydantic
         # This will raise DSLValidationError if invalid
         validated_dsl = validate_dsl(dsl_dict)
         
-        # Step 6: Calculate latency if requested
+        # Step 7: Calculate latency if requested
         latency_ms = None
         if log_latency and start_time is not None:
             latency_ms = int((time.time() - start_time) * 1000)
         
         return validated_dsl, latency_ms
+    
+    def _build_context_summary(self, context: List[Dict[str, Any]]) -> str:
+        """
+        Build a concise summary of conversation history for the LLM prompt.
+        
+        WHY this exists:
+        - Help LLM resolve follow-up questions with pronouns ("which one", "that", "this")
+        - Keep prompt size manageable (only last 1-2 queries)
+        - Provide enough context without overwhelming the LLM
+        
+        Args:
+            context: List of conversation entries from ContextManager
+                     Each entry: {"question": str, "dsl": dict, "result": dict}
+        
+        Returns:
+            Formatted context string for prompt inclusion
+            Empty string if context is empty or None
+        
+        Examples:
+            >>> context = [{
+            ...     "question": "What's my ROAS this week?",
+            ...     "dsl": {"metric": "roas", "time_range": {"last_n_days": 7}},
+            ...     "result": {"summary": 2.45, "delta_pct": 0.19}
+            ... }]
+            >>> summary = self._build_context_summary(context)
+            >>> print(summary)
+            Previous Question: What's my ROAS this week?
+            Previous Metric: roas
+            Previous Result: 2.45
+        
+        Design decisions:
+        - Only include last 1-2 entries (most recent context)
+        - Summarize key facts (question, metric, main result)
+        - Omit full DSL and detailed results to save tokens
+        - Format for easy LLM parsing
+        
+        Related:
+        - Called by: to_dsl() when context is provided
+        - Context from: app/context/context_manager.py
+        """
+        if not context or len(context) == 0:
+            return ""
+        
+        # Only include the last 1-2 entries for brevity
+        # WHY: Recent context is most relevant for follow-ups
+        # More than 2 can clutter the prompt and increase token usage
+        recent = context[-2:] if len(context) >= 2 else context[-1:]
+        
+        summary_parts = []
+        
+        for idx, entry in enumerate(recent, 1):
+            question = entry.get("question", "")
+            dsl = entry.get("dsl", {})
+            result = entry.get("result", {})
+            
+            # Extract key facts from DSL
+            query_type = dsl.get("query_type", "metrics")
+            metric = dsl.get("metric", "N/A")
+            
+            # Extract key facts from result
+            if query_type == "metrics":
+                main_value = result.get("summary", "N/A")
+                # Include breakdown if present (helpful for "which one" questions)
+                breakdown = result.get("breakdown", [])
+                top_items = ", ".join([item.get("label", "") for item in breakdown[:3]]) if breakdown else ""
+            elif query_type == "providers":
+                providers = result.get("providers", [])
+                main_value = ", ".join([p.capitalize() for p in providers])
+                top_items = ""
+            elif query_type == "entities":
+                entities = result.get("entities", [])
+                entity_names = [e.get("name", "") for e in entities[:3]]
+                main_value = ", ".join(entity_names)
+                top_items = ""
+            else:
+                main_value = "N/A"
+                top_items = ""
+            
+            # Build summary for this entry with EXPLICIT instructions
+            entry_summary = f"Previous Question #{idx}: {question}\n"
+            
+            if query_type == "metrics":
+                entry_summary += f"  Query Type: METRICS\n"
+                entry_summary += f"  Metric Used: {metric} ← INHERIT THIS if user asks about different time period\n"
+                entry_summary += f"  Time Range: {dsl.get('time_range', 'N/A')}\n"
+                entry_summary += f"  Result: {main_value}\n"
+                if top_items:
+                    entry_summary += f"  Top Items: {top_items} ← REFERENCE THESE if user asks 'which one?'\n"
+            elif query_type == "providers":
+                entry_summary += f"  Query Type: PROVIDERS\n"
+                entry_summary += f"  Platforms: {main_value}\n"
+            elif query_type == "entities":
+                entry_summary += f"  Query Type: ENTITIES\n"
+                entry_summary += f"  Entity Names: {main_value} ← REFERENCE THESE if user asks about 'that', 'it', 'them'\n"
+                # Get first entity name for easy reference
+                if entities and len(entities) > 0:
+                    first_entity = entities[0].get("name", "")
+                    if first_entity:
+                        entry_summary += f"  First Entity: '{first_entity}' ← USE THIS if user says 'that campaign', 'it', 'that one'\n"
+            
+            summary_parts.append(entry_summary)
+        
+        return "\n".join(summary_parts)
     
     def to_dsl_simple(self, question: str) -> MetricQuery:
         """

@@ -97,6 +97,72 @@ FEW_SHOT_EXAMPLES = [
     },
 ]
 
+# Follow-up examples (demonstrating context usage)
+# These show how to handle pronouns and implicit references
+FOLLOW_UP_EXAMPLES = [
+    {
+        "context": "Previous: 'How many conversions this week?' → Metric Used: conversions",
+        "question": "And the week before?",
+        "dsl": {
+            "metric": "conversions",  # INHERITED - DO NOT change to different metric!
+            "time_range": {"last_n_days": 14},
+            "compare_to_previous": False,
+            "group_by": "none",
+            "breakdown": None,
+            "top_n": 5,
+            "filters": {}
+        }
+    },
+    {
+        "context": "Previous: 'What's my ROAS this week?' → Metric Used: roas",
+        "question": "And yesterday?",
+        "dsl": {
+            "metric": "roas",  # INHERITED from context
+            "time_range": {"last_n_days": 1},
+            "compare_to_previous": False,
+            "group_by": "none",
+            "breakdown": None,
+            "top_n": 5,
+            "filters": {}
+        }
+    },
+    {
+        "context": "Previous: 'Which campaigns are live?' → Entity Names: Campaign 1, Campaign 2",
+        "question": "Which one performed best?",
+        "dsl": {
+            "query_type": "metrics",
+            "metric": "roas",  # Default performance metric
+            "time_range": {"last_n_days": 7},
+            "breakdown": "campaign",
+            "top_n": 1,  # "which one" + "best" = top 1
+            "filters": {"status": "active"}  # inherited from "live"
+        }
+    },
+    {
+        "context": "Previous: 'Which campaigns are live?' → First Entity: 'Campaign 1 - Holiday Promotion'",
+        "question": "How many conversions did that campaign deliver?",
+        "dsl": {
+            "metric": "conversions",
+            "time_range": {"last_n_days": 7},
+            "compare_to_previous": False,
+            "group_by": "none",
+            "breakdown": None,
+            "top_n": 5,
+            "filters": {"level": "campaign"}  # filter to campaign level to narrow down
+            # Note: We can't filter by entity name in DSL v1.2, but level helps
+        }
+    },
+    {
+        "context": "Previous: 'List my campaigns' → Entity Names: Summer Sale, Winter Promo",
+        "question": "Give me more details",
+        "dsl": {
+            "query_type": "entities",
+            "filters": {"level": "campaign"},
+            "top_n": 10  # Show more entities for details
+        }
+    },
+]
+
 
 def build_system_prompt() -> str:
     """
@@ -105,6 +171,7 @@ def build_system_prompt() -> str:
     This prompt:
     - Explains the task (translate question → DSL JSON)
     - Provides JSON schema constraints
+    - Includes context-awareness instructions (for follow-ups)
     - Includes few-shot examples
     - Sets expectations for output format
     
@@ -120,11 +187,36 @@ DSL v1.2 supports three types of queries:
 2. PROVIDERS: List distinct ad platforms in the workspace
 3. ENTITIES: List entities (campaigns, adsets, ads) with filters
 
+CONVERSATION CONTEXT (CRITICAL - READ CAREFULLY):
+When a CONVERSATION HISTORY section is provided:
+
+1. METRIC INHERITANCE (MOST IMPORTANT):
+   - Look at the "Metric Used:" line in the previous question
+   - If the current question asks about a TIME PERIOD (yesterday, last week, this month) but doesn't mention a NEW metric
+   - YOU MUST USE THE SAME METRIC from the previous question
+   - Example: Previous had "Metric Used: conversions", user asks "and the week before?" → USE "conversions" again
+   - DO NOT randomly switch metrics (conversions → roas, spend → revenue, etc.)
+
+2. ENTITY REFERENCE:
+   - Look for "Top Items:" or "Entity Names:" or "First Entity:" markers in context
+   - Questions like "which one?", "that campaign", "it", "them" → reference those entities
+   - If user asks "which one performed best?" → use query_type "entities" with top_n=1 and the entity level from context
+
+3. PRONOUNS ("that", "it", "this", "those"):
+   - "that campaign" → use the campaign name from "First Entity:" marker
+   - "how many X did that deliver?" → apply filters for the entity mentioned in previous context
+   - ALWAYS check context before generating a generic query
+
+4. FOLLOW-UP SIGNALS:
+   - Questions starting with "and..." → inherit previous metric AND filters
+   - "more details" → generate entities query with info from previous context
+   - "what about..." → keep metric, change only what's explicitly mentioned
+
 RULES:
 1. Output ONLY valid JSON matching the schema below
 2. No explanations, no markdown, no commentary
 3. Identify the query type from the question intent
-4. For metrics queries: metric and time_range are required
+4. For metrics queries: metric and time_range are REQUIRED (inherit from context if not explicit)
 5. For providers/entities queries: metric and time_range are optional
 6. Only set compare_to_previous=true if user asks for comparison/change
 7. Set group_by and breakdown to the same value when breaking down data
@@ -171,9 +263,12 @@ JSON SCHEMA:
 Remember: Output ONLY the JSON object, nothing else."""
 
 
-def build_few_shot_prompt() -> str:
+def build_few_shot_prompt(include_followups: bool = False) -> str:
     """
     Build the few-shot examples section of the prompt.
+    
+    Args:
+        include_followups: Whether to include follow-up examples (only when context is provided)
     
     Returns:
         Few-shot examples formatted for the prompt
@@ -184,6 +279,14 @@ def build_few_shot_prompt() -> str:
     for i, example in enumerate(FEW_SHOT_EXAMPLES, 1):
         examples_text += f"\n{i}. Question: \"{example['question']}\"\n"
         examples_text += f"   DSL: {json.dumps(example['dsl'], indent=None)}\n"
+    
+    # Add follow-up examples when context is available
+    if include_followups:
+        examples_text += "\n\nFOLLOW-UP EXAMPLES (with context):\n"
+        for i, example in enumerate(FOLLOW_UP_EXAMPLES, 1):
+            examples_text += f"\n{i}. Context: {example['context']}\n"
+            examples_text += f"   Question: \"{example['question']}\"\n"
+            examples_text += f"   DSL: {json.dumps(example['dsl'], indent=None)}\n"
     
     return examples_text
 

@@ -1,4 +1,4 @@
-# QA System Architecture - DSL v1.2 + Hybrid Answer Builder
+# QA System Architecture - DSL v1.2 + Hybrid Answer Builder + Conversation Context
 
 ## System Flow Diagram
 
@@ -8,11 +8,13 @@ graph TD
     
     Router --> Service["QA Service<br/>app/services/qa_service.py"]
     
-    Service --> Canon["Canonicalize<br/>app/dsl/canonicalize.py<br/><br/>Map synonyms:<br/>'return on ad spend' → 'roas'<br/>'this week' → 'last 7 days'"]
+    Service --> Context["Get Context<br/>app/context/context_manager.py<br/><br/>Retrieve last N queries<br/>for follow-up resolution"]
     
-    Canon --> Translate["Translator<br/>app/nlp/translator.py<br/><br/>LLM: OpenAI GPT-4o-mini<br/>Temperature: 0<br/>Mode: JSON"]
+    Context --> Canon["Canonicalize<br/>app/dsl/canonicalize.py<br/><br/>Map synonyms:<br/>'return on ad spend' → 'roas'<br/>'this week' → 'last 7 days'"]
     
-    Translate --> Prompt["Build Prompt<br/>app/nlp/prompts.py<br/><br/>System prompt +<br/>12 few-shot examples +<br/>User question"]
+    Canon --> Translate["Translator<br/>app/nlp/translator.py<br/><br/>LLM: OpenAI GPT-4o-mini<br/>Temperature: 0<br/>Mode: JSON<br/>Context-aware"]
+    
+    Translate --> Prompt["Build Prompt<br/>app/nlp/prompts.py<br/><br/>System prompt +<br/>Conversation history +<br/>12 few-shot examples +<br/>User question"]
     
     Prompt --> LLM["OpenAI API Call<br/><br/>Returns JSON"]
     
@@ -32,8 +34,10 @@ graph TD
     AnswerBuilder -->|Success| Answer["Natural Answer<br/><br/>Conversational<br/>Fact-based<br/>LLM-rephrased"]
     AnswerBuilder -->|LLM Fails| Fallback["Template Fallback<br/>app/services/qa_service.py<br/><br/>Robotic but safe<br/>Always works"]
     
-    Answer --> Log["Log to Telemetry<br/>app/telemetry/logging.py<br/><br/>Success/failure<br/>Latency (total + answer)<br/>DSL validity<br/>Errors"]
-    Fallback --> Log
+    Answer --> SaveContext["Save to Context<br/>app/context/context_manager.py<br/><br/>Store question + DSL + result<br/>for next follow-up"]
+    Fallback --> SaveContext
+    
+    SaveContext --> Log["Log to Telemetry<br/>app/telemetry/logging.py<br/><br/>Success/failure<br/>Latency (total + answer)<br/>DSL validity<br/>Errors"]
     
     Log --> Response["HTTP Response<br/><br/>{<br/>  answer: '...',<br/>  executed_dsl: {...},<br/>  data: {...}<br/>}"]
     
@@ -57,10 +61,22 @@ graph TD
 
 ### 2️⃣ **Orchestration** (`app/services/qa_service.py`)
 - Main coordinator for the entire pipeline
+- Retrieves conversation context for follow-ups
+- Saves conversation history after execution
 - Handles error propagation and logging
 - Measures total latency
 
-### 3️⃣ **Canonicalization** (`app/dsl/canonicalize.py`)
+### 3️⃣ **Context Retrieval** (`app/context/context_manager.py`)
+- **Purpose**: Enable multi-turn conversations and follow-up questions
+- **Retrieves**: Last N queries (default 5) for this user+workspace
+- **Scoping**: User + workspace isolated (no cross-tenant leaks)
+- **Storage**: In-memory (fast, no database overhead)
+- **Examples**:
+  - User asks "Show me ROAS by campaign"
+  - User follows up with "Which one performed best?"
+  - Context manager provides previous query+results to translator
+
+### 4️⃣ **Canonicalization** (`app/dsl/canonicalize.py`)
 - **Purpose**: Reduce LLM variance by normalizing inputs
 - **Transforms**:
   - `"return on ad spend"` → `"roas"`
@@ -68,19 +84,20 @@ graph TD
   - `"conversion rate"` → `"cvr"`
   - `"cost per acquisition"` → `"cpa"`
 
-### 4️⃣ **Translation** (`app/nlp/translator.py`)
+### 5️⃣ **Translation** (`app/nlp/translator.py`)
 - **LLM**: OpenAI GPT-4o-mini (cost-effective)
 - **Settings**: Temperature=0 (deterministic), JSON mode
-- **Input**: Canonicalized question
+- **Input**: Canonicalized question + conversation context (NEW)
 - **Output**: Raw JSON DSL
+- **Context handling**: Includes last 1-2 queries to resolve follow-ups
 
-### 5️⃣ **Prompting** (`app/nlp/prompts.py`)
+### 6️⃣ **Prompting** (`app/nlp/prompts.py`)
 - **System Prompt**: Explains task, constraints, schema
 - **Few-Shot Examples**: 12 question → DSL pairs
 - **Format**: System prompt + examples + user question
 - **Goal**: Guide LLM to output valid DSL
 
-### 6️⃣ **Validation** (`app/dsl/validate.py`)
+### 7️⃣ **Validation** (`app/dsl/validate.py`)
 - **Engine**: Pydantic v2
 - **Validates**:
   - Metric is valid (`roas`, `cpa`, `cvr`, etc.)
@@ -89,14 +106,14 @@ graph TD
   - `top_n` is 1-50
 - **Errors**: Raises `DSLValidationError` with helpful messages
 
-### 7️⃣ **Planning** (`app/dsl/planner.py`)
+### 8️⃣ **Planning** (`app/dsl/planner.py`)
 - **Resolves**:
   - Relative dates → Absolute dates (`last_n_days: 7` → `2025-09-24 to 2025-09-30`)
   - Derived metrics → Base measures (`roas` → `["spend", "revenue"]`)
   - Comparison windows (previous period dates)
 - **Output**: `Plan` object with all execution details
 
-### 8️⃣ **Execution** (`app/dsl/executor.py`)
+### 9️⃣ **Execution** (`app/dsl/executor.py`)
 - **Queries**:
   1. **Summary**: Main aggregation for the metric
   2. **Previous**: Previous period (if `compare_to_previous=true`)
@@ -107,7 +124,7 @@ graph TD
   - Divide-by-zero guards for derived metrics
   - SQLAlchemy ORM (no raw SQL)
 
-### 9️⃣ **Database Queries**
+### 🔟 **Database Queries**
 ```sql
 -- Example summary query (workspace-scoped)
 SELECT 
@@ -119,7 +136,7 @@ WHERE e.workspace_id = :workspace_id
   AND mf.event_date BETWEEN :start AND :end
 ```
 
-### 🔟 **Result Building** (`app/dsl/schema.py`)
+### 1️⃣1️⃣ **Result Building** (`app/dsl/schema.py`)
 - **MetricResult** structure:
   - `summary`: Main metric value (e.g., 2.45 for ROAS)
   - `previous`: Previous period value
@@ -127,7 +144,7 @@ WHERE e.workspace_id = :workspace_id
   - `timeseries`: Daily values `[{date, value}, ...]`
   - `breakdown`: Top entities `[{label, value}, ...]`
 
-### 1️⃣1️⃣ **Answer Generation (Hybrid)** (`app/answer/answer_builder.py`)
+### 1️⃣2️⃣ **Answer Generation (Hybrid)** (`app/answer/answer_builder.py`)
 - **Hybrid approach** (deterministic facts + LLM rephrasing)
 - **Process**:
   1. **Extract facts** deterministically from results
@@ -148,7 +165,16 @@ WHERE e.workspace_id = :workspace_id
   - Deterministic extraction ensures accuracy
   - Fallback ensures reliability
 
-### 1️⃣2️⃣ **Telemetry** (`app/telemetry/logging.py`)
+### 1️⃣3️⃣ **Context Storage** (`app/context/context_manager.py`)
+- **Purpose**: Save conversation history for future follow-ups
+- **Stores**: Question + DSL + execution result
+- **Scope**: User + workspace (tenant isolation)
+- **Retention**: Last N entries (default 5, FIFO eviction)
+- **Examples**:
+  - Enables "And yesterday?" after "What's my ROAS this week?"
+  - Enables "Which one performed best?" after "Show me campaigns"
+
+### 1️⃣4️⃣ **Telemetry** (`app/telemetry/logging.py`)
 - **Logs every run** to `qa_query_logs` table
 - **Captures**:
   - Question text
@@ -159,7 +185,7 @@ WHERE e.workspace_id = :workspace_id
   - User ID and workspace ID
 - **Purpose**: Observability, debugging, offline evaluation
 
-### 1️⃣3️⃣ **Response**
+### 1️⃣5️⃣ **Response**
 ```json
 {
   "answer": "Your ROAS for the selected period is 2.45. That's a +19.0% change vs the previous period. Top performer: Summer Sale.",
@@ -219,13 +245,15 @@ if metric == "roas":
 
 | Stage | Latency | Notes |
 |-------|---------|-------|
+| Context Retrieval | <1ms | In-memory lookup |
 | Canonicalization | <1ms | Simple string replacements |
-| LLM Translation | 500-1000ms | OpenAI API call (DSL) |
+| LLM Translation | 500-1000ms | OpenAI API call (DSL, with context) |
 | Validation | 1-5ms | Pydantic validation |
 | Planning | <1ms | Pure Python logic |
 | Database Query | 10-50ms | Depends on data volume |
 | **Answer Generation** | **200-500ms** | **LLM rephrase (hybrid)** |
 | Answer Fallback | <1ms | Template-based (if LLM fails) |
+| Context Storage | <1ms | In-memory append |
 | **Total** | **~700-1550ms** | End-to-end (with LLM answer) |
 
 ## File Reference
@@ -234,12 +262,13 @@ if metric == "roas":
 |-----------|------|---------|
 | **Entry Point** | `app/routers/qa.py` | HTTP endpoint |
 | **Orchestrator** | `app/services/qa_service.py` | Main pipeline coordinator |
+| **Context Manager** | `app/context/context_manager.py` | Conversation history (NEW) |
 | **DSL Schema** | `app/dsl/schema.py` | Pydantic models |
 | **Canonicalization** | `app/dsl/canonicalize.py` | Synonym mapping |
 | **Validation** | `app/dsl/validate.py` | DSL validation |
 | **Planning** | `app/dsl/planner.py` | Query planning |
 | **Execution** | `app/dsl/executor.py` | SQL execution |
-| **Translation** | `app/nlp/translator.py` | LLM integration (DSL) |
+| **Translation** | `app/nlp/translator.py` | LLM integration (DSL, context-aware) |
 | **Prompts** | `app/nlp/prompts.py` | System prompts (DSL) |
 | **Answer Builder** | `app/answer/answer_builder.py` | Hybrid answer generation |
 | **Telemetry** | `app/telemetry/logging.py` | Structured logging |
@@ -255,6 +284,7 @@ pytest backend/app/tests/ -v
 pytest backend/app/tests/test_dsl_validation.py -v
 pytest backend/app/tests/test_dsl_executor.py -v
 pytest backend/app/tests/test_translator.py -v
+pytest backend/app/tests/test_context_manager.py -v  # NEW: Context manager tests
 ```
 
 ## How to Use
@@ -290,6 +320,11 @@ curl -X POST "http://localhost:8000/qa?workspace_id=<UUID>" \
 - **Phase 7**: Multi-metric queries, nested breakdowns, forecasting, anomaly detection
 - **Phase 8**: Enhanced answer personalization (user preferences, tone adaptation)
 - **Phase 9**: Multi-language support for answers
+- **Context Enhancements**:
+  - Persistent storage (Redis/PostgreSQL for cross-session continuity)
+  - Smart context pruning (relevance-based, not just FIFO)
+  - Context expiration (TTL-based cleanup)
+  - Cross-session history retrieval
 
 ## Documentation
 
