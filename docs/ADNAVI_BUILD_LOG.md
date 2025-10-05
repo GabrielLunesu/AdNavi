@@ -1,6 +1,6 @@
 # AdNavi — Living Build Log
 
-_Last updated: 2025-09-25T16:04:00Z_
+_Last updated: 2025-10-05T12:00:00Z_
 
 ## 0) Monorepo Map (Current & Planned)
 - **Frontend (current):** `ui/` — Next.js 15.5.4 (App Router), **JSX only**
@@ -33,7 +33,11 @@ _Last updated: 2025-09-25T16:04:00Z_
 - Database: PostgreSQL 16 (Docker compose)
 - Auth: JWT (HTTP-only cookie), bcrypt password hashing
 - Admin: SQLAdmin on `/admin` endpoint for CRUD operations on all models
-- Models: Workspace, User, Connection, Token, Fetch, Import, Entity, MetricFact, ComputeRun, Pnl, QaQueryLog, AuthCredential
+- Models: Workspace, User, Connection, Token, Fetch, Import, Entity (with goal), MetricFact (with new base measures), ComputeRun, Pnl (with derived metrics), QaQueryLog, AuthCredential
+- Metrics System (Derived Metrics v1):
+  - `app/metrics/`: Single source of truth for metric formulas (formulas.py, registry.py)
+  - Supported metrics: 12 derived metrics (CPC, CPM, CPA, CPL, CPI, CPP, ROAS, POAS, ARPV, AOV, CTR, CVR)
+  - Used by: DSL executor (ad-hoc queries), compute_service (P&L snapshots)
 - QA System (DSL v1.2):
   - `app/dsl/`: Domain-Specific Language for queries (schema, canonicalize, validate, planner, executor)
   - `app/nlp/`: Natural language translation via OpenAI (translator, prompts)
@@ -202,6 +206,13 @@ _Last updated: 2025-09-25T16:04:00Z_
 ---
 
 ## 11) Changelog
+| - 2025-10-05T12:00:00Z — **MAJOR FEATURE**: Derived Metrics v1 — Single source of truth for metric formulas.
+  - **Overview**: 12 new derived metrics (CPC, CPM, CPL, CPI, CPP, POAS, ARPV, AOV, CTR, CVR). Centralized formulas used by executor & compute_service.
+  - **New modules**: `app/metrics/formulas.py`, `app/metrics/registry.py`, `app/services/compute_service.py`.
+  - **Schema changes**: Added GoalEnum, Entity.goal, MetricFact (5 new columns: leads, installs, purchases, visitors, profit), Pnl (17 new columns).
+  - **Migration**: Run `cd backend && alembic upgrade head` (adds 23 columns).
+  - **Seed**: Run `cd backend && python -m app.seed_mock` (generates goal-aware data).
+  - **Test queries**: "What was my CPC last week?", "Show me CPL for lead gen", "Compare CTR by campaign".
 | - 2025-10-02T04:00:00Z — **FEATURE**: Context visibility in API responses (Swagger UI debugging support).
   - Backend files:
     - `backend/app/schemas.py`: Added `context_used` field to QAResult response model

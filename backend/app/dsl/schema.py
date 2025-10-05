@@ -42,15 +42,41 @@ class QueryType(str, Enum):
     ENTITIES = "entities"
 
 # Metric types: base metrics (directly stored) and derived metrics (computed)
+# Derived Metrics v1: Extended with new base measures and derived metrics
 Metric = Literal[
-    "spend",      # Base: ad spend amount
-    "revenue",    # Base: revenue generated
-    "clicks",     # Base: number of clicks
-    "impressions",# Base: number of ad impressions
-    "conversions",# Base: number of conversions
-    "roas",       # Derived: revenue / spend (Return on Ad Spend)
-    "cpa",        # Derived: spend / conversions (Cost per Acquisition)
-    "cvr",        # Derived: conversions / clicks (Conversion Rate)
+    # Original base measures
+    "spend",        # Base: ad spend amount
+    "revenue",      # Base: revenue generated
+    "clicks",       # Base: number of clicks
+    "impressions",  # Base: number of ad impressions
+    "conversions",  # Base: number of conversions
+    
+    # Derived Metrics v1: New base measures
+    "leads",        # Base: lead form submissions (Meta Lead Ads, etc.)
+    "installs",     # Base: app installations (App Install campaigns)
+    "purchases",    # Base: purchase events (ecommerce tracking)
+    "visitors",     # Base: landing page visitors (analytics)
+    "profit",       # Base: net profit (revenue - costs)
+    
+    # Original derived metrics
+    "roas",         # Derived: revenue / spend (Return on Ad Spend)
+    "cpa",          # Derived: spend / conversions (Cost per Acquisition)
+    "cvr",          # Derived: conversions / clicks (Conversion Rate)
+    
+    # Derived Metrics v1: New cost/efficiency metrics
+    "cpc",          # Derived: spend / clicks (Cost per Click)
+    "cpm",          # Derived: (spend / impressions) * 1000 (Cost per Mille)
+    "cpl",          # Derived: spend / leads (Cost per Lead)
+    "cpi",          # Derived: spend / installs (Cost per Install)
+    "cpp",          # Derived: spend / purchases (Cost per Purchase)
+    
+    # Derived Metrics v1: New value metrics
+    "poas",         # Derived: profit / spend (Profit on Ad Spend)
+    "arpv",         # Derived: revenue / visitors (Average Revenue per Visitor)
+    "aov",          # Derived: revenue / conversions (Average Order Value)
+    
+    # Derived Metrics v1: New engagement metrics
+    "ctr",          # Derived: clicks / impressions (Click-Through Rate)
 ]
 
 

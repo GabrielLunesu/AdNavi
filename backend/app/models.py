@@ -53,6 +53,27 @@ class ComputeRunTypeEnum(str, enum.Enum):
     backfill = "backfill"
 
 
+class GoalEnum(str, enum.Enum):
+    """Campaign/entity objective type.
+    
+    Used to determine which derived metrics are most relevant:
+    - awareness: Focus on CPM, impressions, reach
+    - traffic: Focus on CPC, CTR, clicks
+    - leads: Focus on CPL, lead volume
+    - app_installs: Focus on CPI, install volume
+    - purchases: Focus on CPP, AOV, purchase volume
+    - conversions: Focus on CPA, CVR, ROAS (generic conversions)
+    - other: No specific objective
+    """
+    awareness = "awareness"
+    traffic = "traffic"
+    leads = "leads"
+    app_installs = "app_installs"
+    purchases = "purchases"
+    conversions = "conversions"
+    other = "other"
+
+
 # Core models ----------------------------------------------------
 
 class Workspace(Base):
@@ -203,6 +224,17 @@ class Import(Base):
 
 
 class Entity(Base):
+    """Entity represents a marketing entity (campaign, ad set, ad, etc.).
+    
+    Derived Metrics v1 addition:
+    - goal: Campaign objective (awareness, traffic, leads, app_installs, purchases, conversions, other)
+    
+    WHY goal matters:
+    - Helps determine which metrics are most relevant to the user
+    - CPL makes sense for leads campaigns, CPI for app_installs, CPP for purchases
+    - QA system can recommend metrics based on goal
+    - Seed data generates appropriate base measures based on goal
+    """
     __tablename__ = "entities"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -211,6 +243,9 @@ class Entity(Base):
     name = Column(String, nullable=False)
     status = Column(String, nullable=False)
     parent_id = Column(UUID(as_uuid=True), ForeignKey("entities.id"), nullable=True)
+    
+    # Derived Metrics v1: Campaign objective
+    goal = Column(Enum(GoalEnum, values_callable=lambda obj: [e.value for e in obj]), nullable=True)
 
     workspace_id = Column(UUID(as_uuid=True), ForeignKey("workspaces.id"), nullable=False)
     workspace = relationship("Workspace", back_populates="entities")
@@ -227,6 +262,33 @@ class Entity(Base):
 
 
 class MetricFact(Base):
+    """MetricFact stores RAW BASE MEASURES from ad platforms.
+    
+    Derived Metrics v1 philosophy:
+    - Store ONLY base measures (raw facts from platforms)
+    - Compute derived metrics on-demand (executor) or during snapshots (Pnl)
+    - Never store computed values here → avoids formula drift over time
+    
+    Base measures (original):
+    - spend, impressions, clicks, conversions, revenue
+    
+    Base measures (added in Derived Metrics v1):
+    - leads: Lead form submissions (Meta Lead Ads, Google Lead Form Extensions)
+    - installs: App installations (App Install campaigns)
+    - purchases: Purchase events (Conversions API, pixel tracking)
+    - visitors: Landing page visitors (from analytics platforms)
+    - profit: Net profit (revenue - COGS/costs)
+    
+    WHY these additions:
+    - Enables computing CPL, CPI, CPP, ARPV, POAS, AOV
+    - Maintains fact table as wide "base" table (no joins needed)
+    - Platform APIs provide these metrics → we store them raw
+    
+    Related:
+    - app/metrics/registry.py: Lists all base measures
+    - app/dsl/executor.py: Aggregates these for ad-hoc queries
+    - app/services/compute_service.py: Aggregates these for Pnl snapshots
+    """
     __tablename__ = "metric_facts"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -235,11 +297,21 @@ class MetricFact(Base):
     level = Column(Enum(LevelEnum, values_callable=lambda obj: [e.value for e in obj]), nullable=False)
     event_at = Column(DateTime, nullable=False)
     event_date = Column(DateTime, nullable=False)
+    
+    # Original base measures
     spend = Column(Numeric(18, 4), nullable=False)
     impressions = Column(Integer, nullable=False)
     clicks = Column(Integer, nullable=False)
     conversions = Column(Numeric(18, 4), nullable=True)
     revenue = Column(Numeric(18, 4), nullable=True)
+    
+    # Derived Metrics v1: New base measures
+    leads = Column(Numeric(18, 4), nullable=True)  # Lead form submissions
+    installs = Column(Integer, nullable=True)  # App installs
+    purchases = Column(Integer, nullable=True)  # Purchase events
+    visitors = Column(Integer, nullable=True)  # Landing page visitors
+    profit = Column(Numeric(18, 4), nullable=True)  # Net profit (revenue - costs)
+    
     currency = Column(String, nullable=False)
     natural_key = Column(String, nullable=False)
     ingested_at = Column(DateTime, default=datetime.utcnow)
@@ -273,6 +345,30 @@ class ComputeRun(Base):
 
 
 class Pnl(Base):
+    """Pnl (Profit & Loss) stores SNAPSHOT/EOD aggregations with BOTH base and derived metrics.
+    
+    Derived Metrics v1 philosophy:
+    - Store base measures + derived metrics for FAST dashboard queries
+    - Materialize expensive computations (no real-time calculation overhead)
+    - "Locked" historical reports → snapshots don't change
+    - Can recompute if formulas change (track formula_version if needed)
+    
+    WHY store derived in Pnl but not MetricFact?
+    - Pnl: Snapshot/EOD → performance matters, data is historical
+    - MetricFact: Source of truth → keep raw, avoid formula drift
+    
+    Original columns:
+    - Base: spend, revenue, conversions, clicks, impressions
+    - Derived: cpa, roas
+    
+    Derived Metrics v1 additions:
+    - Base: leads, installs, purchases, visitors, profit
+    - Derived: cpc, cpm, cpl, cpi, cpp, poas, arpv, aov, ctr, cvr
+    
+    Related:
+    - app/services/compute_service.py: Computes these snapshots using app/metrics/registry
+    - app/metrics/formulas.py: Pure functions for computing derived metrics
+    """
     __tablename__ = "pnls"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -283,13 +379,41 @@ class Pnl(Base):
     kind = Column(Enum(KindEnum, values_callable=lambda obj: [e.value for e in obj]), nullable=False)
     as_of = Column(DateTime, nullable=True)
     event_date = Column(DateTime, nullable=True)
+    
+    # Original base measures
     spend = Column(Numeric(18, 4), nullable=False)
     revenue = Column(Numeric(18, 4), nullable=True)
     conversions = Column(Numeric(18, 4), nullable=True)
     clicks = Column(Integer, nullable=False)
     impressions = Column(Integer, nullable=False)
+    
+    # Derived Metrics v1: New base measures
+    leads = Column(Numeric(18, 4), nullable=True)
+    installs = Column(Integer, nullable=True)
+    purchases = Column(Integer, nullable=True)
+    visitors = Column(Integer, nullable=True)
+    profit = Column(Numeric(18, 4), nullable=True)
+    
+    # Original derived metrics
     cpa = Column(Numeric(18, 4), nullable=True)
     roas = Column(Numeric(18, 4), nullable=True)
+    
+    # Derived Metrics v1: New derived metrics (Cost/Efficiency)
+    cpc = Column(Numeric(18, 4), nullable=True)  # spend / clicks
+    cpm = Column(Numeric(18, 4), nullable=True)  # (spend / impressions) * 1000
+    cpl = Column(Numeric(18, 4), nullable=True)  # spend / leads
+    cpi = Column(Numeric(18, 4), nullable=True)  # spend / installs
+    cpp = Column(Numeric(18, 4), nullable=True)  # spend / purchases
+    
+    # Derived Metrics v1: New derived metrics (Revenue/Value)
+    poas = Column(Numeric(18, 4), nullable=True)  # profit / spend
+    arpv = Column(Numeric(18, 4), nullable=True)  # revenue / visitors
+    aov = Column(Numeric(18, 4), nullable=True)  # revenue / conversions
+    
+    # Derived Metrics v1: New derived metrics (Performance/Engagement)
+    ctr = Column(Numeric(18, 6), nullable=True)  # clicks / impressions (higher precision)
+    cvr = Column(Numeric(18, 6), nullable=True)  # conversions / clicks (higher precision)
+    
     computed_at = Column(DateTime, default=datetime.utcnow)
 
     entity = relationship("Entity", back_populates="pnls")
