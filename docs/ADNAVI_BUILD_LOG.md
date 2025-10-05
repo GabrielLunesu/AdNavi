@@ -210,6 +210,31 @@ _Last updated: 2025-10-05T12:00:00Z_
 ---
 
 ## 11) Changelog
+| - 2025-10-05T20:00:00Z — **FEATURE**: Highest By v2.0 — Intent-first answers, thresholds, provider breakdowns, date windows.
+  - **Overview**: Major improvements to "which X had highest Y?" queries with trust and outlier filtering.
+  - **New features**:
+    - Thresholds: Filter out tiny/noisy entities (min_spend, min_clicks, min_conversions)
+    - Provider breakdown: Group by platform alongside campaign/adset/ad
+    - Date windows: Answers include explicit date ranges ("Sep 29–Oct 05, 2025")
+    - Denominators: Breakdown results include spend, clicks, conversions for context
+    - Intent-first format: Lead with top item, not workspace average
+  - **Files changed**:
+    - `app/dsl/schema.py`: Added Thresholds model, provider to breakdown options
+    - `app/dsl/planner.py`: Pass original query to Plan for threshold access
+    - `app/dsl/executor.py`: HAVING clauses for thresholds, provider grouping, denominators in results
+    - `app/nlp/prompts.py`: 4 new few-shot examples (provider + threshold queries)
+    - `app/answer/answer_builder.py`: Intent-first format, date formatter, denominator display
+    - `app/services/qa_service.py`: Pass date window to builder, intent-first fallback template
+    - `app/tests/test_highest_by_v2.py`: 15+ comprehensive tests
+  - **Example queries**:
+    - "Which campaign had highest ROAS? Ignore tiny ones." → Thresholds filter outliers
+    - "Which platform performed best by CPC last week?" → Provider breakdown
+    - Answer: "Google had the best CPC at $0.32 from Oct 01–07, 2025 (Spend $1,234, 3,850 clicks). Overall CPC was $0.45."
+  - **Benefits**:
+    - Trust: Date windows show exact time period
+    - Quality: Thresholds prevent tiny campaigns from skewing results
+    - Clarity: Intent-first answers directly address "which X" questions
+    - Context: Denominators help explain results
 | - 2025-10-05T18:00:00Z — **STRATEGIC PLANNING**: Created Agentic LLM Roadmap — Vision and roadmap for evolving from Q&A to full marketing intelligence.
   - **Overview**: Comprehensive analysis of current state (Stage 2 of 5) and path to autonomous marketing agent.
   - **New document**: `backend/docs/AGENTIC_LLM_ROADMAP.md` (strategic planning document).

@@ -259,6 +259,60 @@ FEW_SHOT_EXAMPLES = [
         }
     },
     
+    # Provider breakdown examples
+    {
+        "question": "Which platform had the highest ROAS last week?",
+        "dsl": {
+            "metric": "roas",
+            "time_range": {"last_n_days": 7},
+            "compare_to_previous": False,
+            "group_by": "provider",
+            "breakdown": "provider",
+            "top_n": 1,
+            "filters": {}
+        }
+    },
+    {
+        "question": "Compare CPC by platform this month",
+        "dsl": {
+            "metric": "cpc",
+            "time_range": {"last_n_days": 30},
+            "compare_to_previous": False,
+            "group_by": "provider",
+            "breakdown": "provider",
+            "top_n": 10,
+            "filters": {}
+        }
+    },
+    
+    # Threshold examples (filtering out insignificant entities)
+    {
+        "question": "Which campaign had the highest ROAS this month? Ignore tiny ones.",
+        "dsl": {
+            "metric": "roas",
+            "time_range": {"last_n_days": 30},
+            "compare_to_previous": False,
+            "group_by": "campaign",
+            "breakdown": "campaign",
+            "top_n": 1,
+            "filters": {},
+            "thresholds": {"min_spend": 50.0, "min_conversions": 5}
+        }
+    },
+    {
+        "question": "Best performing campaign by CTR with meaningful traffic",
+        "dsl": {
+            "metric": "ctr",
+            "time_range": {"last_n_days": 7},
+            "compare_to_previous": False,
+            "group_by": "campaign",
+            "breakdown": "campaign",
+            "top_n": 1,
+            "filters": {},
+            "thresholds": {"min_clicks": 100}
+        }
+    },
+    
     # Non-metrics queries
     {
         "question": "Which platforms am I running ads on?",
@@ -400,6 +454,8 @@ RULES:
 6. Only set compare_to_previous=true if user asks for comparison/change
 7. Set group_by and breakdown to the same value when breaking down data
 8. Only include filters if explicitly mentioned
+9. For "which/what X had highest Y" questions: Set top_n=1 and appropriate breakdown
+10. For "ignore tiny/small", "meaningful", "significant" qualifiers: Add thresholds
 
 QUERY TYPES:
 - "metrics": For metric aggregations (ROAS, spend, revenue, etc.) — DEFAULT if not clear
@@ -449,16 +505,29 @@ FILTERS (optional, only if mentioned):
 - status: "active" | "paused"
 - entity_ids: ["uuid1", "uuid2", ...]
 
+BREAKDOWN DIMENSIONS:
+- "provider": Group by platform (google, meta, tiktok)
+- "campaign": Group by campaign
+- "adset": Group by adset
+- "ad": Group by ad
+
+THRESHOLDS (optional, for filtering outliers):
+- min_spend: Minimum spend ($) to include in breakdown
+- min_clicks: Minimum clicks to include in breakdown
+- min_conversions: Minimum conversions to include in breakdown
+Use when user says: "ignore tiny/small", "meaningful traffic", "significant volume", etc.
+
 JSON SCHEMA:
 {
   "query_type": "metrics" | "providers" | "entities" (default: "metrics"),
   "metric": string (required for metrics, optional otherwise),
   "time_range": object (required for metrics, optional otherwise),
   "compare_to_previous": boolean (default: false),
-  "group_by": "none" | "campaign" | "adset" | "ad" (default: "none"),
-  "breakdown": "campaign" | "adset" | "ad" | null (default: null),
+  "group_by": "none" | "provider" | "campaign" | "adset" | "ad" (default: "none"),
+  "breakdown": "provider" | "campaign" | "adset" | "ad" | null (default: null),
   "top_n": number (default: 5, range: 1-50),
-  "filters": object (default: {})
+  "filters": object (default: {}),
+  "thresholds": object (optional, default: null)
 }
 
 Remember: Output ONLY the JSON object, nothing else."""

@@ -1,6 +1,6 @@
 # QA System Architecture & DSL Specification
 
-**Version**: DSL v1.3 (Derived Metrics v1) + Formatters  
+**Version**: DSL v1.4 (Highest By v2.0) + Thresholds + Provider Breakdown  
 **Last Updated**: 2025-10-05  
 **Status**: Production Ready
 
@@ -347,15 +347,20 @@ DSL supports three types of queries:
     "end": "YYYY-MM-DD"
   },
   "compare_to_previous": boolean,  // default: false
-  "group_by": "none" | "campaign" | "adset" | "ad",  // default: "none"
-  "breakdown": "campaign" | "adset" | "ad" | null,  // default: null
+  "group_by": "none" | "provider" | "campaign" | "adset" | "ad",  // default: "none"
+  "breakdown": "provider" | "campaign" | "adset" | "ad" | null,  // default: null
   "top_n": number,  // default: 5, range: 1-50
   "filters": {
     "provider": "google" | "meta" | "tiktok" | "other" | null,
     "level": "account" | "campaign" | "adset" | "ad" | null,
     "status": "active" | "paused" | null,
     "entity_ids": [string] | null
-  }
+  },
+  "thresholds": {  // NEW in v1.4: Optional significance guards
+    "min_spend": number | null,  // Minimum spend ($) to include in breakdown
+    "min_clicks": number | null,  // Minimum clicks to include in breakdown
+    "min_conversions": number | null  // Minimum conversions to include in breakdown
+  } | null
 }
 ```
 
@@ -368,6 +373,58 @@ DSL supports three types of queries:
 5. **Breakdown**: Must match `group_by` (or group_by must be "none")
 6. **Top N**: Between 1 and 50
 7. **Filters**: Optional but must use valid enum values
+8. **Thresholds**: Optional; all values must be >= 0
+
+### Thresholds (NEW in v1.4)
+
+**Purpose**: Filter out tiny/noisy entities from breakdown results to prevent outliers from skewing "highest by" queries.
+
+**How it works**:
+- Applied as HAVING clauses on grouped aggregates (SQL-level filtering)
+- Only affects breakdown queries (not summary aggregates)
+- All conditions are ANDed together (entity must meet ALL thresholds)
+
+**Use cases**:
+- **ROAS queries**: Set `min_spend` to ignore tiny test campaigns with artificially high ROAS
+- **CPA queries**: Set `min_conversions` to avoid division by tiny denominators
+- **CTR queries**: Set `min_clicks` to require statistical significance
+
+**Example**:
+```json
+{
+  "metric": "roas",
+  "time_range": {"last_n_days": 30},
+  "breakdown": "campaign",
+  "top_n": 1,
+  "thresholds": {
+    "min_spend": 50.0,
+    "min_conversions": 5
+  }
+}
+```
+
+**Result**: Only campaigns with >= $50 spend AND >= 5 conversions are considered.
+
+### Provider Breakdown (NEW in v1.4)
+
+**Purpose**: Group metrics by ad platform (Google, Meta, TikTok, etc.) instead of just by entity hierarchy.
+
+**How it works**:
+- New breakdown dimension: `"provider"` alongside `"campaign"`, `"adset"`, `"ad"`
+- Groups by `MetricFact.provider` field (flat dimension, no hierarchy needed)
+- Supports all same features: thresholds, ordering, denominators
+
+**Example**:
+```json
+{
+  "metric": "cpc",
+  "time_range": {"last_n_days": 7},
+  "breakdown": "provider",
+  "top_n": 3
+}
+```
+
+**Result**: Shows top 3 platforms by CPC with spend, clicks, conversions context.
 
 ### Query Examples
 
@@ -886,7 +943,17 @@ The roadmap outlines our evolution from Q&A system to autonomous marketing intel
 
 ## Version History
 
-- **v1.4 (2025-10-05)**: Hierarchy-aware Breakdowns
+- **v1.4 (2025-10-05)**: Highest By v2.0 - Intent-first answers + Thresholds + Provider Breakdown
+  - Added thresholds field (min_spend, min_clicks, min_conversions) to filter outliers
+  - Added "provider" as a breakdown dimension (alongside campaign/adset/ad)
+  - Breakdown results now include denominators (spend, clicks, conversions, revenue, impressions)
+  - Answers include explicit date windows ("Sep 29–Oct 05, 2025") for transparency
+  - Intent-first answer format: Lead with top item, not workspace average
+  - Added 4 new few-shot examples (provider breakdown + threshold queries)
+  - Added date formatter helper in AnswerBuilder
+  - Updated QAService to pass date window to builder
+  
+- **v1.3 (2025-10-05)**: Hierarchy-aware Breakdowns
   - Added recursive CTEs for entity ancestor resolution
   - Breakdowns now ordered by requested metric (not just spend)
   - Enhanced answer generation for "which X had highest Y" queries
@@ -943,6 +1010,15 @@ Try the `/qa` endpoint with:
 ---
 
 ## Changelog
+
+### 2025-10-05T20:00:00Z - Highest By v2.0
+- Added `app/dsl/schema.py`: Thresholds model, provider to breakdown options
+- Updated `app/dsl/planner.py`: Pass original query to Plan for threshold access
+- Updated `app/dsl/executor.py`: HAVING clauses for thresholds, provider grouping, denominators
+- Updated `app/nlp/prompts.py`: 4 new few-shot examples (provider + threshold queries)
+- Updated `app/answer/answer_builder.py`: Intent-first format, date formatter, denominator display
+- Updated `app/services/qa_service.py`: Pass date window to builder, intent-first fallback template
+- Created `app/tests/test_highest_by_v2.py`: 15+ comprehensive tests
 
 ### 2025-10-05T16:00:00Z - Hierarchy-aware Breakdowns
 - Added `app/dsl/hierarchy.py` (recursive CTEs)

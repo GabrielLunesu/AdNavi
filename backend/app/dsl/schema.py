@@ -141,6 +141,61 @@ class Filters(BaseModel):
     )
 
 
+class Thresholds(BaseModel):
+    """
+    Optional significance guards to avoid outlier 'winners' in breakdowns.
+    
+    WHY this exists:
+    - Prevents tiny/noisy entities from appearing as "top performers"
+    - Example: Campaign with $1 spend and $10 revenue shows 10× ROAS, but not meaningful
+    - Applied as HAVING constraints on grouped aggregates (only affects breakdowns)
+    
+    IMPORTANT:
+    - Thresholds NEVER affect summary aggregates (total workspace metrics)
+    - Only applied when breakdown is requested (group_by != "none")
+    - All thresholds are ANDed together (entity must meet ALL if specified)
+    
+    Fields:
+    - min_spend: Minimum total spend for inclusion (dollars)
+    - min_clicks: Minimum total clicks for inclusion (count)
+    - min_conversions: Minimum total conversions for inclusion (count)
+    
+    Examples:
+        # Ignore campaigns with < $50 spend
+        {"min_spend": 50.0}
+        
+        # Require both spend and conversions
+        {"min_spend": 50.0, "min_conversions": 5}
+        
+        # CTR queries: require meaningful click volume
+        {"min_clicks": 100}
+    
+    Use cases:
+    - ROAS queries: Set min_spend to ignore tiny tests
+    - CPA queries: Set min_conversions to avoid division by tiny numbers
+    - CTR queries: Set min_clicks to require statistical significance
+    
+    Related:
+    - Applied in: app/dsl/executor.py (HAVING clause on grouped queries)
+    - Documented in: app/dsl/examples.md
+    """
+    min_spend: Optional[float] = Field(
+        default=None,
+        ge=0,
+        description="Minimum total spend ($) for inclusion in breakdown"
+    )
+    min_clicks: Optional[int] = Field(
+        default=None,
+        ge=0,
+        description="Minimum total clicks for inclusion in breakdown"
+    )
+    min_conversions: Optional[int] = Field(
+        default=None,
+        ge=0,
+        description="Minimum total conversions for inclusion in breakdown"
+    )
+
+
 class MetricQuery(BaseModel):
     """
     DSL contract for all query types (v1.2).
@@ -221,7 +276,7 @@ class MetricQuery(BaseModel):
         description="Grouping dimension (none = single aggregate value)"
     )
     
-    breakdown: Optional[Literal["campaign", "adset", "ad"]] = Field(
+    breakdown: Optional[Literal["provider", "campaign", "adset", "ad"]] = Field(
         default=None,
         description="Breakdown dimension for driver analysis (top movers)"
     )
@@ -236,6 +291,11 @@ class MetricQuery(BaseModel):
     filters: Filters = Field(
         default_factory=Filters,
         description="Optional scoping filters (ANDed together)"
+    )
+    
+    thresholds: Optional[Thresholds] = Field(
+        default=None,
+        description="Optional significance guards for breakdowns (min spend/clicks/conversions)"
     )
     
     def model_dump_json_schema(self) -> dict:
@@ -303,7 +363,7 @@ class MetricResult(BaseModel):
         description="Daily values: [{date: 'YYYY-MM-DD', value: 123.4}, ...]"
     )
     
-    breakdown: Optional[List[Dict[str, Union[str, float, None]]]] = Field(
+    breakdown: Optional[List[Dict[str, Union[str, float, int, None]]]] = Field(
         default=None,
-        description="Top entities: [{label: 'Campaign Name', value: 450.0}, ...]"
+        description="Top entities: [{label: 'Campaign Name', value: 450.0, spend: 1234.5, clicks: 5678, conversions: 90}, ...]"
     )

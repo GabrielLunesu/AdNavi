@@ -35,7 +35,7 @@ from app.dsl.executor import execute_plan
 from app.dsl.validate import DSLValidationError
 from app.telemetry.logging import log_qa_run
 from app.answer.answer_builder import AnswerBuilder, AnswerBuilderError
-from app.answer.formatters import format_metric_value, format_delta_pct
+from app.answer.formatters import format_metric_value, format_delta_pct, fmt_currency, fmt_count
 from app import state  # Import shared application state
 
 
@@ -165,19 +165,28 @@ class QAService:
             # Step 5: Build human-readable answer (hybrid approach)
             # WHY hybrid: LLM rephrases deterministic facts → natural + safe
             # WHY fallback: If LLM fails, use template-based answer
+            # NEW v2.0: Pass date window for transparency in answers
             answer_generation_ms = None
+            
+            # Extract date window from plan (for metrics queries)
+            # WHY: Enables answers like "Summer Sale had highest ROAS from Sep 29–Oct 05, 2025"
+            window = None
+            if plan:
+                window = {"start": plan.start, "end": plan.end}
+            
             try:
                 # Try hybrid answer builder (LLM-based rephrasing)
                 answer_text, answer_generation_ms = self.answer_builder.build_answer(
                     dsl=dsl,
                     result=result,
+                    window=window,  # NEW: Pass date window
                     log_latency=True
                 )
             except AnswerBuilderError as e:
                 # Fallback to template-based answer if LLM fails
                 # WHY fallback: Ensures we always return something, even if LLM is down
                 print(f"⚠️  Answer builder failed, using template fallback: {e.message}")
-                answer_text = self._build_answer_template(dsl, result)
+                answer_text = self._build_answer_template(dsl, result, window)
                 answer_generation_ms = None  # Not measured for fallback
             
             # Step 6: Save to conversation context for follow-ups
@@ -276,7 +285,7 @@ class QAService:
             
             raise
     
-    def _build_answer_template(self, dsl, result) -> str:
+    def _build_answer_template(self, dsl, result, window=None) -> str:
         """
         Build a template-based answer (FALLBACK ONLY).
         
@@ -284,6 +293,9 @@ class QAService:
         - Fallback when AnswerBuilder (LLM) fails
         - Ensures we always return an answer
         - Deterministic, safe, but less natural than LLM version
+        
+        NEW v2.0: window parameter
+        - Accepts optional date window for including date range in fallback answers
         
         DSL v1.2 changes:
         - Handles providers queries: "You are running ads on Google, Meta, TikTok."
@@ -353,7 +365,7 @@ class QAService:
                 return f"Here are your {level_plural}: {first_three}, and {remaining} more."
         
         # METRICS: Original logic (DSL v1.1), now with formatters (Derived Metrics v1)
-        # Existing answer building for metrics queries
+        # NEW v2.0: Intent-first answers for top_n=1 queries
         metric_display = dsl.metric.upper() if dsl.metric else "METRIC"
         
         # For metrics, result is a MetricResult or dict with .summary
@@ -373,7 +385,42 @@ class QAService:
         # This prevents bugs like CPC showing as "$0" when it's actually "$0.48"
         value_str = format_metric_value(dsl.metric, value)
         
-        # Build base answer
+        # NEW v2.0: Intent-first answer for "Which X had highest Y?" queries
+        # WHY: Answer the question directly, not with workspace average
+        if breakdown and len(breakdown) > 0 and dsl.top_n == 1 and dsl.breakdown:
+            top_item = breakdown[0]
+            top_value_formatted = format_metric_value(dsl.metric, top_item.get("value"))
+            
+            # Build date range string if available
+            date_str = ""
+            if window:
+                from app.answer.answer_builder import _format_date_range
+                date_str = f" from {_format_date_range(window['start'], window['end'])}"
+            
+            # Lead with the top performer
+            answer = f"{top_item['label']} had the highest {metric_display} at {top_value_formatted}{date_str}."
+            
+            # Add denominators if available (for context)
+            denominators = []
+            if "spend" in top_item and top_item.get("spend"):
+                denominators.append(f"Spend {fmt_currency(top_item['spend'])}")
+            if "revenue" in top_item and top_item.get("revenue"):
+                denominators.append(f"Revenue {fmt_currency(top_item['revenue'])}")
+            if "clicks" in top_item and top_item.get("clicks"):
+                denominators.append(f"{fmt_count(top_item['clicks'])} clicks")
+            if "conversions" in top_item and top_item.get("conversions"):
+                denominators.append(f"{fmt_count(top_item['conversions'])} conversions")
+            
+            if denominators:
+                answer += f" ({', '.join(denominators)})."
+            
+            # Optionally add overall context
+            if value is not None and value != top_item.get("value"):
+                answer += f" Overall {metric_display} was {value_str}."
+            
+            return answer
+        
+        # Default answer format (for non-top-n-1 queries)
         answer = f"Your {metric_display} for the selected period is {value_str}."
         
         # Add comparison if available (using shared formatters)
