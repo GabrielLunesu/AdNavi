@@ -192,8 +192,7 @@ pytest backend/app/tests/ -v --integration
 
 ## Documentation
 
-- **DSL Specification**: `backend/docs/dsl-spec.md`
-- **Architecture**: `backend/docs/qa-arch.md`
+- **Architecture & DSL Specification**: `backend/docs/QA_SYSTEM_ARCHITECTURE.md` (single source of truth)
 - **Few-Shot Examples**: `backend/app/dsl/examples.md`
 
 ## Future Enhancements

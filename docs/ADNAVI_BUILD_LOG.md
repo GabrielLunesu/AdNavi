@@ -210,6 +210,15 @@ _Last updated: 2025-10-05T12:00:00Z_
 ---
 
 ## 11) Changelog
+| - 2025-10-05T15:00:00Z — **REFACTOR**: Documentation consolidation — Single source of truth for QA system docs.
+  - **Overview**: Merged 3 documentation files into one comprehensive guide.
+  - **Actions**: 
+    - Moved `backend/QA_SYSTEM_ARCHITECTURE.md` → `backend/docs/QA_SYSTEM_ARCHITECTURE.md`
+    - Deleted `backend/docs/dsl-spec.md` (merged into QA_SYSTEM_ARCHITECTURE.md)
+    - Deleted `backend/docs/qa-arch.md` (merged into QA_SYSTEM_ARCHITECTURE.md)
+    - Updated all references to point to new location
+  - **Benefits**: Single source of truth, no duplicate/conflicting docs, easier to maintain.
+  - **New structure**: `backend/docs/QA_SYSTEM_ARCHITECTURE.md` contains everything (architecture, DSL spec, metrics, formatters, testing).
 | - 2025-10-05T14:00:00Z — **FEATURE**: Metric Formatters — Single source of truth for display formatting.
   - **Overview**: Eliminates formatting bugs (e.g., CPC showing "$0" instead of "$0.48"). Ensures consistency across all answer generation.
   - **New module**: `app/answer/formatters.py` (currency, ratios, percentages, counts, delta formatting).
@@ -394,7 +403,7 @@ _Last updated: 2025-10-05T12:00:00Z_
     - `backend/app/nlp/translator.py`: Enhanced to accept context and include conversation history in LLM prompts
     - `backend/app/tests/test_context_manager.py`: Comprehensive tests (50+ test cases covering all scenarios)
   - Documentation files:
-    - `backend/QA_SYSTEM_ARCHITECTURE.md`: Updated flow diagram and architecture with context manager integration
+    - `backend/docs/QA_SYSTEM_ARCHITECTURE.md`: Updated flow diagram and architecture with context manager integration
     - `docs/ADNAVI_BUILD_LOG.md`: Added changelog entry
   - Features:
     - **Context Storage**: Stores last N queries (default 5) per user+workspace
@@ -451,7 +460,7 @@ _Last updated: 2025-10-05T12:00:00Z_
     - `backend/app/services/qa_service.py`: Updated to use AnswerBuilder with template fallback
     - `backend/app/tests/test_answer_builder.py`: Comprehensive tests for answer builder (14 tests total)
   - Documentation files:
-    - `backend/QA_SYSTEM_ARCHITECTURE.md`: Updated flow diagram and architecture with answer builder stage
+    - `backend/docs/QA_SYSTEM_ARCHITECTURE.md`: Updated flow diagram and architecture with answer builder stage
   - Features:
     - **Hybrid Approach**: Combines deterministic fact extraction with LLM rephrasing
       - WHY: Facts are safe (no hallucinations), presentation is natural (not robotic)
@@ -488,7 +497,7 @@ _Last updated: 2025-10-05T12:00:00Z_
     - `backend/app/services/qa_service.py`: Updated answer builder to handle providers and entities responses
     - `backend/app/tests/test_dsl_v12.py`: Comprehensive tests for v1.2 query types (12 tests total)
   - Documentation files:
-    - `backend/docs/dsl-spec.md`: Added DSL v1.2 Extensions section with full documentation
+    - `backend/docs/QA_SYSTEM_ARCHITECTURE.md`: Added DSL v1.2 Extensions section with full documentation
   - Features:
     - **Providers queries**: List distinct ad platforms in workspace ("Which platforms am I on?")
       - Returns: `{"providers": ["google", "meta", "tiktok"]}`
@@ -523,8 +532,7 @@ _Last updated: 2025-10-05T12:00:00Z_
      - `backend/app/services/qa_service_refactored.py`, `backend/app/routers/qa_refactored.py`
      - `backend/app/tests/__init__.py`, `backend/app/tests/test_dsl_validation.py`, `backend/app/tests/test_dsl_executor.py`, `backend/app/tests/test_translator.py`
    - Documentation files:
-     - `backend/docs/dsl-spec.md`: Complete DSL specification with examples and validation rules
-     - `backend/docs/qa-arch.md`: System architecture diagram and dataflow documentation
+     - `backend/docs/QA_SYSTEM_ARCHITECTURE.md`: Complete architecture & DSL specification (single source of truth)
    - Features:
      - **DSL Module**: Enhanced Pydantic schema with TimeRange, Filters, MetricQuery, MetricResult models
      - **Canonicalization**: Synonym mapping (e.g., "return on ad spend" → "roas") and time phrase normalization
