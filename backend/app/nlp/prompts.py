@@ -209,6 +209,56 @@ FEW_SHOT_EXAMPLES = [
         }
     },
     
+    # "Highest by X" queries (top_n=1 with breakdown)
+    {
+        "question": "Which campaign had highest ROAS?",
+        "dsl": {
+            "metric": "roas",
+            "time_range": {"last_n_days": 7},
+            "compare_to_previous": False,
+            "group_by": "campaign",
+            "breakdown": "campaign",
+            "top_n": 1,
+            "filters": {}
+        }
+    },
+    {
+        "question": "Which ad had the best CPC last month?",
+        "dsl": {
+            "metric": "cpc",
+            "time_range": {"last_n_days": 30},
+            "compare_to_previous": False,
+            "group_by": "ad",
+            "breakdown": "ad",
+            "top_n": 1,
+            "filters": {}
+        }
+    },
+    {
+        "question": "What campaign drove the highest CTR yesterday?",
+        "dsl": {
+            "metric": "ctr",
+            "time_range": {"last_n_days": 1},
+            "compare_to_previous": False,
+            "group_by": "campaign",
+            "breakdown": "campaign",
+            "top_n": 1,
+            "filters": {}
+        }
+    },
+    {
+        "question": "Which active campaign has the lowest CPA?",
+        "dsl": {
+            "metric": "cpa",
+            "time_range": {"last_n_days": 7},
+            "compare_to_previous": False,
+            "group_by": "campaign",
+            "breakdown": "campaign",
+            "top_n": 1,
+            "filters": {"status": "active"}
+        }
+    },
+    
     # Non-metrics queries
     {
         "question": "Which platforms am I running ads on?",

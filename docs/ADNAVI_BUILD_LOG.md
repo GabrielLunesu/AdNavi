@@ -210,6 +210,25 @@ _Last updated: 2025-10-05T12:00:00Z_
 ---
 
 ## 11) Changelog
+| - 2025-10-05T18:00:00Z — **STRATEGIC PLANNING**: Created Agentic LLM Roadmap — Vision and roadmap for evolving from Q&A to full marketing intelligence.
+  - **Overview**: Comprehensive analysis of current state (Stage 2 of 5) and path to autonomous marketing agent.
+  - **New document**: `backend/docs/AGENTIC_LLM_ROADMAP.md` (strategic planning document).
+  - **Key insights**: 
+    - Current: Advanced Q&A with 24 metrics, context, hierarchy (production-ready)
+    - Missing: Education, causal analysis, benchmarking, recommendations, predictions
+    - Timeline: 6-9 months to full vision through 5 development phases
+  - **Next steps**: Phase 1 - Educational Intelligence (2 months) starting with knowledge base and "What is X?" queries.
+| - 2025-10-05T17:00:00Z — **BUGFIX**: PostgreSQL grouping error in breakdown ordering — Fixed ORDER BY clause for hierarchy queries.
+  - **Bug**: "column 'metric_facts.revenue' must appear in the GROUP BY clause" when asking "Which campaign had highest ROAS?"
+  - **Cause**: Using literal_column() in ORDER BY which PostgreSQL couldn't resolve in grouped queries.
+  - **Fix**: Changed to use aggregate functions directly: func.sum(MF.revenue) instead of literal_column("revenue").
+  - **File**: `app/dsl/executor.py` (removed literal_column usage, updated ORDER BY expressions).
+| - 2025-10-05T16:00:00Z — **FEATURE**: Hierarchy-aware breakdowns — Roll up metrics from leaf entities to ancestors.
+  - **Overview**: Enables "Which campaign had highest ROAS?" queries even when facts are stored at ad/adset level. Orders by requested metric.
+  - **New module**: `app/dsl/hierarchy.py` (recursive CTEs for ancestor resolution).
+  - **Updates**: `app/dsl/executor.py` (uses CTEs, orders by metric), `app/answer/answer_builder.py` (top_n=1 special handling), `app/nlp/prompts.py` (4 new examples).
+  - **Tests**: `app/tests/test_breakdown_rollup.py` (8 comprehensive tests).
+  - **Capabilities**: Campaign/adset rollup, metric-based ordering (not just spend), "highest by X" natural answers.
 | - 2025-10-05T15:00:00Z — **REFACTOR**: Documentation consolidation — Single source of truth for QA system docs.
   - **Overview**: Merged 3 documentation files into one comprehensive guide.
   - **Actions**: 

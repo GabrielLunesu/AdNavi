@@ -204,3 +204,9 @@ Pnl "1" -- "1" Provider : provider
 Pnl "1" -- "1" Level : level
 Pnl "1" -- "1" Kind : kind
 Entity "1" -- "0..1" Goal : goal
+```
+
+## Changelog
+
+- 2025-10-05T16:00:00Z: Added hierarchy module for entity ancestor resolution (recursive CTEs)
+- 2025-10-05T13:00:00Z: Added GoalEnum and new columns for Derived Metrics v1 (Entity.goal, MetricFact bases, Pnl derived)
