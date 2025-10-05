@@ -830,22 +830,35 @@ backend/app/
 
 ## Future Enhancements
 
-### Phase 5: Validation Repair
+### Immediate Enhancements (DSL v1.4+)
+
+#### Phase 5: Validation Repair
 - Re-ask LLM with error message for repair
 - Rule-based fallback for basic intents
 - Smart error recovery
 
-### Phase 6: Evaluation & Testing
+#### Phase 6: Evaluation & Testing
 - Comprehensive evaluation harness
 - Golden output validation
 - Continuous accuracy monitoring
 
-### Phase 7: Advanced Features
+#### Phase 7: Advanced Features
 - Multi-metric queries ("compare ROAS vs CPA")
 - Nested breakdowns (campaign → adset → ad)
 - Cohort analysis
-- Forecasting and trend detection
-- Anomaly detection
+- Basic trend detection
+
+### Long-term Vision: Agentic Marketing Intelligence
+
+**See [AGENTIC_LLM_ROADMAP.md](./AGENTIC_LLM_ROADMAP.md) for the complete strategic roadmap.**
+
+The roadmap outlines our evolution from Q&A system to autonomous marketing intelligence:
+
+- **Stage 3**: Educational Intelligence ("What is ROAS?" → comprehensive explanations)
+- **Stage 4**: Causal Analysis ("Why did it drop?" → root cause identification)  
+- **Stage 5**: Autonomous Agent (proactive recommendations, predictions)
+
+**Timeline**: 6-9 months through 5 development phases, starting with educational capabilities.
 
 ### Context Enhancements
 - Persistent storage (Redis/PostgreSQL)

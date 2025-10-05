@@ -210,6 +210,14 @@ _Last updated: 2025-10-05T12:00:00Z_
 ---
 
 ## 11) Changelog
+| - 2025-10-05T18:00:00Z — **STRATEGIC PLANNING**: Created Agentic LLM Roadmap — Vision and roadmap for evolving from Q&A to full marketing intelligence.
+  - **Overview**: Comprehensive analysis of current state (Stage 2 of 5) and path to autonomous marketing agent.
+  - **New document**: `backend/docs/AGENTIC_LLM_ROADMAP.md` (strategic planning document).
+  - **Key insights**: 
+    - Current: Advanced Q&A with 24 metrics, context, hierarchy (production-ready)
+    - Missing: Education, causal analysis, benchmarking, recommendations, predictions
+    - Timeline: 6-9 months to full vision through 5 development phases
+  - **Next steps**: Phase 1 - Educational Intelligence (2 months) starting with knowledge base and "What is X?" queries.
 | - 2025-10-05T17:00:00Z — **BUGFIX**: PostgreSQL grouping error in breakdown ordering — Fixed ORDER BY clause for hierarchy queries.
   - **Bug**: "column 'metric_facts.revenue' must appear in the GROUP BY clause" when asking "Which campaign had highest ROAS?"
   - **Cause**: Using literal_column() in ORDER BY which PostgreSQL couldn't resolve in grouped queries.
