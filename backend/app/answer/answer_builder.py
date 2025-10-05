@@ -24,11 +24,61 @@ from __future__ import annotations
 
 import time
 from typing import Dict, Any, Union, Optional
+from datetime import date
 from openai import OpenAI
 
 from app.dsl.schema import MetricQuery, MetricResult
 from app.deps import get_settings
-from app.answer.formatters import format_metric_value, format_delta_pct
+from app.answer.formatters import format_metric_value, format_delta_pct, fmt_currency, fmt_count
+
+
+def _format_date_range(start: date, end: date) -> str:
+    """
+    Format a date range as human-readable string.
+    
+    WHY this exists:
+    - Provides trust and transparency in answers
+    - Users want to know exactly what time window the data covers
+    - Compact format saves tokens in LLM prompts
+    
+    Args:
+        start: Start date (inclusive)
+        end: End date (inclusive)
+        
+    Returns:
+        Formatted date range string
+        
+    Examples:
+        >>> _format_date_range(date(2025, 9, 29), date(2025, 10, 5))
+        "Sep 29–Oct 05, 2025"
+        
+        >>> _format_date_range(date(2025, 10, 1), date(2025, 10, 1))
+        "Oct 01, 2025"
+    
+    Format decisions:
+    - Use abbreviated month names (Sep, Oct) for compactness
+    - Use en-dash (–) between dates (not hyphen)
+    - Include year at end only (avoid repetition)
+    - Single day: Show just one date
+    
+    Related:
+    - Used by: build_answer() to include date window in answers
+    - Alternative: ISO format (YYYY-MM-DD) is more precise but less friendly
+    """
+    # Single day: don't show range
+    if start == end:
+        return start.strftime("%b %d, %Y")
+    
+    # Same month: "Sep 29–30, 2025"
+    if start.year == end.year and start.month == end.month:
+        return f"{start.strftime('%b %d')}–{end.strftime('%d, %Y')}"
+    
+    # Different months, same year: "Sep 29–Oct 05, 2025"
+    if start.year == end.year:
+        return f"{start.strftime('%b %d')}–{end.strftime('%b %d, %Y')}"
+    
+    # Different years: "Dec 29, 2024–Jan 05, 2025"
+    return f"{start.strftime('%b %d, %Y')}–{end.strftime('%b %d, %Y')}"
 
 
 class AnswerBuilderError(Exception):
@@ -108,6 +158,7 @@ class AnswerBuilder:
         self, 
         dsl: MetricQuery, 
         result: Union[MetricResult, Dict[str, Any]],
+        window: Optional[Dict[str, date]] = None,
         log_latency: bool = False
     ) -> tuple[str, Optional[int]]:
         """
@@ -116,6 +167,7 @@ class AnswerBuilder:
         Args:
             dsl: The MetricQuery that was executed (user intent)
             result: Execution results (MetricResult for metrics, dict for providers/entities)
+            window: Optional date window {"start": date, "end": date} for including date range in answer
             log_latency: Whether to return latency in ms (for telemetry)
             
         Returns:
@@ -151,7 +203,7 @@ class AnswerBuilder:
             elif dsl.query_type == "entities":
                 facts = self._extract_entities_facts(dsl, result)
             else:  # metrics (default)
-                facts = self._extract_metrics_facts(dsl, result)
+                facts = self._extract_metrics_facts(dsl, result, window)
             
             # Step 2: Build LLM promptt
             # WHY strict instructions: Prevent hallucinations, ensure facts-only rephrasing
@@ -190,7 +242,8 @@ class AnswerBuilder:
     def _extract_metrics_facts(
         self, 
         dsl: MetricQuery, 
-        result: Union[MetricResult, Dict]
+        result: Union[MetricResult, Dict],
+        window: Optional[Dict[str, date]] = None
     ) -> Dict[str, Any]:
         """
         Extract deterministic facts from metrics query results.
@@ -205,12 +258,17 @@ class AnswerBuilder:
         - Instruct GPT to prefer formatted values
         - This prevents GPT from inventing formatting (e.g., "$0" for CPC)
         
+        NEW (v2.0): Date windows and denominators
+        - Include date range for transparency ("Sep 29–Oct 05, 2025")
+        - Include denominators (spend, clicks, conversions) for context
+        
         Args:
             dsl: MetricQuery with query intent
             result: MetricResult or dict with summary, delta_pct, breakdown
+            window: Optional date window {"start": date, "end": date}
             
         Returns:
-            Dict with extracted facts ready for LLM prompt (includes formatted values)
+            Dict with extracted facts ready for LLM prompt (includes formatted values, date range, denominators)
             
         Example:
             >>> facts = _extract_metrics_facts(dsl, result)
@@ -252,6 +310,13 @@ class AnswerBuilder:
             "value_formatted": formatted_summary,  # GPT should use this
         }
         
+        # Add date window for transparency (NEW v2.0)
+        # WHY: Users trust answers more when they know the exact time period
+        # Example: "Summer Sale had highest ROAS at 3.20× from Sep 29–Oct 05, 2025"
+        if window and "start" in window and "end" in window:
+            date_range_str = _format_date_range(window["start"], window["end"])
+            facts["date_range"] = date_range_str
+        
         # Add comparison if available (with formatting)
         if previous is not None:
             formatted_previous = format_metric_value(dsl.metric, previous)
@@ -275,6 +340,22 @@ class AnswerBuilder:
                     dsl.metric, 
                     top.get("value")
                 )
+            
+            # NEW v2.0: Include denominators for context
+            # WHY: Helps explain results in natural language
+            # Example: "Summer Sale had ROAS 3.20× (Spend $1,234, Revenue $3,948)"
+            denominators = []
+            if "spend" in top and top.get("spend"):
+                denominators.append(f"Spend {fmt_currency(top['spend'])}")
+            if "revenue" in top and top.get("revenue"):
+                denominators.append(f"Revenue {fmt_currency(top['revenue'])}")
+            if "clicks" in top and top.get("clicks"):
+                denominators.append(f"{fmt_count(top['clicks'])} clicks")
+            if "conversions" in top and top.get("conversions"):
+                denominators.append(f"{fmt_count(top['conversions'])} conversions")
+            
+            if denominators:
+                facts["top_performer_context"] = ", ".join(denominators)
             
             # Special handling for top_n=1 queries (e.g., "Which campaign had highest ROAS?")
             # This makes the answer focus on the specific entity rather than overall summary
@@ -421,8 +502,19 @@ Examples:
   Answer: "You're running ads on Google and Meta."
   
 - Given: {"query_intent": "highest_by_metric", "breakdown_level": "campaign", "metric_display": "ROAS", 
-           "top_performer": "Summer Sale", "top_performer_value_formatted": "3.20×"}
-  Answer: "Summer Sale had the highest ROAS at 3.20× during the selected period."
+           "top_performer": "Summer Sale", "top_performer_value_formatted": "3.20×", "date_range": "Sep 29–Oct 05, 2025"}
+  Answer: "Summer Sale had the highest ROAS at 3.20× from Sep 29–Oct 05, 2025."
+  
+- Given: {"query_intent": "highest_by_metric", "breakdown_level": "provider", "metric_display": "CPC",
+           "top_performer": "Google", "top_performer_value_formatted": "$0.32", "date_range": "Oct 01–07, 2025",
+           "top_performer_context": "Spend $1,234.56, 3,850 clicks", "value_formatted": "$0.45"}
+  Answer: "Google had the best CPC at $0.32 from Oct 01–07, 2025 (Spend $1,234.56, 3,850 clicks). Overall CPC was $0.45."
+
+INTENT-FIRST RULE for "highest_by_metric":
+- When query_intent is "highest_by_metric", LEAD with the top_performer and their value
+- Include date_range for transparency
+- Optionally mention top_performer_context (spend, clicks, etc.) in parentheses
+- Optionally mention overall value_formatted as context at the end
 
 Remember: Be helpful and natural, but never invent data or formatting."""
     

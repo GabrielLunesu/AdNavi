@@ -336,12 +336,37 @@ def _execute_metrics_plan(
     breakdown = None
     
     if plan.breakdown:
-        # Import hierarchy utilities
+        # Import hierarchy utilities for campaign/adset breakdowns
         from app.dsl.hierarchy import campaign_ancestor_cte, adset_ancestor_cte
         
-        # Use hierarchy-aware rollup for breakdowns
+        # PROVIDER BREAKDOWN: Group by provider (no hierarchy needed)
+        # WHY: Provider is a flat dimension (google, meta, tiktok, etc.)
+        # Example: "Which platform had the highest ROAS?"
+        if plan.breakdown == "provider":
+            breakdown_query = (
+                db.query(
+                    MF.provider.label("group_name"),
+                    # Aggregate all base measures
+                    func.coalesce(func.sum(MF.spend), 0).label("spend"),
+                    func.coalesce(func.sum(MF.revenue), 0).label("revenue"),
+                    func.coalesce(func.sum(MF.clicks), 0).label("clicks"),
+                    func.coalesce(func.sum(MF.impressions), 0).label("impressions"),
+                    func.coalesce(func.sum(MF.conversions), 0).label("conversions"),
+                    func.coalesce(func.sum(MF.leads), 0).label("leads"),
+                    func.coalesce(func.sum(MF.installs), 0).label("installs"),
+                    func.coalesce(func.sum(MF.purchases), 0).label("purchases"),
+                    func.coalesce(func.sum(MF.visitors), 0).label("visitors"),
+                    func.coalesce(func.sum(MF.profit), 0).label("profit"),
+                )
+                .join(E, E.id == MF.entity_id)
+                .filter(E.workspace_id == workspace_id)  # Tenant scoping
+                .filter(cast(MF.event_date, Date).between(plan.start, plan.end))
+                .group_by(MF.provider)
+            )
+        
+        # Use hierarchy-aware rollup for campaign/adset/ad breakdowns
         # This allows facts stored at ad/adset level to be rolled up to campaign level
-        if plan.breakdown == "campaign":
+        elif plan.breakdown == "campaign":
             # Get CTE that maps leaf entities to their campaign ancestors
             leaf_to_ancestor = campaign_ancestor_cte(db)
             
@@ -427,6 +452,39 @@ def _execute_metrics_plan(
         if plan.filters.get("entity_ids"):
             breakdown_query = breakdown_query.filter(MF.entity_id.in_(plan.filters["entity_ids"]))
         
+        # Apply thresholds as HAVING constraints (only for breakdowns)
+        # WHY: Filters out insignificant entities (e.g., campaigns with $1 spend showing 10× ROAS)
+        # IMPORTANT: Uses coalesce(sum(...), 0) to handle NULL aggregates safely
+        # Reference: app/dsl/schema.py (Thresholds model) for field definitions
+        query = plan.query  # Access original query for thresholds
+        if query.thresholds:
+            t = query.thresholds
+            # Build list of HAVING conditions
+            having_conditions = []
+            
+            if t.min_spend is not None:
+                # Sum of spend must be >= min_spend threshold
+                having_conditions.append(
+                    func.coalesce(func.sum(MF.spend), 0) >= t.min_spend
+                )
+            
+            if t.min_clicks is not None:
+                # Sum of clicks must be >= min_clicks threshold
+                having_conditions.append(
+                    func.coalesce(func.sum(MF.clicks), 0) >= t.min_clicks
+                )
+            
+            if t.min_conversions is not None:
+                # Sum of conversions must be >= min_conversions threshold
+                having_conditions.append(
+                    func.coalesce(func.sum(MF.conversions), 0) >= t.min_conversions
+                )
+            
+            # Apply all HAVING conditions (ANDed together)
+            # WHY: Entity must meet ALL thresholds to be included
+            for condition in having_conditions:
+                breakdown_query = breakdown_query.having(condition)
+        
         # ORDER BY the requested metric value (not just spend)
         # Build SQL expression for the derived metric to enable efficient DB-side ordering
         # NOTE: We must use the aggregate functions directly in ORDER BY, not column aliases
@@ -488,15 +546,30 @@ def _execute_metrics_plan(
         
         # Build breakdown list using Python-side formula registry for final 'value'
         # This ensures consistent calculation with the rest of the system
+        # NEW: Include denominators (spend, clicks, conversions) for answer context
+        # WHY: Enables AnswerBuilder to show supporting data (e.g., "Summer Sale had ROAS 3.2× with $1,234 spend")
         breakdown = []
         for row in rows:
             totals = row._asdict()
             # Use the same compute_metric function for consistency
+            # Reference: app/metrics/registry.py (single source of truth for formulas)
             value = compute_metric(metric_name, totals)
-            breakdown.append({
+            
+            # Build breakdown item with value + denominators
+            # Include all key measures that might be useful for answer generation
+            item = {
                 "label": row.group_name,
-                "value": value
-            })
+                "value": value,
+                # Denominators: useful for explaining results in answers
+                # Example: "Summer Sale had highest ROAS at 3.20× (Spend $1,234, Revenue $3,948)"
+                "spend": totals.get("spend"),
+                "clicks": totals.get("clicks"),
+                "conversions": totals.get("conversions"),
+                # Additional measures (optional, but helpful)
+                "revenue": totals.get("revenue"),
+                "impressions": totals.get("impressions"),
+            }
+            breakdown.append(item)
     
     # --- BUILD RESULT ---
     return MetricResult(

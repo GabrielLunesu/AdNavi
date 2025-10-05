@@ -57,6 +57,7 @@ class Plan:
         base_measures: Which base columns to SUM (spend, revenue, clicks, etc.)
         filters: Pass-through filters from the DSL
         top_n: How many items to return in breakdown
+        query: Original MetricQuery (for accessing thresholds and other advanced features)
         
     Example:
         Plan(
@@ -69,7 +70,8 @@ class Plan:
             need_previous=True,
             base_measures=["spend", "revenue"],
             filters={},
-            top_n=5
+            top_n=5,
+            query=original_query
         )
     
     Related:
@@ -86,6 +88,7 @@ class Plan:
     base_measures: List[str]
     filters: dict
     top_n: int
+    query: MetricQuery  # Original query for accessing thresholds
 
 
 def build_plan(query: MetricQuery) -> Optional[Plan]:
@@ -189,7 +192,8 @@ def build_plan(query: MetricQuery) -> Optional[Plan]:
         need_previous=query.compare_to_previous,
         base_measures=sorted(base_measures),  # Sort for consistency
         filters=query.filters.model_dump() if hasattr(query.filters, 'model_dump') else query.filters,
-        top_n=query.top_n
+        top_n=query.top_n,
+        query=query  # Include original query for accessing thresholds
     )
 
 
