@@ -667,6 +667,48 @@ All queries scoped at SQL level:
 
 ---
 
+## Hierarchy & Rollup (Breakdowns)
+
+For breakdown queries, the system uses **recursive CTEs** to roll up metrics from leaf entities (ads) to their ancestors (campaigns/adsets). This enables queries like "Which campaign had highest ROAS?" even when facts are stored at the ad level.
+
+### How It Works
+
+1. **Recursive CTE**: Traverses the `parent_id` chain from any entity to its campaign/adset ancestor
+2. **Rollup**: Aggregates metrics from all descendant entities
+3. **Ordering**: Results ordered by the requested metric value (not just spend)
+4. **Top N**: Efficient DB-side limiting after ordering
+
+### Example Query
+
+"Which campaign had the highest ROAS?"
+
+```json
+{
+  "metric": "roas",
+  "time_range": {"last_n_days": 7},
+  "breakdown": "campaign",
+  "top_n": 1
+}
+```
+
+Result: "Summer Sale had the highest ROAS at 3.20× during the selected period."
+
+### Technical Details
+
+- **Hierarchy Module**: `app/dsl/hierarchy.py`
+- **No schema changes**: Uses existing `parent_id` relationships
+- **PostgreSQL optimized**: Uses `DISTINCT ON` for efficiency
+- **NULL handling**: `desc().nulls_last()` ensures clean ordering
+
+### Future Optimizations
+
+At scale, consider:
+- Denormalized columns: `MetricFact.campaign_id`, `MetricFact.adset_id`
+- Materialized views for ancestor mappings
+- Application-level hierarchy caching
+
+---
+
 ## File Reference
 
 | Component | File | Purpose |
@@ -679,6 +721,7 @@ All queries scoped at SQL level:
 | **Validation** | `app/dsl/validate.py` | DSL validation |
 | **Planning** | `app/dsl/planner.py` | Query planning |
 | **Execution** | `app/dsl/executor.py` | SQL execution |
+| **Hierarchy** | `app/dsl/hierarchy.py` | Entity ancestor resolution (CTEs) |
 | **Translation** | `app/nlp/translator.py` | LLM integration (context-aware) |
 | **Prompts** | `app/nlp/prompts.py` | System prompts & few-shots |
 | **Answer Builder** | `app/answer/answer_builder.py` | Hybrid answer generation |
@@ -710,6 +753,7 @@ pytest app/tests/ -v
 | Context Manager | `test_context_manager.py` | Multi-turn conversations (50+ tests) |
 | Answer Builder | `test_answer_builder.py` | Hybrid answer generation |
 | **Formatters** | `test_formatters.py` | **Display formatting (51 tests)** |
+| **Hierarchy** | `test_breakdown_rollup.py` | **Entity rollup & ordering (8 tests)** |
 
 ### Test Coverage Summary
 - ✅ 100+ total tests
@@ -731,6 +775,7 @@ backend/app/
 │   ├── validate.py          # Validation logic
 │   ├── planner.py           # DSL → execution plan
 │   ├── executor.py          # Plan → SQL → results
+│   ├── hierarchy.py         # Entity ancestor resolution (NEW)
 │   ├── examples.md          # Few-shot examples (human-readable)
 │   └── README.md            # Module guide
 │
@@ -773,7 +818,8 @@ backend/app/
 │   ├── test_translator.py
 │   ├── test_context_manager.py
 │   ├── test_answer_builder.py
-│   └── test_formatters.py   # NEW: 51 tests
+│   ├── test_formatters.py   # NEW: 51 tests
+│   └── test_breakdown_rollup.py  # NEW: 8 tests
 │
 ├── models.py                 # Database models
 ├── schemas.py                # Request/response models
@@ -827,6 +873,12 @@ backend/app/
 
 ## Version History
 
+- **v1.4 (2025-10-05)**: Hierarchy-aware Breakdowns
+  - Added recursive CTEs for entity ancestor resolution
+  - Breakdowns now ordered by requested metric (not just spend)
+  - Enhanced answer generation for "which X had highest Y" queries
+  - Added 4 new few-shot examples for top_n=1 queries
+  
 - **v1.3 (2025-10-05)**: Derived Metrics v1 + Formatters
   - Added 12 new derived metrics (CPC, CPM, CPL, CPI, CPP, POAS, ARPV, AOV, CTR, CVR)
   - Added GoalEnum for campaign objectives
@@ -879,7 +931,14 @@ Try the `/qa` endpoint with:
 
 ## Changelog
 
-### 2025-10-05 - Formatters
+### 2025-10-05T16:00:00Z - Hierarchy-aware Breakdowns
+- Added `app/dsl/hierarchy.py` (recursive CTEs)
+- Updated executor to use hierarchy and order by metric
+- Updated AnswerBuilder for top_n=1 special handling
+- Added 4 new few-shot examples in prompts
+- Created 8 unit tests (test_breakdown_rollup.py)
+
+### 2025-10-05T14:00:00Z - Formatters
 - Added `app/answer/formatters.py` (display formatting)
 - Updated AnswerBuilder to use formatters
 - Updated QAService fallback to use formatters

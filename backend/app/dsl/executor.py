@@ -336,14 +336,20 @@ def _execute_metrics_plan(
     breakdown = None
     
     if plan.breakdown:
-        # Map breakdown dimension to entity level
-        level_map = {"campaign": "campaign", "adset": "adset", "ad": "ad"}
-        breakdown_level = level_map.get(plan.breakdown)
+        # Import hierarchy utilities
+        from app.dsl.hierarchy import campaign_ancestor_cte, adset_ancestor_cte
         
-        if breakdown_level:
+        # Use hierarchy-aware rollup for breakdowns
+        # This allows facts stored at ad/adset level to be rolled up to campaign level
+        if plan.breakdown == "campaign":
+            # Get CTE that maps leaf entities to their campaign ancestors
+            leaf_to_ancestor = campaign_ancestor_cte(db)
+            
+            # Build query that joins facts → entities → ancestor mapping
             breakdown_query = (
                 db.query(
-                    E.name.label("label"),
+                    leaf_to_ancestor.c.ancestor_id.label("group_id"),
+                    leaf_to_ancestor.c.ancestor_name.label("group_name"),
                     # Original base measures
                     func.coalesce(func.sum(MF.spend), 0).label("spend"),
                     func.coalesce(func.sum(MF.revenue), 0).label("revenue"),
@@ -357,31 +363,140 @@ def _execute_metrics_plan(
                     func.coalesce(func.sum(MF.visitors), 0).label("visitors"),
                     func.coalesce(func.sum(MF.profit), 0).label("profit"),
                 )
-                .join(E, E.id == MF.entity_id)
+                .join(E, E.id == MF.entity_id)  # Join to leaf entity
+                .join(leaf_to_ancestor, leaf_to_ancestor.c.leaf_id == E.id)  # Map to campaign
                 .filter(E.workspace_id == workspace_id)
-                .filter(E.level == breakdown_level)
                 .filter(cast(MF.event_date, Date).between(plan.start, plan.end))
-                .group_by(E.name)
-                .order_by(func.sum(MF.spend).desc())  # Sort by spend (can enhance later)
-                .limit(plan.top_n)
+                .group_by("group_id", "group_name")
             )
             
-            # Apply same filters (except level, which is set by breakdown)
-            if plan.filters.get("provider"):
-                breakdown_query = breakdown_query.filter(MF.provider == plan.filters["provider"])
-            if plan.filters.get("status"):
-                breakdown_query = breakdown_query.filter(E.status == plan.filters["status"])
-            if plan.filters.get("entity_ids"):
-                breakdown_query = breakdown_query.filter(MF.entity_id.in_(plan.filters["entity_ids"]))
+        elif plan.breakdown == "adset":
+            # Get CTE that maps leaf entities to their adset ancestors
+            leaf_to_ancestor = adset_ancestor_cte(db)
             
-            rows = breakdown_query.all()
-            breakdown = [
-                {
-                    "label": row.label,
-                    "value": compute_metric(metric_name, row._asdict())
-                }
-                for row in rows
-            ]
+            breakdown_query = (
+                db.query(
+                    leaf_to_ancestor.c.ancestor_id.label("group_id"),
+                    leaf_to_ancestor.c.ancestor_name.label("group_name"),
+                    func.coalesce(func.sum(MF.spend), 0).label("spend"),
+                    func.coalesce(func.sum(MF.revenue), 0).label("revenue"),
+                    func.coalesce(func.sum(MF.clicks), 0).label("clicks"),
+                    func.coalesce(func.sum(MF.impressions), 0).label("impressions"),
+                    func.coalesce(func.sum(MF.conversions), 0).label("conversions"),
+                    func.coalesce(func.sum(MF.leads), 0).label("leads"),
+                    func.coalesce(func.sum(MF.installs), 0).label("installs"),
+                    func.coalesce(func.sum(MF.purchases), 0).label("purchases"),
+                    func.coalesce(func.sum(MF.visitors), 0).label("visitors"),
+                    func.coalesce(func.sum(MF.profit), 0).label("profit"),
+                )
+                .join(E, E.id == MF.entity_id)
+                .join(leaf_to_ancestor, leaf_to_ancestor.c.leaf_id == E.id)
+                .filter(E.workspace_id == workspace_id)
+                .filter(cast(MF.event_date, Date).between(plan.start, plan.end))
+                .group_by("group_id", "group_name")
+            )
+            
+        else:
+            # For "ad" breakdown, no rollup needed - facts are at the right level
+            breakdown_query = (
+                db.query(
+                    E.name.label("group_name"),
+                    func.coalesce(func.sum(MF.spend), 0).label("spend"),
+                    func.coalesce(func.sum(MF.revenue), 0).label("revenue"),
+                    func.coalesce(func.sum(MF.clicks), 0).label("clicks"),
+                    func.coalesce(func.sum(MF.impressions), 0).label("impressions"),
+                    func.coalesce(func.sum(MF.conversions), 0).label("conversions"),
+                    func.coalesce(func.sum(MF.leads), 0).label("leads"),
+                    func.coalesce(func.sum(MF.installs), 0).label("installs"),
+                    func.coalesce(func.sum(MF.purchases), 0).label("purchases"),
+                    func.coalesce(func.sum(MF.visitors), 0).label("visitors"),
+                    func.coalesce(func.sum(MF.profit), 0).label("profit"),
+                )
+                .join(E, E.id == MF.entity_id)
+                .filter(E.workspace_id == workspace_id)
+                .filter(E.level == "ad")
+                .filter(cast(MF.event_date, Date).between(plan.start, plan.end))
+                .group_by(E.name)
+            )
+        
+        # Apply filters (provider/status/entity_ids)
+        if plan.filters.get("provider"):
+            breakdown_query = breakdown_query.filter(MF.provider == plan.filters["provider"])
+        if plan.filters.get("status"):
+            breakdown_query = breakdown_query.filter(E.status == plan.filters["status"])
+        if plan.filters.get("entity_ids"):
+            breakdown_query = breakdown_query.filter(MF.entity_id.in_(plan.filters["entity_ids"]))
+        
+        # ORDER BY the requested metric value (not just spend)
+        # Build SQL expression for the derived metric to enable efficient DB-side ordering
+        # NOTE: We must use the aggregate functions directly in ORDER BY, not column aliases
+        # PostgreSQL requires this when using GROUP BY
+        
+        # Build ordering expression based on the requested metric
+        # Uses direct aggregate expressions to avoid PostgreSQL grouping errors
+        if metric_name == "roas":
+            order_expr = func.coalesce(func.sum(MF.revenue), 0) / func.nullif(func.coalesce(func.sum(MF.spend), 0), 0)
+        elif metric_name == "cpa":
+            order_expr = func.coalesce(func.sum(MF.spend), 0) / func.nullif(func.coalesce(func.sum(MF.conversions), 0), 0)
+        elif metric_name == "cvr":
+            order_expr = func.coalesce(func.sum(MF.conversions), 0) / func.nullif(func.coalesce(func.sum(MF.clicks), 0), 0)
+        elif metric_name == "ctr":
+            order_expr = func.coalesce(func.sum(MF.clicks), 0) / func.nullif(func.coalesce(func.sum(MF.impressions), 0), 0)
+        elif metric_name == "cpm":
+            order_expr = (func.coalesce(func.sum(MF.spend), 0) / func.nullif(func.coalesce(func.sum(MF.impressions), 0), 0)) * 1000
+        elif metric_name == "cpc":
+            order_expr = func.coalesce(func.sum(MF.spend), 0) / func.nullif(func.coalesce(func.sum(MF.clicks), 0), 0)
+        elif metric_name == "cpl":
+            order_expr = func.coalesce(func.sum(MF.spend), 0) / func.nullif(func.coalesce(func.sum(MF.leads), 0), 0)
+        elif metric_name == "cpi":
+            order_expr = func.coalesce(func.sum(MF.spend), 0) / func.nullif(func.coalesce(func.sum(MF.installs), 0), 0)
+        elif metric_name == "cpp":
+            order_expr = func.coalesce(func.sum(MF.spend), 0) / func.nullif(func.coalesce(func.sum(MF.purchases), 0), 0)
+        elif metric_name == "poas":
+            order_expr = func.coalesce(func.sum(MF.profit), 0) / func.nullif(func.coalesce(func.sum(MF.spend), 0), 0)
+        elif metric_name == "arpv":
+            order_expr = func.coalesce(func.sum(MF.revenue), 0) / func.nullif(func.coalesce(func.sum(MF.visitors), 0), 0)
+        elif metric_name == "aov":
+            order_expr = func.coalesce(func.sum(MF.revenue), 0) / func.nullif(func.coalesce(func.sum(MF.conversions), 0), 0)
+        elif metric_name == "spend":
+            order_expr = func.coalesce(func.sum(MF.spend), 0)
+        elif metric_name == "revenue":
+            order_expr = func.coalesce(func.sum(MF.revenue), 0)
+        elif metric_name == "clicks":
+            order_expr = func.coalesce(func.sum(MF.clicks), 0)
+        elif metric_name == "impressions":
+            order_expr = func.coalesce(func.sum(MF.impressions), 0)
+        elif metric_name == "conversions":
+            order_expr = func.coalesce(func.sum(MF.conversions), 0)
+        elif metric_name == "leads":
+            order_expr = func.coalesce(func.sum(MF.leads), 0)
+        elif metric_name == "installs":
+            order_expr = func.coalesce(func.sum(MF.installs), 0)
+        elif metric_name == "purchases":
+            order_expr = func.coalesce(func.sum(MF.purchases), 0)
+        elif metric_name == "visitors":
+            order_expr = func.coalesce(func.sum(MF.visitors), 0)
+        elif metric_name == "profit":
+            order_expr = func.coalesce(func.sum(MF.profit), 0)
+        else:
+            # Fallback to spend if metric unknown
+            order_expr = func.coalesce(func.sum(MF.spend), 0)
+        
+        # Apply ordering and limit
+        # desc().nulls_last() ensures NULL values (from divide-by-zero) appear last
+        rows = breakdown_query.order_by(order_expr.desc().nulls_last()).limit(plan.top_n).all()
+        
+        # Build breakdown list using Python-side formula registry for final 'value'
+        # This ensures consistent calculation with the rest of the system
+        breakdown = []
+        for row in rows:
+            totals = row._asdict()
+            # Use the same compute_metric function for consistency
+            value = compute_metric(metric_name, totals)
+            breakdown.append({
+                "label": row.group_name,
+                "value": value
+            })
     
     # --- BUILD RESULT ---
     return MetricResult(

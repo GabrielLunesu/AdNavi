@@ -275,6 +275,13 @@ class AnswerBuilder:
                     dsl.metric, 
                     top.get("value")
                 )
+            
+            # Special handling for top_n=1 queries (e.g., "Which campaign had highest ROAS?")
+            # This makes the answer focus on the specific entity rather than overall summary
+            if dsl.top_n == 1 and dsl.breakdown:
+                facts["query_intent"] = "highest_by_metric"
+                facts["breakdown_level"] = dsl.breakdown  # e.g., "campaign"
+                facts["metric_display"] = dsl.metric.upper()  # e.g., "ROAS"
         
         return facts
     
@@ -412,6 +419,10 @@ Examples:
   
 - Given: {"platforms": ["Google", "Meta"], "count": 2}
   Answer: "You're running ads on Google and Meta."
+  
+- Given: {"query_intent": "highest_by_metric", "breakdown_level": "campaign", "metric_display": "ROAS", 
+           "top_performer": "Summer Sale", "top_performer_value_formatted": "3.20×"}
+  Answer: "Summer Sale had the highest ROAS at 3.20× during the selected period."
 
 Remember: Be helpful and natural, but never invent data or formatting."""
     
