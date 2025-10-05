@@ -291,7 +291,8 @@ def _execute_metrics_plan(
     if plan.need_timeseries:
         series_query = (
             db.query(
-                MF.event_date.label("date"),
+                # Cast to Date for ISO YYYY-MM-DD format (not YYYY-MM-DD HH:MM:SS)
+                cast(MF.event_date, Date).label("date"),
                 # Original base measures
                 func.coalesce(func.sum(MF.spend), 0).label("spend"),
                 func.coalesce(func.sum(MF.revenue), 0).label("revenue"),
@@ -308,8 +309,8 @@ def _execute_metrics_plan(
             .join(E, E.id == MF.entity_id)
             .filter(E.workspace_id == workspace_id)
             .filter(cast(MF.event_date, Date).between(plan.start, plan.end))
-            .group_by(MF.event_date)
-            .order_by(MF.event_date)
+            .group_by(cast(MF.event_date, Date))
+            .order_by(cast(MF.event_date, Date))
         )
         
         # Apply same filters

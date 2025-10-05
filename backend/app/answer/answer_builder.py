@@ -28,6 +28,7 @@ from openai import OpenAI
 
 from app.dsl.schema import MetricQuery, MetricResult
 from app.deps import get_settings
+from app.answer.formatters import format_metric_value, format_delta_pct
 
 
 class AnswerBuilderError(Exception):
@@ -199,26 +200,34 @@ class AnswerBuilder:
         - All facts come from validated execution results
         - Safe to pass to LLM for rephrasing only
         
+        FORMATTING STRATEGY:
+        - Provide BOTH raw and formatted values
+        - Instruct GPT to prefer formatted values
+        - This prevents GPT from inventing formatting (e.g., "$0" for CPC)
+        
         Args:
             dsl: MetricQuery with query intent
             result: MetricResult or dict with summary, delta_pct, breakdown
             
         Returns:
-            Dict with extracted facts ready for LLM prompt
+            Dict with extracted facts ready for LLM prompt (includes formatted values)
             
         Example:
             >>> facts = _extract_metrics_facts(dsl, result)
             >>> facts
             {
-                "metric": "roas",
-                "value": 2.45,
-                "previous_value": 2.06,
-                "change_percent": 19.0,
+                "metric": "cpc",
+                "value_raw": 0.4794,
+                "value_formatted": "$0.48",
+                "previous_value_raw": 0.3912,
+                "previous_value_formatted": "$0.39",
+                "change_formatted": "+22.5%",
                 "top_performer": "Summer Sale"
             }
         
         Related:
         - Input: app/dsl/schema.py (MetricResult)
+        - Formatters: app/answer/formatters.py (format_metric_value, format_delta_pct)
         - Used by: build_answer()
         """
         # Handle both MetricResult objects and dicts
@@ -233,22 +242,39 @@ class AnswerBuilder:
             delta_pct = result.delta_pct
             breakdown = result.breakdown
         
+        # Format the main value
+        # WHY both raw and formatted: GPT gets correct formatting, fallback has raw for math
+        formatted_summary = format_metric_value(dsl.metric, summary)
+        
         facts = {
             "metric": dsl.metric,
-            "value": summary
+            "value_raw": summary,
+            "value_formatted": formatted_summary,  # GPT should use this
         }
         
-        # Add comparison if available
+        # Add comparison if available (with formatting)
         if previous is not None:
-            facts["previous_value"] = previous
+            formatted_previous = format_metric_value(dsl.metric, previous)
+            facts["previous_value_raw"] = previous
+            facts["previous_value_formatted"] = formatted_previous  # GPT should use this
         
         if delta_pct is not None:
-            # Convert to percentage (0.19 → 19%)
-            facts["change_percent"] = round(delta_pct * 100, 1)
+            # Format percentage change with sign
+            formatted_delta = format_delta_pct(delta_pct)
+            facts["change_raw"] = delta_pct
+            facts["change_formatted"] = formatted_delta  # GPT should use this
         
         # Add top performer if breakdown exists
+        # WHY: Gives context for "which campaign drove this?"
         if breakdown and len(breakdown) > 0:
-            facts["top_performer"] = breakdown[0].get("label")
+            top = breakdown[0]
+            facts["top_performer"] = top.get("label")
+            # Also format the top performer's value
+            if "value" in top:
+                facts["top_performer_value_formatted"] = format_metric_value(
+                    dsl.metric, 
+                    top.get("value")
+                )
         
         return facts
     
@@ -340,14 +366,20 @@ class AnswerBuilder:
         - Ensure only provided facts are used
         - Keep answers conversational but accurate
         
+        FORMATTING INSTRUCTIONS:
+        - Always prefer *_formatted fields over *_raw fields
+        - This prevents GPT from inventing formatting (e.g., "$0" for CPC = 0.48)
+        - Formatted fields come from app/answer/formatters.py (single source of truth)
+        
         Returns:
             System prompt string
             
         Instructions prioritized by importance:
         1. No number invention (CRITICAL for trust)
-        2. Use only provided facts (prevents hallucinations)
-        3. Natural tone (user experience)
-        4. Concise (2-3 sentences)
+        2. Use formatted values when available (prevents formatting errors)
+        3. Use only provided facts (prevents hallucinations)
+        4. Natural tone (user experience)
+        5. Concise (2-3 sentences)
         
         Related:
         - Pattern inspired by: app/nlp/prompts.py (DSL translation prompt)
@@ -360,19 +392,28 @@ Your job is to rephrase data facts into natural, conversational answers.
 CRITICAL RULES:
 1. Do NOT invent numbers or make up facts
 2. Use ONLY the facts provided in the user message
-3. If a fact is missing or None, gracefully omit it
-4. Keep answers concise (2-3 sentences maximum)
-5. Sound like a helpful colleague, not a robot
-6. Use appropriate formatting (e.g., "$1,234.56" for currency, "19%" for percentages)
+3. ALWAYS prefer *_formatted fields over *_raw fields (e.g., use "value_formatted" not "value_raw")
+4. If a fact is missing or None, gracefully omit it
+5. Keep answers concise (2-3 sentences maximum)
+6. Sound like a helpful colleague, not a robot
+7. Do NOT apply your own formatting - the formatted values are already correct
+
+WHY formatted fields matter:
+- They come from our formatting system (currency, ratios, percentages)
+- Using raw values causes errors like "$0" when the value is "$0.48"
+- Always trust the formatted values
 
 Examples:
-- Given: {"metric": "roas", "value": 2.45, "change_percent": 19}
-  Answer: "Your ROAS is 2.45, up 19% from the previous period. Great performance!"
+- Given: {"metric": "cpc", "value_formatted": "$0.48", "change_formatted": "+15.5%"}
+  Answer: "Your CPC is $0.48, up 15.5% from the previous period."
+  
+- Given: {"metric": "roas", "value_formatted": "2.45×", "top_performer": "Summer Sale"}
+  Answer: "Your ROAS is 2.45×, with Summer Sale as the top performer."
   
 - Given: {"platforms": ["Google", "Meta"], "count": 2}
   Answer: "You're running ads on Google and Meta."
 
-Remember: Be helpful and natural, but never invent data."""
+Remember: Be helpful and natural, but never invent data or formatting."""
     
     def _build_user_prompt(self, dsl: MetricQuery, facts: Dict[str, Any]) -> str:
         """

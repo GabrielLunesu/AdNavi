@@ -35,6 +35,7 @@ from app.dsl.executor import execute_plan
 from app.dsl.validate import DSLValidationError
 from app.telemetry.logging import log_qa_run
 from app.answer.answer_builder import AnswerBuilder, AnswerBuilderError
+from app.answer.formatters import format_metric_value, format_delta_pct
 from app import state  # Import shared application state
 
 
@@ -351,42 +352,42 @@ class QAService:
                 remaining = len(names) - 3
                 return f"Here are your {level_plural}: {first_three}, and {remaining} more."
         
-        # METRICS: Original logic (DSL v1.1)
+        # METRICS: Original logic (DSL v1.1), now with formatters (Derived Metrics v1)
         # Existing answer building for metrics queries
         metric_display = dsl.metric.upper() if dsl.metric else "METRIC"
         
         # For metrics, result is a MetricResult or dict with .summary
         if isinstance(result, dict):
             value = result.get("summary")
+            previous = result.get("previous")
+            delta_pct = result.get("delta_pct")
+            breakdown = result.get("breakdown")
         else:
             value = result.summary
+            previous = result.previous
+            delta_pct = result.delta_pct
+            breakdown = result.breakdown
         
-        # Format value based on metric type
-        if value is None:
-            value_str = "N/A (insufficient data)"
-        elif dsl.metric in ("roas", "cvr"):
-            value_str = f"{value:.2f}"  # 2 decimals for ratios
-        elif dsl.metric == "cpa":
-            value_str = f"${value:.2f}"  # Currency for CPA
-        elif dsl.metric in ("spend", "revenue"):
-            value_str = f"${value:,.2f}"  # Currency with commas
-        else:
-            value_str = f"{value:,.0f}"  # Whole numbers for clicks/impressions/conversions
+        # Format value using shared formatters
+        # WHY: Single source of truth for formatting (same as AnswerBuilder)
+        # This prevents bugs like CPC showing as "$0" when it's actually "$0.48"
+        value_str = format_metric_value(dsl.metric, value)
         
         # Build base answer
         answer = f"Your {metric_display} for the selected period is {value_str}."
         
-        # Add comparison if available
-        delta_pct = result.get("delta_pct") if isinstance(result, dict) else getattr(result, "delta_pct", None)
+        # Add comparison if available (using shared formatters)
+        # WHY format_delta_pct: Consistent with AnswerBuilder, includes sign (+/-)
         if delta_pct is not None:
-            delta_display = f"{delta_pct * 100:+.1f}%"
+            delta_display = format_delta_pct(delta_pct)
             answer += f" That's a {delta_display} change vs the previous period."
         
         # Mention breakdown if available
-        breakdown = result.get("breakdown") if isinstance(result, dict) else getattr(result, "breakdown", None)
         if breakdown and len(breakdown) > 0:
             top_item = breakdown[0]
-            answer += f" Top performer: {top_item['label']}."
+            # Format the top performer's value using the same metric formatter
+            top_value_formatted = format_metric_value(dsl.metric, top_item.get("value"))
+            answer += f" Top performer: {top_item['label']} ({top_value_formatted})."
         
         return answer
     
