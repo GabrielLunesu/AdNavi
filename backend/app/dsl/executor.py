@@ -4,21 +4,27 @@ Query Executor
 
 Executes query plans against the database using SQLAlchemy.
 
+Derived Metrics v1 changes:
+- Uses app/metrics/registry for ALL metric computations
+- Aggregates all base measures (including new ones: leads, installs, purchases, visitors, profit)
+- Defers derived metric math to formulas (single source of truth)
+
 WHY separate executor?
-- Single source of truth for metric calculations
+- Single source of truth for metric calculations → app/metrics/registry
 - Workspace scoping enforced at query level
-- Divide-by-zero guards for derived metrics
+- Divide-by-zero guards for derived metrics → app/metrics/formulas
 - Clear separation: planning vs execution
 
 Related files:
 - app/dsl/planner.py: Creates the Plan that we execute
 - app/dsl/schema.py: MetricResult that we return
 - app/models.py: Database models (MetricFact, Entity)
-- app/services/metric_service.py: Legacy service (being phased out)
+- app/metrics/registry.py: Maps metrics → formulas (USED HERE)
+- app/metrics/formulas.py: Pure functions for derived metrics
 
 Design:
 - Workspace-scoped: ALL queries filter by workspace_id
-- Safe math: Divide-by-zero guards for roas/cpa/cvr
+- Safe math: Divide-by-zero guards in app/metrics/formulas
 - Efficient: Single query for summary, separate for timeseries/breakdown
 - Flexible: Supports all filter combinations
 """
@@ -34,61 +40,18 @@ from sqlalchemy import func, cast, Date
 from app.dsl.schema import MetricResult, MetricQuery
 from app.dsl.planner import Plan
 from app import models
+from app.metrics.registry import compute_metric
 
 
-def _derive_metric(metric_name: str, totals: Dict[str, Any]) -> Optional[float]:
-    """
-    Compute a single metric value (base or derived) from aggregated totals.
-    
-    Args:
-        metric_name: Metric to compute (spend, revenue, roas, cpa, cvr, etc.)
-        totals: Dict with base measure totals (spend, revenue, clicks, etc.)
-        
-    Returns:
-        Computed metric value, or None if cannot be computed
-        
-    Examples:
-        >>> _derive_metric("roas", {"spend": 1000, "revenue": 2500})
-        2.5
-        
-        >>> _derive_metric("cpa", {"spend": 1000, "conversions": 0})
-        None  # Divide by zero guard
-        
-        >>> _derive_metric("spend", {"spend": 1000})
-        1000.0
-    
-    Division by zero handling:
-    - roas: Returns None if spend = 0
-    - cpa: Returns None if conversions = 0
-    - cvr: Returns None if clicks = 0
-    
-    Related:
-    - Similar to: app/services/metric_service._derived_metric (legacy)
-    - Used by: execute_plan() in this module
-    """
-    if totals is None:
-        return None
-    
-    # Extract base measures (default to 0)
-    spend = float(totals.get("spend") or 0)
-    revenue = float(totals.get("revenue") or 0)
-    clicks = float(totals.get("clicks") or 0)
-    impressions = float(totals.get("impressions") or 0)
-    conversions = float(totals.get("conversions") or 0)
-    
-    # Derived metrics with divide-by-zero guards
-    if metric_name == "roas":
-        return (revenue / spend) if spend > 0 else None
-    
-    if metric_name == "cpa":
-        return (spend / conversions) if conversions > 0 else None
-    
-    if metric_name == "cvr":
-        return (conversions / clicks) if clicks > 0 else None
-    
-    # Base metrics: return the value directly
-    base_value = totals.get(metric_name)
-    return float(base_value) if base_value is not None else None
+# =====================================================================
+# REMOVED: _derive_metric() function
+# =====================================================================
+# Derived Metrics v1 change:
+# - Old: _derive_metric() function defined here (duplicated logic)
+# - New: Use compute_metric() from app/metrics/registry (single source of truth)
+# - WHY: Ensures formulas never diverge between executor and compute_service
+# - HOW: Import compute_metric at top of file, call it instead of _derive_metric
+# =====================================================================
 
 
 def execute_plan(
@@ -234,14 +197,22 @@ def _execute_metrics_plan(
     MF, E = models.MetricFact, models.Entity
     
     # --- SUMMARY AGGREGATION ---
-    # Build base query: aggregate all base measures needed for the metric
+    # Derived Metrics v1: Aggregate ALL base measures (including new ones)
+    # WHY: Enables computing any derived metric from the result
     base_query = (
         db.query(
+            # Original base measures
             func.coalesce(func.sum(MF.spend), 0).label("spend"),
             func.coalesce(func.sum(MF.revenue), 0).label("revenue"),
             func.coalesce(func.sum(MF.clicks), 0).label("clicks"),
             func.coalesce(func.sum(MF.impressions), 0).label("impressions"),
             func.coalesce(func.sum(MF.conversions), 0).label("conversions"),
+            # Derived Metrics v1: New base measures
+            func.coalesce(func.sum(MF.leads), 0).label("leads"),
+            func.coalesce(func.sum(MF.installs), 0).label("installs"),
+            func.coalesce(func.sum(MF.purchases), 0).label("purchases"),
+            func.coalesce(func.sum(MF.visitors), 0).label("visitors"),
+            func.coalesce(func.sum(MF.profit), 0).label("profit"),
         )
         .join(E, E.id == MF.entity_id)
         .filter(E.workspace_id == workspace_id)  # TENANT SCOPING
@@ -261,9 +232,10 @@ def _execute_metrics_plan(
     # Execute summary query
     totals_now = base_query.one()._asdict()
     
-    # Derive metric value
+    # Derive metric value using metrics/registry
+    # Derived Metrics v1: Use compute_metric() from registry (single source of truth)
     metric_name = plan.derived or plan.base_measures[0]
-    summary_value = _derive_metric(metric_name, totals_now)
+    summary_value = compute_metric(metric_name, totals_now)
     
     # --- PREVIOUS PERIOD COMPARISON ---
     previous_value = None
@@ -275,14 +247,21 @@ def _execute_metrics_plan(
         prev_start = plan.start - timedelta(days=period_length)
         prev_end = plan.start - timedelta(days=1)
         
-        # Query previous period
+        # Query previous period (aggregate all base measures)
         prev_query = (
             db.query(
+                # Original base measures
                 func.coalesce(func.sum(MF.spend), 0).label("spend"),
                 func.coalesce(func.sum(MF.revenue), 0).label("revenue"),
                 func.coalesce(func.sum(MF.clicks), 0).label("clicks"),
                 func.coalesce(func.sum(MF.impressions), 0).label("impressions"),
                 func.coalesce(func.sum(MF.conversions), 0).label("conversions"),
+                # Derived Metrics v1: New base measures
+                func.coalesce(func.sum(MF.leads), 0).label("leads"),
+                func.coalesce(func.sum(MF.installs), 0).label("installs"),
+                func.coalesce(func.sum(MF.purchases), 0).label("purchases"),
+                func.coalesce(func.sum(MF.visitors), 0).label("visitors"),
+                func.coalesce(func.sum(MF.profit), 0).label("profit"),
             )
             .join(E, E.id == MF.entity_id)
             .filter(E.workspace_id == workspace_id)
@@ -300,7 +279,7 @@ def _execute_metrics_plan(
             prev_query = prev_query.filter(MF.entity_id.in_(plan.filters["entity_ids"]))
         
         totals_prev = prev_query.one()._asdict()
-        previous_value = _derive_metric(metric_name, totals_prev)
+        previous_value = compute_metric(metric_name, totals_prev)
         
         # Calculate delta percentage
         if previous_value not in (None, 0) and summary_value is not None:
@@ -312,18 +291,26 @@ def _execute_metrics_plan(
     if plan.need_timeseries:
         series_query = (
             db.query(
-                MF.event_date.label("date"),
+                # Cast to Date for ISO YYYY-MM-DD format (not YYYY-MM-DD HH:MM:SS)
+                cast(MF.event_date, Date).label("date"),
+                # Original base measures
                 func.coalesce(func.sum(MF.spend), 0).label("spend"),
                 func.coalesce(func.sum(MF.revenue), 0).label("revenue"),
                 func.coalesce(func.sum(MF.clicks), 0).label("clicks"),
                 func.coalesce(func.sum(MF.impressions), 0).label("impressions"),
                 func.coalesce(func.sum(MF.conversions), 0).label("conversions"),
+                # Derived Metrics v1: New base measures
+                func.coalesce(func.sum(MF.leads), 0).label("leads"),
+                func.coalesce(func.sum(MF.installs), 0).label("installs"),
+                func.coalesce(func.sum(MF.purchases), 0).label("purchases"),
+                func.coalesce(func.sum(MF.visitors), 0).label("visitors"),
+                func.coalesce(func.sum(MF.profit), 0).label("profit"),
             )
             .join(E, E.id == MF.entity_id)
             .filter(E.workspace_id == workspace_id)
             .filter(cast(MF.event_date, Date).between(plan.start, plan.end))
-            .group_by(MF.event_date)
-            .order_by(MF.event_date)
+            .group_by(cast(MF.event_date, Date))
+            .order_by(cast(MF.event_date, Date))
         )
         
         # Apply same filters
@@ -340,7 +327,7 @@ def _execute_metrics_plan(
         timeseries = [
             {
                 "date": str(row.date),
-                "value": _derive_metric(metric_name, row._asdict())
+                "value": compute_metric(metric_name, row._asdict())
             }
             for row in rows
         ]
@@ -357,11 +344,18 @@ def _execute_metrics_plan(
             breakdown_query = (
                 db.query(
                     E.name.label("label"),
+                    # Original base measures
                     func.coalesce(func.sum(MF.spend), 0).label("spend"),
                     func.coalesce(func.sum(MF.revenue), 0).label("revenue"),
                     func.coalesce(func.sum(MF.clicks), 0).label("clicks"),
                     func.coalesce(func.sum(MF.impressions), 0).label("impressions"),
                     func.coalesce(func.sum(MF.conversions), 0).label("conversions"),
+                    # Derived Metrics v1: New base measures
+                    func.coalesce(func.sum(MF.leads), 0).label("leads"),
+                    func.coalesce(func.sum(MF.installs), 0).label("installs"),
+                    func.coalesce(func.sum(MF.purchases), 0).label("purchases"),
+                    func.coalesce(func.sum(MF.visitors), 0).label("visitors"),
+                    func.coalesce(func.sum(MF.profit), 0).label("profit"),
                 )
                 .join(E, E.id == MF.entity_id)
                 .filter(E.workspace_id == workspace_id)
@@ -384,7 +378,7 @@ def _execute_metrics_plan(
             breakdown = [
                 {
                     "label": row.label,
-                    "value": _derive_metric(metric_name, row._asdict())
+                    "value": compute_metric(metric_name, row._asdict())
                 }
                 for row in rows
             ]

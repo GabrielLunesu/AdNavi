@@ -21,6 +21,7 @@ from __future__ import annotations
 # Few-shot examples embedded in the prompt
 # These are condensed from dsl/examples.md for efficiency
 FEW_SHOT_EXAMPLES = [
+    # Original examples
     {
         "question": "What's my ROAS this week?",
         "dsl": {
@@ -81,6 +82,134 @@ FEW_SHOT_EXAMPLES = [
             "filters": {"status": "active"}
         }
     },
+    
+    # Derived Metrics v1: New cost/efficiency examples
+    {
+        "question": "What was my CPC last week?",
+        "dsl": {
+            "metric": "cpc",
+            "time_range": {"last_n_days": 7},
+            "compare_to_previous": False,
+            "group_by": "none",
+            "breakdown": None,
+            "top_n": 5,
+            "filters": {}
+        }
+    },
+    {
+        "question": "Compare CPM by campaign for the last 7 days",
+        "dsl": {
+            "metric": "cpm",
+            "time_range": {"last_n_days": 7},
+            "compare_to_previous": False,
+            "group_by": "campaign",
+            "breakdown": "campaign",
+            "top_n": 10,
+            "filters": {}
+        }
+    },
+    {
+        "question": "Show me cost per lead for my lead gen campaigns",
+        "dsl": {
+            "metric": "cpl",
+            "time_range": {"last_n_days": 30},
+            "compare_to_previous": False,
+            "group_by": "campaign",
+            "breakdown": "campaign",
+            "top_n": 5,
+            "filters": {"status": "active"}
+        }
+    },
+    {
+        "question": "What's my app install cost this month?",
+        "dsl": {
+            "metric": "cpi",
+            "time_range": {"last_n_days": 30},
+            "compare_to_previous": False,
+            "group_by": "none",
+            "breakdown": None,
+            "top_n": 5,
+            "filters": {}
+        }
+    },
+    {
+        "question": "Cost per purchase for Meta ads yesterday",
+        "dsl": {
+            "metric": "cpp",
+            "time_range": {"last_n_days": 1},
+            "compare_to_previous": False,
+            "group_by": "none",
+            "breakdown": None,
+            "top_n": 5,
+            "filters": {"provider": "meta"}
+        }
+    },
+    
+    # Derived Metrics v1: New value metric examples
+    {
+        "question": "What's my profit on ad spend this month?",
+        "dsl": {
+            "metric": "poas",
+            "time_range": {"last_n_days": 30},
+            "compare_to_previous": False,
+            "group_by": "none",
+            "breakdown": None,
+            "top_n": 5,
+            "filters": {}
+        }
+    },
+    {
+        "question": "Show me average order value for the last 2 weeks",
+        "dsl": {
+            "metric": "aov",
+            "time_range": {"last_n_days": 14},
+            "compare_to_previous": False,
+            "group_by": "none",
+            "breakdown": None,
+            "top_n": 5,
+            "filters": {}
+        }
+    },
+    {
+        "question": "Revenue per visitor by campaign",
+        "dsl": {
+            "metric": "arpv",
+            "time_range": {"last_n_days": 7},
+            "compare_to_previous": False,
+            "group_by": "campaign",
+            "breakdown": "campaign",
+            "top_n": 5,
+            "filters": {}
+        }
+    },
+    
+    # Derived Metrics v1: New engagement metric examples
+    {
+        "question": "What's my click-through rate this week?",
+        "dsl": {
+            "metric": "ctr",
+            "time_range": {"last_n_days": 7},
+            "compare_to_previous": False,
+            "group_by": "none",
+            "breakdown": None,
+            "top_n": 5,
+            "filters": {}
+        }
+    },
+    {
+        "question": "Compare CTR by campaign last month",
+        "dsl": {
+            "metric": "ctr",
+            "time_range": {"last_n_days": 30},
+            "compare_to_previous": False,
+            "group_by": "campaign",
+            "breakdown": "campaign",
+            "top_n": 10,
+            "filters": {}
+        }
+    },
+    
+    # Non-metrics queries
     {
         "question": "Which platforms am I running ads on?",
         "dsl": {
@@ -228,14 +357,36 @@ QUERY TYPES:
 - "entities": For listing campaigns/adsets/ads ("List my campaigns", "Show me adsets")
 
 METRICS (for metrics queries):
-- spend: Ad spend amount
-- revenue: Revenue generated
+Base measures (stored):
+- spend: Ad spend amount ($)
+- revenue: Revenue generated ($)
 - clicks: Number of clicks
 - impressions: Number of impressions
-- conversions: Number of conversions
-- roas: Return on ad spend (derived: revenue/spend)
-- cpa: Cost per acquisition (derived: spend/conversions)
-- cvr: Conversion rate (derived: conversions/clicks)
+- conversions: Number of conversions (generic)
+- leads: Lead form submissions
+- installs: App installations
+- purchases: Purchase events
+- visitors: Landing page visitors
+- profit: Net profit (revenue - costs, $)
+
+Derived metrics (computed):
+Cost/Efficiency:
+- cpc: Cost per click ($/click)
+- cpm: Cost per mille ($/1000 impressions)
+- cpa: Cost per acquisition ($/conversion)
+- cpl: Cost per lead ($/lead)
+- cpi: Cost per install ($/install)
+- cpp: Cost per purchase ($/purchase)
+
+Value:
+- roas: Return on ad spend (revenue/spend, ratio)
+- poas: Profit on ad spend (profit/spend, ratio)
+- arpv: Average revenue per visitor ($/visitor)
+- aov: Average order value ($/order)
+
+Engagement:
+- ctr: Click-through rate (clicks/impressions, %)
+- cvr: Conversion rate (conversions/clicks, %)
 
 TIME RANGE (for metrics queries):
 - Relative: {"last_n_days": <number>}  (e.g., 7, 30, 90)

@@ -150,20 +150,30 @@ WHERE e.workspace_id = :workspace_id
   1. **Extract facts** deterministically from results
      - Summary value, delta %, top performer
      - No hallucinations possible (comes from validated DB results)
-  2. **LLM rephrase** with GPT-4o-mini
+  2. **Format values** using shared formatters (`app/answer/formatters.py`)
+     - Currency: CPC = 0.4794 → "$0.48" (prevents "$0" bug)
+     - Ratios: ROAS = 2.456 → "2.46×"
+     - Percentages: CTR = 0.042 → "4.2%"
+     - Counts: clicks = 1234 → "1,234"
+     - GPT receives both raw and formatted values
+     - Instructions: "Always prefer formatted values"
+  3. **LLM rephrase** with GPT-4o-mini
      - Temperature: 0.3 (natural but controlled)
-     - Strict instructions: "Do NOT invent numbers"
+     - Strict instructions: "Do NOT invent numbers or formatting"
      - Max tokens: 150 (concise answers)
-  3. **Fallback** to template if LLM fails
+  4. **Fallback** to template if LLM fails
      - Always returns an answer
+     - Uses same formatters for consistency
      - Fallback is robotic but safe
 - **Examples**:
-  - **LLM version**: `"Your ROAS is 2.45, up 19% from the previous period. Great performance!"`
-  - **Template fallback**: `"Your ROAS for the selected period is 2.45. That's a +19.0% change vs the previous period."`
+  - **LLM version**: `"Your CPC is $0.48, up 15.5% from the previous period."`
+  - **Template fallback**: `"Your CPC for the selected period is $0.48. That's a +15.5% change vs the previous period."`
 - **Safety**:
   - LLM cannot invent numbers (only rephrases provided facts)
+  - LLM cannot invent formatting (receives pre-formatted values)
   - Deterministic extraction ensures accuracy
   - Fallback ensures reliability
+  - Single source of truth for formatting (`app/answer/formatters.py`)
 
 ### 1️⃣3️⃣ **Context Storage** (`app/context/context_manager.py`)
 - **Purpose**: Save conversation history for future follow-ups
@@ -262,7 +272,7 @@ if metric == "roas":
 |-----------|------|---------|
 | **Entry Point** | `app/routers/qa.py` | HTTP endpoint |
 | **Orchestrator** | `app/services/qa_service.py` | Main pipeline coordinator |
-| **Context Manager** | `app/context/context_manager.py` | Conversation history (NEW) |
+| **Context Manager** | `app/context/context_manager.py` | Conversation history |
 | **DSL Schema** | `app/dsl/schema.py` | Pydantic models |
 | **Canonicalization** | `app/dsl/canonicalize.py` | Synonym mapping |
 | **Validation** | `app/dsl/validate.py` | DSL validation |
@@ -271,6 +281,7 @@ if metric == "roas":
 | **Translation** | `app/nlp/translator.py` | LLM integration (DSL, context-aware) |
 | **Prompts** | `app/nlp/prompts.py` | System prompts (DSL) |
 | **Answer Builder** | `app/answer/answer_builder.py` | Hybrid answer generation |
+| **Formatters** | `app/answer/formatters.py` | Display formatting (single source of truth) |
 | **Telemetry** | `app/telemetry/logging.py` | Structured logging |
 | **Examples** | `app/dsl/examples.md` | Few-shot examples |
 
@@ -284,7 +295,8 @@ pytest backend/app/tests/ -v
 pytest backend/app/tests/test_dsl_validation.py -v
 pytest backend/app/tests/test_dsl_executor.py -v
 pytest backend/app/tests/test_translator.py -v
-pytest backend/app/tests/test_context_manager.py -v  # NEW: Context manager tests
+pytest backend/app/tests/test_context_manager.py -v  # Context manager tests
+pytest backend/app/tests/test_formatters.py -v  # Display formatting tests (51 tests)
 ```
 
 ## How to Use

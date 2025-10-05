@@ -1,6 +1,6 @@
 # AdNavi — Living Build Log
 
-_Last updated: 2025-09-25T16:04:00Z_
+_Last updated: 2025-10-05T12:00:00Z_
 
 ## 0) Monorepo Map (Current & Planned)
 - **Frontend (current):** `ui/` — Next.js 15.5.4 (App Router), **JSX only**
@@ -33,7 +33,15 @@ _Last updated: 2025-09-25T16:04:00Z_
 - Database: PostgreSQL 16 (Docker compose)
 - Auth: JWT (HTTP-only cookie), bcrypt password hashing
 - Admin: SQLAdmin on `/admin` endpoint for CRUD operations on all models
-- Models: Workspace, User, Connection, Token, Fetch, Import, Entity, MetricFact, ComputeRun, Pnl, QaQueryLog, AuthCredential
+- Models: Workspace, User, Connection, Token, Fetch, Import, Entity (with goal), MetricFact (with new base measures), ComputeRun, Pnl (with derived metrics), QaQueryLog, AuthCredential
+- Metrics System (Derived Metrics v1):
+  - `app/metrics/`: Single source of truth for metric formulas (formulas.py, registry.py)
+  - Supported metrics: 12 derived metrics (CPC, CPM, CPA, CPL, CPI, CPP, ROAS, POAS, ARPV, AOV, CTR, CVR)
+  - Used by: DSL executor (ad-hoc queries), compute_service (P&L snapshots)
+- Answer Formatting:
+  - `app/answer/formatters.py`: Single source of truth for display formatting (currency, ratios, percentages, counts)
+  - Used by: AnswerBuilder (GPT prompts), QAService fallback (templates)
+  - Benefits: Prevents "$0" bugs, ensures consistency, stops GPT from inventing formatting
 - QA System (DSL v1.2):
   - `app/dsl/`: Domain-Specific Language for queries (schema, canonicalize, validate, planner, executor)
   - `app/nlp/`: Natural language translation via OpenAI (translator, prompts)
@@ -202,6 +210,20 @@ _Last updated: 2025-09-25T16:04:00Z_
 ---
 
 ## 11) Changelog
+| - 2025-10-05T14:00:00Z — **FEATURE**: Metric Formatters — Single source of truth for display formatting.
+  - **Overview**: Eliminates formatting bugs (e.g., CPC showing "$0" instead of "$0.48"). Ensures consistency across all answer generation.
+  - **New module**: `app/answer/formatters.py` (currency, ratios, percentages, counts, delta formatting).
+  - **Updates**: `app/answer/answer_builder.py` (GPT receives formatted values), `app/services/qa_service.py` (fallback uses formatters), `app/dsl/executor.py` (ISO dates).
+  - **Tests**: 51 comprehensive unit tests in `app/tests/test_formatters.py` (100% passing).
+  - **Format categories**: Currency ($1,234.56), Ratios (2.45×), Percentages (4.2%), Counts (12,345).
+  - **Benefits**: No more "$0" bugs, GPT prevented from inventing formatting, consistent across LLM and fallback answers.
+| - 2025-10-05T12:00:00Z — **MAJOR FEATURE**: Derived Metrics v1 — Single source of truth for metric formulas.
+  - **Overview**: 12 new derived metrics (CPC, CPM, CPL, CPI, CPP, POAS, ARPV, AOV, CTR, CVR). Centralized formulas used by executor & compute_service.
+  - **New modules**: `app/metrics/formulas.py`, `app/metrics/registry.py`, `app/services/compute_service.py`.
+  - **Schema changes**: Added GoalEnum, Entity.goal, MetricFact (5 new columns: leads, installs, purchases, visitors, profit), Pnl (17 new columns).
+  - **Migration**: Run `cd backend && alembic upgrade head` (adds 23 columns).
+  - **Seed**: Run `cd backend && python -m app.seed_mock` (generates goal-aware data).
+  - **Test queries**: "What was my CPC last week?", "Show me CPL for lead gen", "Compare CTR by campaign".
 | - 2025-10-02T04:00:00Z — **FEATURE**: Context visibility in API responses (Swagger UI debugging support).
   - Backend files:
     - `backend/app/schemas.py`: Added `context_used` field to QAResult response model
