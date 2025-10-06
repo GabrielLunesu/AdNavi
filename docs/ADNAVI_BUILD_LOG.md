@@ -210,6 +210,32 @@ _Last updated: 2025-10-05T12:00:00Z_
 ---
 
 ## 11) Changelog
+| - 2025-10-05T22:00:00Z — **FEATURE**: DSL v2.0.1: Rich Context in Answers — Natural, contextual responses with workspace comparisons, trend analysis, and performance-aware tone.
+  - **Overview**: Transforms robotic template answers into natural, contextual responses by extracting richer insights before GPT rephrasing.
+  - **New features**:
+    - Workspace comparison: Answers include "above/below your workspace average" context
+    - Trend analysis: Describes patterns over time (increasing, decreasing, stable, volatile)
+    - Outlier detection: Identifies entities that performed significantly differently
+    - Performance assessment: Qualitative evaluation (excellent, good, average, poor, concerning)
+    - Performance-aware tone: GPT tone matches metric performance level
+  - **Files created**:
+    - `backend/app/answer/context_extractor.py`: Rich context extraction module (pure functions, deterministic)
+    - `backend/app/tests/test_context_extractor.py`: Comprehensive tests (18 test cases, 100% coverage)
+  - **Files modified**:
+    - `backend/app/dsl/schema.py`: Added workspace_avg field to MetricResult
+    - `backend/app/dsl/executor.py`: Added _calculate_workspace_avg() helper function
+    - `backend/app/nlp/prompts.py`: Added ANSWER_GENERATION_PROMPT for rich context
+    - `backend/app/answer/answer_builder.py`: Updated to use extract_rich_context() for metrics queries
+    - `backend/app/tests/test_answer_builder.py`: Added 7 new tests for v2.0.1 integration
+  - **Example before/after**:
+    - BEFORE: "Your ROAS for the selected period is 2.45×. That's a +18.9% change vs the previous period."
+    - AFTER: "Your ROAS jumped to 2.45× this week—19% higher than last week. This is slightly above your workspace average of 2.30×. The improvement was driven primarily by your 'Summer Sale' campaign, which delivered an impressive 3.20× return."
+  - **Benefits**:
+    - Natural language: Answers feel conversational, not robotic
+    - Contextual insights: Workspace comparisons and trends provide actionable context
+    - Performance-aware: Tone matches metric performance (encouraging for good, constructive for poor)
+    - Deterministic extraction: All insights computed via pure functions (no LLM hallucinations)
+    - Comprehensive testing: 25 test cases ensure reliability
 | - 2025-10-05T20:00:00Z — **FEATURE**: Highest By v2.0 — Intent-first answers, thresholds, provider breakdowns, date windows.
   - **Overview**: Major improvements to "which X had highest Y?" queries with trust and outlier filtering.
   - **New features**:

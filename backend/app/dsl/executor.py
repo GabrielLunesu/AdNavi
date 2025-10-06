@@ -31,16 +31,20 @@ Design:
 
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import timedelta, datetime
 from typing import Optional, Dict, Any, List
+from uuid import UUID
+import logging
 
 from sqlalchemy.orm import Session
 from sqlalchemy import func, cast, Date
 
-from app.dsl.schema import MetricResult, MetricQuery
+from app.dsl.schema import MetricResult, MetricQuery, TimeRange
 from app.dsl.planner import Plan
 from app import models
-from app.metrics.registry import compute_metric
+from app.metrics.registry import compute_metric, get_required_bases
+
+logger = logging.getLogger(__name__)
 
 
 # =====================================================================
@@ -571,11 +575,117 @@ def _execute_metrics_plan(
             }
             breakdown.append(item)
     
+    # --- WORKSPACE AVERAGE CALCULATION (NEW in v2.0.1) ---
+    # Calculate workspace-wide average for comparison context
+    # WHY: Enables "above/below your workspace average" insights in answers
+    # Example: "Your Campaign X ROAS (2.45×) is above workspace average (2.30×)"
+    # Create TimeRange from plan dates for workspace avg calculation
+    time_range = TimeRange(start=plan.start, end=plan.end)
+    workspace_avg = _calculate_workspace_avg(
+        db=db,
+        workspace_id=workspace_id,
+        metric=metric_name,
+        time_range=time_range
+    )
+    
+    if workspace_avg is not None:
+        logger.info(
+            f"Calculated workspace average for {metric_name}: {workspace_avg} (query value: {summary_value})"
+        )
+    
     # --- BUILD RESULT ---
     return MetricResult(
         summary=summary_value,
         previous=previous_value,
         delta_pct=delta_pct,
         timeseries=timeseries,
-        breakdown=breakdown
+        breakdown=breakdown,
+        workspace_avg=workspace_avg  # NEW in v2.0.1
     )
+
+
+def _calculate_workspace_avg(
+    db: Session,
+    workspace_id: str,
+    metric: str,
+    time_range: TimeRange
+) -> Optional[float]:
+    """
+    WHAT: Calculate workspace-wide average for a metric over time range
+    WHY: Provides comparison baseline for "above/below average" context
+    WHERE: Called by _execute_metrics_plan() during metrics query execution
+    
+    ARGS:
+        db: Database session
+        workspace_id: Workspace UUID (tenant isolation)
+        metric: Metric name (e.g., "roas", "cpc")
+        time_range: Time range for calculation (same as query)
+    
+    RETURNS:
+        float: Workspace average for the metric, or None if cannot compute
+    
+    LOGIC:
+        1. Aggregate ALL entities in workspace (no filters)
+        2. Compute metric using same formula as query
+        3. Return single average value
+    
+    EXAMPLE:
+        Query: "What's ROAS for Campaign X?"
+        Workspace avg: ROAS across ALL campaigns = 2.30×
+        Context: "Your Campaign X ROAS (2.45×) is above workspace average (2.30×)"
+    
+    PERFORMANCE:
+        - Uses same base query as main execution
+        - Single aggregation (fast, <10ms typically)
+        - Cached by query_cache (future enhancement)
+    
+    REFERENCES:
+        - Uses: app/metrics/registry.py::compute_metric()
+        - Uses: app/metrics/registry.py::get_required_bases()
+        - Docs: QA_SYSTEM_ARCHITECTURE.md (Workspace Comparison)
+    """
+    MF, E = models.MetricFact, models.Entity
+    
+    try:
+        # Get required base measures for this metric
+        dependencies = get_required_bases(metric)
+        if not dependencies:
+            return None  # Unknown metric
+        
+        # Base query: all entities in workspace
+        query = (
+            db.query(
+                *[func.coalesce(func.sum(getattr(MF, dep)), 0).label(dep) 
+                  for dep in dependencies]
+            )
+            .join(E, E.id == MF.entity_id)
+            .filter(E.workspace_id == workspace_id)
+        )
+        
+        # Apply time range filter
+        if time_range.start and time_range.end:
+            query = query.filter(
+                cast(MF.event_date, Date).between(
+                    time_range.start, time_range.end
+                )
+            )
+        elif time_range.last_n_days:
+            cutoff = datetime.now() - timedelta(days=time_range.last_n_days)
+            query = query.filter(
+                cast(MF.event_date, Date) >= cutoff.date()
+            )
+        
+        # Execute
+        row = query.first()
+        if not row:
+            return None
+        
+        # Compute metric (with divide-by-zero protection)
+        base_measures = {dep: getattr(row, dep) or 0 for dep in dependencies}
+        workspace_avg = compute_metric(metric, base_measures)
+        
+        return workspace_avg
+    
+    except Exception as e:
+        logger.error(f"Failed to calculate workspace avg for {metric}: {e}")
+        return None

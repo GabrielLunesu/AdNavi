@@ -367,3 +367,197 @@ def test_full_pipeline_with_real_structures():
     answer3, _ = builder.build_answer(dsl_entities, result_entities)
     assert answer3 == "Natural answer from LLM"
 
+
+# ============================================================================
+# DSL v2.0.1 Tests: Rich Context Integration
+# ============================================================================
+
+class TestAnswerBuilderV201:
+    """Tests for v2.0.1 rich context integration."""
+    
+    def test_build_answer_with_rich_context(self, answer_builder, mock_openai_client):
+        """
+        WHAT: Test answer generation with rich context
+        WHY: Verifies context_extractor integration for metrics queries
+        """
+        # Setup mock response
+        mock_openai_client.chat.completions.create.return_value.choices[0].message.content = (
+            "Your ROAS jumped to 2.45× last week—19% higher than before. "
+            "This is slightly above your workspace average of 2.30×."
+        )
+        
+        dsl = MetricQuery(
+            query_type=QueryType.METRICS,
+            metric="roas"
+        )
+        
+        result = MetricResult(
+            summary=2.45,
+            previous=2.06,
+            delta_pct=0.189,
+            timeseries=[],
+            breakdown=[],
+            workspace_avg=2.30  # NEW in v2.0.1
+        )
+        
+        answer, latency = answer_builder.build_answer(dsl, result, log_latency=True)
+        
+        assert "2.45×" in answer
+        assert len(answer) > 50  # Not just a number, but a full sentence
+        assert isinstance(latency, int)
+        
+        # Verify the LLM was called with ANSWER_GENERATION_PROMPT (v2.0.1)
+        call_args = mock_openai_client.chat.completions.create.call_args
+        system_message = call_args[1]["messages"][0]["content"]
+        assert "marketing analytics assistant" in system_message.lower()
+    
+    def test_build_answer_includes_workspace_comparison(self, answer_builder, mock_openai_client):
+        """
+        WHAT: Test that workspace_avg is included in context
+        WHY: Ensures workspace comparison feature works
+        """
+        dsl = MetricQuery(
+            query_type=QueryType.METRICS,
+            metric="cpc"
+        )
+        
+        result = MetricResult(
+            summary=0.48,
+            previous=0.55,
+            delta_pct=-0.127,
+            workspace_avg=0.52  # Above average (lower is better for CPC)
+        )
+        
+        answer, _ = answer_builder.build_answer(dsl, result)
+        
+        # Verify LLM received workspace comparison context
+        call_args = mock_openai_client.chat.completions.create.call_args
+        user_message = call_args[1]["messages"][1]["content"]
+        
+        # Check that context includes workspace_comparison
+        assert "workspace_comparison" in user_message or "workspace_avg" in user_message
+    
+    def test_build_answer_with_trend_data(self, answer_builder, mock_openai_client):
+        """
+        WHAT: Test that timeseries data is used for trend analysis
+        WHY: Verifies trend extraction integration
+        """
+        dsl = MetricQuery(
+            query_type=QueryType.METRICS,
+            metric="roas"
+        )
+        
+        result = MetricResult(
+            summary=2.45,
+            previous=2.06,
+            delta_pct=0.189,
+            timeseries=[
+                {"date": "2025-10-01", "value": 2.1},
+                {"date": "2025-10-02", "value": 2.3},
+                {"date": "2025-10-03", "value": 2.5},
+                {"date": "2025-10-04", "value": 2.7},
+                {"date": "2025-10-05", "value": 2.8}
+            ],
+            breakdown=[]
+        )
+        
+        answer, _ = answer_builder.build_answer(dsl, result)
+        
+        # Verify LLM received trend context
+        call_args = mock_openai_client.chat.completions.create.call_args
+        user_message = call_args[1]["messages"][1]["content"]
+        
+        # Check that context includes trend
+        assert "trend" in user_message.lower()
+    
+    def test_build_answer_with_top_performer(self, answer_builder, mock_openai_client):
+        """
+        WHAT: Test that breakdown data includes top performer
+        WHY: Verifies top_performer extraction integration
+        """
+        dsl = MetricQuery(
+            query_type=QueryType.METRICS,
+            metric="roas"
+        )
+        
+        result = MetricResult(
+            summary=2.45,
+            previous=None,
+            delta_pct=None,
+            timeseries=[],
+            breakdown=[
+                {"label": "Summer Sale", "value": 3.2},
+                {"label": "Winter Promo", "value": 2.8},
+                {"label": "Spring Launch", "value": 1.9}
+            ]
+        )
+        
+        answer, _ = answer_builder.build_answer(dsl, result)
+        
+        # Verify LLM received top_performer context
+        call_args = mock_openai_client.chat.completions.create.call_args
+        user_message = call_args[1]["messages"][1]["content"]
+        
+        # Check that context includes top_performer
+        assert "top_performer" in user_message.lower()
+        assert "Summer Sale" in user_message
+    
+    def test_build_answer_performance_level_in_context(self, answer_builder, mock_openai_client):
+        """
+        WHAT: Test that performance_level is included for tone guidance
+        WHY: Ensures GPT receives tone instructions
+        """
+        dsl = MetricQuery(
+            query_type=QueryType.METRICS,
+            metric="roas"
+        )
+        
+        result = MetricResult(
+            summary=3.5,
+            previous=2.0,
+            delta_pct=0.75,
+            workspace_avg=2.0  # Way above average = EXCELLENT
+        )
+        
+        answer, _ = answer_builder.build_answer(dsl, result)
+        
+        # Verify LLM received performance_level
+        call_args = mock_openai_client.chat.completions.create.call_args
+        user_message = call_args[1]["messages"][1]["content"]
+        
+        # Check that context includes performance_level
+        assert "performance_level" in user_message.lower()
+    
+    def test_build_fallback_still_works(self):
+        """
+        WHAT: Test fallback answer generation (no LLM)
+        WHY: Ensures fallback remains functional for error cases
+        """
+        from app.answer.answer_builder import AnswerBuilder
+        
+        builder = AnswerBuilder()
+        
+        dsl = MetricQuery(
+            query_type=QueryType.METRICS,
+            metric="roas"
+        )
+        
+        result = MetricResult(
+            summary=2.45,
+            previous=2.06,
+            delta_pct=0.189,
+            timeseries=[],
+            breakdown=[
+                {"label": "Summer Sale", "value": 3.20}
+            ],
+            workspace_avg=2.30
+        )
+        
+        # Call build_fallback directly (legacy method for error cases)
+        answer = builder.build_fallback(result, dsl)
+        
+        # Verify fallback answer contains key information
+        assert "2.45" in answer or "2.45×" in answer
+        assert "+18.9%" in answer
+        assert "Summer Sale" in answer
+
