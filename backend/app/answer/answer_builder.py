@@ -9,6 +9,11 @@ WHY Hybrid Approach:
 - **LLM rephrasing**: Make answers sound natural and conversational (not robotic)
 - **Safety**: LLM cannot invent numbers, only rephrase provided facts
 
+CHANGES IN v2.0.1:
+- Use extract_rich_context() instead of basic fact extraction
+- Enhanced GPT prompt with structured context
+- Better system instructions for using rich context
+
 Design Principles:
 - Separation of concerns: This module handles ONLY answer generation
 - QAService orchestrates the pipeline (translate → plan → execute → answer)
@@ -18,11 +23,14 @@ Related files:
 - app/dsl/schema.py: Defines MetricQuery + MetricResult (facts source)
 - app/services/qa_service.py: Calls this builder to generate answers
 - app/nlp/translator.py: Similar LLM usage pattern for DSL translation
+- app/answer/context_extractor.py: Rich context extraction (NEW in v2.0.1)
 """
 
 from __future__ import annotations
 
 import time
+import json
+import logging
 from typing import Dict, Any, Union, Optional
 from datetime import date
 from openai import OpenAI
@@ -30,6 +38,10 @@ from openai import OpenAI
 from app.dsl.schema import MetricQuery, MetricResult
 from app.deps import get_settings
 from app.answer.formatters import format_metric_value, format_delta_pct, fmt_currency, fmt_count
+from app.answer.context_extractor import extract_rich_context  # NEW in v2.0.1
+from app.nlp.prompts import ANSWER_GENERATION_PROMPT  # NEW in v2.0.1
+
+logger = logging.getLogger(__name__)
 
 
 def _format_date_range(start: date, end: date) -> str:
@@ -164,6 +176,11 @@ class AnswerBuilder:
         """
         Build a natural language answer from query + results.
         
+        CHANGES IN v2.0.1:
+        - Uses extract_rich_context() for metrics queries (instead of basic facts)
+        - Enhanced GPT prompt with structured context
+        - Workspace average comparison included when available
+        
         Args:
             dsl: The MetricQuery that was executed (user intent)
             result: Execution results (MetricResult for metrics, dict for providers/entities)
@@ -178,61 +195,89 @@ class AnswerBuilder:
             
         Examples:
             >>> builder = AnswerBuilder()
-            >>> dsl = MetricQuery(query_type="metrics", metric="spend")
-            >>> result = MetricResult(summary=1250.50)
+            >>> dsl = MetricQuery(query_type="metrics", metric="roas", time_range=TimeRange(last_n_days=7))
+            >>> result = MetricResult(summary=2.45, previous=2.06, workspace_avg=2.30)
             >>> answer, latency = builder.build_answer(dsl, result, log_latency=True)
-            >>> print(f"Generated answer in {latency}ms: {answer}")
+            >>> print(answer)
+            "Your ROAS jumped to 2.45× last week—19% higher than before. This is slightly above your workspace average of 2.30×."
             
-        Process:
-        1. Route to appropriate fact extractor based on query_type
-        2. Build LLM prompt with strict safety instructions
-        3. Call GPT-4o-mini for natural rephrasing
-        4. Return answer (or raise error for fallback)
+        Process (v2.0.1):
+        1. For metrics queries: Extract rich context (trends, comparisons, outliers)
+        2. For other queries: Extract basic facts (providers, entities)
+        3. Build GPT prompt with context-aware instructions
+        4. Call GPT-4o-mini for natural language generation
+        5. Return answer (or raise error for fallback)
         
         Related:
         - Called by: app/services/qa_service.py
-        - Fact extraction: _extract_metrics_facts(), _extract_providers_facts(), etc.
+        - Context extraction: app/answer/context_extractor.py (NEW in v2.0.1)
+        - System prompt: app/nlp/prompts.py::ANSWER_GENERATION_PROMPT
         """
         start_time = time.time() if log_latency else None
         
         try:
-            # Step 1: Extract facts based on query type
-            # WHY routing: Different query types have different fact structures
-            if dsl.query_type == "providers":
+            # Step 1: Extract context or facts based on query type
+            # WHY v2.0.1 change: Metrics queries now use rich context for better answers
+            if dsl.query_type == "metrics":
+                # NEW v2.0.1: Use rich context extractor for metrics
+                context = extract_rich_context(
+                    result=result,
+                    query=dsl,
+                    workspace_avg=result.workspace_avg if isinstance(result, MetricResult) else None
+                )
+                
+                logger.info(
+                    "Extracted rich context for answer generation",
+                    extra={
+                        "metric": context.metric_name,
+                        "performance": context.performance_level,
+                        "has_comparison": context.comparison is not None,
+                        "has_workspace_comparison": context.workspace_comparison is not None,
+                        "has_trend": context.trend is not None,
+                        "has_outliers": len(context.outliers) > 0
+                    }
+                )
+                
+                # Build prompt with rich context
+                user_prompt = self._build_rich_context_prompt(context, dsl)
+                system_prompt = ANSWER_GENERATION_PROMPT  # NEW in v2.0.1
+                
+            elif dsl.query_type == "providers":
                 facts = self._extract_providers_facts(result)
-            elif dsl.query_type == "entities":
+                system_prompt = self._build_system_prompt()
+                user_prompt = self._build_user_prompt(dsl, facts)
+                
+            else:  # entities
                 facts = self._extract_entities_facts(dsl, result)
-            else:  # metrics (default)
-                facts = self._extract_metrics_facts(dsl, result, window)
+                system_prompt = self._build_system_prompt()
+                user_prompt = self._build_user_prompt(dsl, facts)
             
-            # Step 2: Build LLM promptt
-            # WHY strict instructions: Prevent hallucinations, ensure facts-only rephrasing
-            system_prompt = self._build_system_prompt()
-            user_prompt = self._build_user_prompt(dsl, facts)
-            
-            # Step 3: Call GPT-4o-mini
+            # Step 2: Call GPT-4o-mini
             # WHY gpt-4o-mini: Cost-effective, good at instruction-following
             # WHY temperature=0.3: Some naturalness, but still deterministic
             response = self.client.chat.completions.create(
-                model="gpt-5-mini",
+                model="gpt-4o-mini",
                 temperature=0.3,  # Slightly creative for natural flow, but controlled
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
-                max_tokens=150  # Keep answers concise (2-3 sentences)
+                max_tokens=200  # Increased from 150 to allow for richer answers (2-4 sentences)
             )
             
             answer_text = response.choices[0].message.content.strip()
             
-            # Step 4: Calculate latency if requested
+            # Step 3: Calculate latency if requested
             latency_ms = None
             if log_latency and start_time:
                 latency_ms = int((time.time() - start_time) * 1000)
             
+            logger.info(f"Generated natural answer ({len(answer_text)} chars) in {latency_ms}ms")
+            
             return answer_text, latency_ms
             
         except Exception as e:
+            logger.error(f"Answer generation failed: {e}", exc_info=True)
             # Raise custom error so QAService knows to use fallback
             raise AnswerBuilderError(
                 message=f"Answer generation failed: {str(e)}",
@@ -518,9 +563,83 @@ INTENT-FIRST RULE for "highest_by_metric":
 
 Remember: Be helpful and natural, but never invent data or formatting."""
     
+    def _build_rich_context_prompt(self, context, dsl: MetricQuery) -> str:
+        """
+        Build user prompt with rich context (NEW in v2.0.1).
+        
+        WHY this exists:
+        - Provides GPT with all context in organized format
+        - Enables natural language generation from deterministic insights
+        - Performance level guides tone selection
+        
+        Args:
+            context: RichContext object from context_extractor
+            dsl: MetricQuery (for original question if available)
+            
+        Returns:
+            Structured prompt with JSON context + instructions
+            
+        Example output:
+            Generate a natural language answer for this marketing metric query.
+            
+            CONTEXT:
+            {
+              "metric_name": "ROAS",
+              "metric_value": "2.45×",
+              "comparison": {...},
+              "workspace_comparison": {...},
+              "performance_level": "good"
+            }
+            
+            USER QUESTION: "What's my ROAS this week?"
+            
+            INSTRUCTIONS: ...
+        
+        Related:
+        - Uses: context.to_dict() from RichContext
+        - Used by: build_answer() for metrics queries
+        """
+        context_json = json.dumps(context.to_dict(), indent=2)
+        
+        # Try to extract original question if available
+        original_question = getattr(dsl, 'question', None) or f"What is my {context.metric_name}?"
+        
+        return f"""Generate a natural language answer for this marketing metric query.
+
+CONTEXT:
+{context_json}
+
+USER QUESTION: "{original_question}"
+
+INSTRUCTIONS:
+- Lead with the main metric value and what it means
+- If comparison data exists, describe how the metric changed
+- If workspace_comparison exists, mention how this compares to average
+- If trend data exists, describe the pattern over time
+- If top_performer exists, highlight which entity performed best
+- If outliers exist, mention notable anomalies
+- Match tone to performance_level: {context.performance_level}
+  - EXCELLENT/GOOD: Positive, encouraging tone
+  - AVERAGE: Neutral, factual tone
+  - POOR/CONCERNING: Constructive, problem-solving tone
+- Use formatted values (not raw numbers) from the context
+- Keep answer concise: 2-4 sentences maximum
+- Be conversational but professional
+- DO NOT invent any numbers or data not in the context
+
+EXAMPLE TONE FOR PERFORMANCE LEVELS:
+- EXCELLENT: "Your ROAS is performing excellently at..."
+- GOOD: "Your ROAS is doing well at..."
+- AVERAGE: "Your ROAS is stable at..."
+- POOR: "Your ROAS has room for improvement at..."
+- CONCERNING: "Your ROAS needs attention—it's currently at..."
+"""
+    
     def _build_user_prompt(self, dsl: MetricQuery, facts: Dict[str, Any]) -> str:
         """
-        Build user prompt with extracted facts.
+        Build user prompt with extracted facts (legacy for providers/entities).
+        
+        NOTE: Metrics queries now use _build_rich_context_prompt() (v2.0.1)
         
         Args:
             dsl: MetricQuery (for context)
@@ -536,7 +655,7 @@ Remember: Be helpful and natural, but never invent data or formatting."""
         
         Related:
         - Facts from: _extract_*_facts() methods
-        - Used by: build_answer()
+        - Used by: build_answer() for providers/entities queries
         """
         return f"""Here are the facts about this query:
 

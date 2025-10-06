@@ -313,6 +313,7 @@ class MetricResult(BaseModel):
     - delta_pct: Percentage change vs previous period
     - timeseries: Daily values over the selected period
     - breakdown: Top entities by the selected breakdown dimension
+    - workspace_avg: Workspace-wide average for this metric (NEW in v2.0.1)
     
     Examples:
         # Simple aggregate result:
@@ -321,7 +322,8 @@ class MetricResult(BaseModel):
             "previous": 2.1,
             "delta_pct": 0.19,
             "timeseries": null,
-            "breakdown": null
+            "breakdown": null,
+            "workspace_avg": 2.3
         }
         
         # Result with breakdown:
@@ -336,7 +338,8 @@ class MetricResult(BaseModel):
             "breakdown": [
                 {"label": "Summer Sale", "value": 450.0},
                 {"label": "Winter Campaign", "value": 320.0}
-            ]
+            ],
+            "workspace_avg": 1150.0
         }
     
     Related:
@@ -366,4 +369,9 @@ class MetricResult(BaseModel):
     breakdown: Optional[List[Dict[str, Union[str, float, int, None]]]] = Field(
         default=None,
         description="Top entities: [{label: 'Campaign Name', value: 450.0, spend: 1234.5, clicks: 5678, conversions: 90}, ...]"
+    )
+    
+    workspace_avg: Optional[float] = Field(
+        default=None,
+        description="Workspace-wide average for this metric over the same time range (NEW in v2.0.1)"
     )
