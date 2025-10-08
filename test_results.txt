@@ -1,0 +1,72 @@
+=== PHASE 1.1 COMPREHENSIVE TEST RESULTS ===
+
+TESTING DATE: $(date)
+WORKSPACE: Defang Labs (914019de-2190-4fcc-855a-d1e719d05cdc)
+
+=== TEST CATEGORY 1: Basic Performance (Questions 1-20) ===
+
+Test 1: What's my CPC today?
+Your CPC is N/A today.
+
+Test 2: How much did I spend yesterday?
+You spent $0.00 today.
+
+Test 3: What is my ROAS this week?
+Your ROAS was 4.36× last week.
+
+Test 4: How much revenue did I generate today?
+You generated $0.00 in revenue today.
+
+Test 5: How much revenue on Google last week? (EDGE CASE - no Google data)
+Your revenue was $0.00 last week.
+
+=== TEST CATEGORY 2: Comparisons (Questions 21-40) ===
+
+Test 6: How does this week compare to last week?
+This week, your revenue is $12,691.04, which is down 37% from last week's $20,134.10—definitely a significant drop. On the bright side, you're right at the workspace average, so it's not all bad!
+
+Test 7: Compare Google vs Meta performance
+Last month, your revenue was $77,580.62, which is right on par with the workspace average—so you're doing just fine. Interestingly, that's also the top performance in your workspace, so you're leading the pack!
+
+=== TEST CATEGORY 3: Breakdowns & Rankings (Questions 41-60) ===
+
+Test 8: Which campaign had the highest ROAS last week?
+Last week, your top campaign was the Holiday Sale - Purchases, which had an impressive ROAS of 11.58×. That’s way above the workspace average of 4.36×, so it really stood out!
+
+Test 9: Show me top 5 campaigns by revenue
+Last month, your total revenue was $77,580.62, which is right on par with the workspace average—so you're doing just fine! The top campaign was the "Holiday Sale - Purchases," bringing in $56,972.77, making it a solid performer in your lineup.
+
+Test 10: List all active campaigns
+You have three active campaigns: Holiday Sale - Purchases, App Install Campaign, and Lead Gen - B2B.
+
+=== TEST CATEGORY 4: Analytical Questions ===
+
+Test 11: Why is my ROAS volatile?
+Your ROAS is currently at 3.88×, which is stable but has shown volatility over the past few weeks. It peaked at 5.80× on September 9th but dropped to a low of 1.38× by September 22nd, indicating significant fluctuations in performance. This volatility is not unusual, as your average aligns with the workspace norm, suggesting that external factors or campaign strategies may be influencing these swings. It might be beneficial to analyze specific campaigns or channels that contributed to the extremes to identify areas for optimization.
+
+Test 12: Explain my spend trend
+Your spend is currently at $20,006.72, which is stable and aligns perfectly with the workspace average of $20,006.72, indicating no deviation in performance. Over time, your spend has shown a consistent pattern, starting from $690.20 and peaking at $897.14, with a low of $492.55, reflecting some volatility of 14.5%. Overall, while your spending is average compared to others in your workspace, maintaining this stability could be beneficial as you assess future budget allocations.
+
+=== TEST CATEGORY 5: Filter Questions ===
+
+Test 13: How much did active campaigns spend?
+Active campaigns spent $20,006.72 last month.
+
+Test 14: Which platforms am I advertising on?
+You're currently running ads on Other.
+
+=== TEST CATEGORY 6: Edge Cases & Special Scenarios ===
+
+Test 15: What's my cost per install? (likely zero for most campaigns)
+Your cost per install was $21.40 last month.
+
+Test 16: How is the Holiday Sale campaign performing?
+Your cost per install was N/A last month. Top performer: App Install Campaign ($5.14).
+
+Test 17: What's my conversion rate?
+Your conversion rate was 8.5% last week.
+
+Test 18: What's my CTR trend?
+Your CTR is currently at 1.7%, which is stable and aligns perfectly with your workspace average of 1.7%. Over the past few days, it has seen a slight decline from a peak of 1.9% on October 2, indicating a minor fluctuation in engagement levels. While your performance is average, it’s worth monitoring for any further dips, especially since it reached a low of 1.6% on October 4.
+
+=== END OF TESTS ===

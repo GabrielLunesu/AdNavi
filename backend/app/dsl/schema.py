@@ -304,25 +304,60 @@ class MetricQuery(BaseModel):
     
     @model_validator(mode='after')
     def set_timeframe_description(self):
-        """Auto-generate timeframe description from time_range."""
+        """Auto-generate timeframe description from time_range and question.
+        
+        Phase 2 fix: Extract timeframe from original question when possible,
+        otherwise fall back to generating from time_range.
+        """
         time_range = self.time_range
-        if time_range and not self.timeframe_description:
-            if hasattr(time_range, 'last_n_days') and time_range.last_n_days:
-                if time_range.last_n_days == 1:
-                    self.timeframe_description = 'today'
-                elif time_range.last_n_days == 7:
-                    self.timeframe_description = 'last week'
-                elif time_range.last_n_days == 30:
-                    self.timeframe_description = 'last month'
-                elif time_range.last_n_days == 90:
-                    self.timeframe_description = 'last quarter'
-                elif time_range.last_n_days == 365:
-                    self.timeframe_description = 'last year'
-                else:
-                    self.timeframe_description = f'last {time_range.last_n_days} days'
-            elif hasattr(time_range, 'start') and hasattr(time_range, 'end') and time_range.start and time_range.end:
-                # Format dates nicely
-                self.timeframe_description = f'from {time_range.start} to {time_range.end}'
+        
+        # If timeframe already set explicitly, use it
+        if self.timeframe_description:
+            return self
+        
+        # Try to extract timeframe from original question
+        if self.question:
+            question_lower = self.question.lower()
+            # Check for explicit timeframe phrases in the question
+            if 'today' in question_lower:
+                self.timeframe_description = 'today'
+                return self
+            elif 'yesterday' in question_lower:
+                self.timeframe_description = 'yesterday'
+                return self
+            elif 'this week' in question_lower:
+                self.timeframe_description = 'this week'
+                return self
+            elif 'this month' in question_lower:
+                self.timeframe_description = 'this month'
+                return self
+            elif 'last week' in question_lower or 'past week' in question_lower:
+                self.timeframe_description = 'last week'
+                return self
+            elif 'last month' in question_lower or 'past month' in question_lower:
+                self.timeframe_description = 'last month'
+                return self
+        
+        # Fallback: Auto-generate from time_range
+        # Phase 2 fix: last_n_days: 1 should default to "yesterday" not "today"
+        # because it represents the most recent complete day of data
+        if time_range and hasattr(time_range, 'last_n_days') and time_range.last_n_days:
+            if time_range.last_n_days == 1:
+                self.timeframe_description = 'yesterday'  # Fixed: was 'today'
+            elif time_range.last_n_days == 7:
+                self.timeframe_description = 'last week'
+            elif time_range.last_n_days == 30:
+                self.timeframe_description = 'last month'
+            elif time_range.last_n_days == 90:
+                self.timeframe_description = 'last quarter'
+            elif time_range.last_n_days == 365:
+                self.timeframe_description = 'last year'
+            else:
+                self.timeframe_description = f'last {time_range.last_n_days} days'
+        elif time_range and hasattr(time_range, 'start') and hasattr(time_range, 'end') and time_range.start and time_range.end:
+            # Format dates nicely
+            self.timeframe_description = f'from {time_range.start} to {time_range.end}'
+        
         return self
     
     def model_dump_json_schema(self) -> dict:

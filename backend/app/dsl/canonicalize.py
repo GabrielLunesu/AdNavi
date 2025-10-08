@@ -70,30 +70,36 @@ METRIC_SYNONYMS = {
 }
 
 # Time phrase mappings: normalize vague time references
+# Phase 2 fix: Distinguish current periods from past periods
 TIME_PHRASES = {
-    # Week references
-    "this week": "last 7 days",
+    # PAST Week references (last N days)
     "past week": "last 7 days",
     "last week": "last 7 days",
-    "1 week": "last 7 days",
-    "one week": "last 7 days",
+    "1 week ago": "last 7 days",
+    "one week ago": "last 7 days",
     
-    # Month references
-    "this month": "last 30 days",
+    # CURRENT Week reference - keep as-is for special handling
+    # DON'T map "this week" to "last 7 days" - they mean different things!
+    # "this week" = current calendar week (Monday-today)
+    # "last 7 days" = rolling 7-day window
+    
+    # PAST Month references (last N days)
     "past month": "last 30 days",
     "last month": "last 30 days",
-    "1 month": "last 30 days",
-    "one month": "last 30 days",
+    "1 month ago": "last 30 days",
+    "one month ago": "last 30 days",
     
-    # Day references
-    "today": "last 1 days",
-    "yesterday": "yesterday",  # Keep for special handling
+    # CURRENT Month reference - keep as-is for special handling
+    # DON'T map "this month" to "last 30 days"
+    
+    # Day references - keep for special handling
+    # DON'T map "today" or "yesterday" to "last N days"
+    # They are absolute dates, not rolling windows
     "yday": "yesterday",
-    "ytd": "year to date",  # Keep for future enhancement
     
     # Quarter references (for future use)
-    "this quarter": "last 90 days",
     "past quarter": "last 90 days",
+    "last quarter": "last 90 days",
     "q1": "quarter 1",
     "q2": "quarter 2",
     "q3": "quarter 3",

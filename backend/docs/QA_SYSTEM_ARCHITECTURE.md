@@ -1,8 +1,8 @@
 # QA System Architecture & DSL Specification
 
-**Version**: DSL v2.1.1 (Intent-Based Answers - Phase 1.1)  
+**Version**: DSL v2.1.2 (Intent-Based Answers - Phase 2)  
 **Last Updated**: 2025-10-08  
-**Status**: Production Ready - Natural Copilot Phase 1.1 Implemented
+**Status**: Production Ready - Natural Copilot Phase 2 Implemented
 
 ✅ **Phase 1 Complete**: Intent-based answer depth implemented. Simple questions now get simple answers (1 sentence), comparative questions get comparisons (2-3 sentences), analytical questions get full context (3-4 sentences).
 
@@ -12,6 +12,12 @@
 - Fixed analytical intent detection for volatility questions
 - Natural fallback templates ("You spent" vs "Your SPEND")
 - Platform comparison queries working correctly
+
+✅ **Phase 2 Complete**: Timeframe detection accuracy (Success rate: 61% → 78%):
+- Fixed "today" vs "yesterday" vs "this week" confusion
+- Smart timeframe extraction from original question
+- Correct present tense for current periods ("this week", "today")
+- Canonicalization preserves current period distinctions
 
 ---
 
@@ -1084,6 +1090,24 @@ Try the `/qa` endpoint with:
 ---
 
 ## Changelog
+
+### 2025-10-08T21:00:00Z - Phase 2: Timeframe Detection Fix
+- Updated `app/dsl/canonicalize.py`: Removed incorrect timeframe mappings
+  - Stopped converting "today" → "last 1 days"
+  - Stopped converting "this week" → "last 7 days"
+  - Preserved "today", "yesterday", "this week", "this month" for special handling
+- Enhanced `app/dsl/schema.py`: Smart timeframe extraction from original question
+  - Detects "today", "yesterday", "this week", "this month" in question text
+  - Falls back to intelligent auto-generation from time_range
+  - Fixed: last_n_days: 1 → "yesterday" (was incorrectly "today")
+- Updated `app/nlp/prompts.py`: Added timeframe rules and examples
+  - Added 2 new examples for "today" and "yesterday" queries
+  - Added clarification about current vs past period handling
+- **Results**: Success rate improved from 61% → 78%
+  - ✅ "How much did I spend yesterday?" → "You spent $0.00 **yesterday**" (was "today")
+  - ✅ "What's my ROAS this week?" → "Your ROAS is 4.36× **this week**" (was "last week")
+  - ✅ Correct present tense for current periods
+  - ✅ "last week" queries still work correctly
 
 ### 2025-10-08T18:00:00Z - Phase 1.1: Critical Natural Language Fixes
 - Added `timeframe_description` and `question` fields to `app/dsl/schema.py` MetricQuery

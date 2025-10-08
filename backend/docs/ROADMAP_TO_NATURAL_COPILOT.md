@@ -1,687 +1,391 @@
-# Roadmap: From Robotic Templates to Natural AI Copilot
+# Roadmap: Natural AI Copilot - Based on Real Testing
 
-**Goal**: Successfully answer questions 1-85 from `100-realistic-questions.md` with natural, context-appropriate responses.
-
-**Philosophy**: Let AI do its thing. Focus on fundamentals over complexity. Maintain separation of concerns.
-
----
-
-## Phase 0: Current State Analysis (Where We Are Now)
-
-### ✅ **What's Working**
-
-1. **DSL Translation** (Questions → Structured Queries)
-   - 24 metrics supported (spend, revenue, ROAS, CPC, etc.)
-   - Complex queries: breakdowns, comparisons, filters
-   - Context-aware follow-ups
-   - **Coverage**: ~70% of questions 1-60
-
-2. **Query Execution**
-   - Workspace-scoped (secure)
-   - Derived metrics calculated correctly
-   - Timeseries and breakdowns working
-   - **Performance**: 10-50ms query time
-
-3. **Architecture**
-   - Clean separation: DSL → Plan → Execute → Answer
-   - Single source of truth for formulas (`app/metrics/`)
-   - Comprehensive testing (100+ tests)
-   - **Quality**: Production-ready pipeline
-
-### ❌ **Critical Problems**
-
-#### **Problem 1: Workspace Average Bug** 🐛
-```json
-{
-  "summary": 3.8777280833639898,
-  "workspace_avg": 3.8777280833639898  // ← Same value! Bug!
-}
-```
-
-**Root Cause**: `_calculate_workspace_avg()` is likely using the same filters as the main query instead of calculating a true workspace-wide average.
-
-**Impact**: Rich context says "right in line with your workspace average" when it's actually just comparing to itself.
-
-**Fix Required**: Ensure workspace avg calculation ignores query filters.
+**Last Updated**: 2025-10-08  
+**Status**: Phase 1.1 Complete - Analyzing next steps
 
 ---
 
-#### **Problem 2: Over-Contextualization** 📝
+## Executive Summary
 
-**User Question**: "what was my roas last month"
+We've successfully implemented Phase 1.1 tactical fixes. Comprehensive testing with 18 questions reveals we're at **~60% production-ready** for basic questions.
 
-**Current Answer** (Too verbose):
-> "Your ROAS is stable at 3.88×, which is right in line with your workspace average of 3.88×. Over time, it has shown some volatility, peaking at 5.80× and dipping as low as 1.38× recently. While the current performance is average, keeping an eye on these fluctuations could help you identify opportunities for improvement."
+### What's Working Well ✅
 
-**Expected Answer** (Natural):
-> "Your ROAS last month was 3.88×."
+1. **Timeframes & Tense** - Answers correctly include "last week", "last month" with proper past tense
+2. **Intent Classification** - Simple questions get 1 sentence, analytical get 3-4 sentences
+3. **Natural Language** - "You spent $X" instead of robotic "Your SPEND for the selected period"
+4. **Breakdowns** - "Which campaign had highest ROAS" works perfectly
+5. **Entity Queries** - "List active campaigns" returns clean results
+6. **Analytical Depth** - "Why is my ROAS volatile" gets thoughtful 4-sentence analysis
 
-**Root Cause**: DSL v2.0.1 always includes full rich context (trends, workspace comparison, performance assessment) even for simple fact queries.
+### Critical Issues Found 🚨
 
-**Impact**: Answers feel like AI is overthinking simple questions.
-
----
-
-#### **Problem 3: No Intent Detection** 🎯
-
-The system treats all questions the same:
-- Simple fact: "what was my roas" → Gets full analysis
-- Comparative: "how does my roas compare" → Should get rich context
-- Analytical: "why is my roas low" → Should get very rich context
-
-**Missing**: Intent classification to match answer depth to question type.
-
----
-
-#### **Problem 4: Robotic Phrasing** 🤖
-
-Even with GPT rephrasing, answers sometimes sound formal:
-- "Your ROAS for the selected period is..."
-- "That's a +18.9% change vs the previous period."
-
-**Natural alternatives**:
-- "Your ROAS last week was 2.45×"
-- "That's up 19% from the week before"
-
----
-
-### 📊 **Coverage Gap Analysis**
-
-Questions we can answer today:
-
-| Category | Questions | Coverage | Quality |
-|----------|-----------|----------|---------|
-| **Basic Performance (1-20)** | 20 | 90% | Robotic |
-| **Comparisons (21-40)** | 20 | 60% | Mixed |
-| **Breakdowns (41-60)** | 20 | 70% | Good |
-| **Filters (61-75)** | 15 | 50% | Needs work |
-| **Scenarios (76-85)** | 10 | 0% | Not implemented |
-
-**Gap Summary**:
-- ✅ Can answer most basic metrics questions (1-20)
-- ⚠️ Comparison answers need better phrasing (21-40)
-- ✅ Breakdown/ranking queries work well (41-60)
-- ⚠️ Filter queries need better DSL coverage (61-75)
-- ❌ What-if scenarios not supported (76-85)
-
----
-
-## Phase 1: Fix Critical Bugs (Week 1)
-
-**Goal**: Fix workspace avg calculation and prevent over-contextualization.
-
-📋 **IMPLEMENTATION GUIDE**: See [PHASE_1_IMPLEMENTATION_SPEC.md](./PHASE_1_IMPLEMENTATION_SPEC.md) for detailed specification.
-
-🤖 **AI PROMPT**: See [AI_PROMPT_PHASE_1.md](./AI_PROMPT_PHASE_1.md) for copy-paste prompt to give an AI IDE.
-
-### Task 1.1: Fix Workspace Average Calculation 🐛
-
-**File**: `backend/app/dsl/executor.py`
-
-**Current Code** (line ~654):
-```python
-query = (
-    db.query(...)
-    .join(E, E.id == MF.entity_id)
-    .filter(E.workspace_id == workspace_id)
-)
-```
-
-**Problem**: This is correct. But check if filters are being applied elsewhere.
-
-**Action**:
-1. Add debug logging to `_calculate_workspace_avg()` to see what's being calculated
-2. Verify filters are NOT being applied to workspace avg query
-3. Add test case: Query with filters should have different workspace_avg than summary
-4. Document expected behavior in function docstring
-
-**Test**:
-```python
-def test_workspace_avg_ignores_filters():
-    """Workspace avg should be calculated across ALL entities, not just filtered ones."""
-    query = MetricQuery(
-        metric="roas",
-        time_range=TimeRange(last_n_days=30),
-        filters=Filters(provider="google")  # Filter to Google only
-    )
-    result = execute_plan(db, workspace_id, plan)
-    
-    # Summary: Google ROAS only
-    # workspace_avg: All platforms ROAS
-    assert result.summary != result.workspace_avg  # Should be different!
-```
-
-**Success Criteria**: Workspace avg is calculated without query filters.
-
----
-
-### Task 1.2: Intent-Based Answer Depth 🎯
-
-**Goal**: Match answer complexity to question intent.
-
-**New File**: `backend/app/answer/intent_classifier.py`
-
-```python
-"""
-Intent Classifier - Determines answer depth based on question type
-
-WHAT: Classifies user questions into intent categories
-WHY: Match answer complexity to what user actually wants
-WHERE: Called by AnswerBuilder before context extraction
-
-Intent Levels:
-- SIMPLE: "what was my roas" → Just the number
-- COMPARATIVE: "how does my roas compare" → Include comparison context
-- ANALYTICAL: "why is my roas low" → Full rich context
-"""
-
-from enum import Enum
-from typing import Optional
-
-class AnswerIntent(str, Enum):
-    SIMPLE = "simple"          # Just give me the number
-    COMPARATIVE = "comparative" # Compare to something
-    ANALYTICAL = "analytical"   # Explain the why/how
-
-def classify_intent(question: str, query: MetricQuery) -> AnswerIntent:
-    """
-    Classify user intent from question and DSL.
-    
-    SIMPLE intent signals:
-    - Question starts with "what/how much/how many"
-    - No comparison in DSL (compare_to_previous=False)
-    - No breakdown requested
-    - Examples: "what was my roas", "how much did I spend"
-    
-    COMPARATIVE intent signals:
-    - Question contains "compare/vs/versus/better/worse"
-    - DSL has compare_to_previous=True OR breakdown present
-    - Examples: "compare google vs meta", "how does this week compare"
-    
-    ANALYTICAL intent signals:
-    - Question contains "why/explain/analyze/trend"
-    - User explicitly asks for insights
-    - Examples: "why is my roas low", "explain the trend"
-    
-    Returns:
-        AnswerIntent: Classification for answer depth
-    """
-    question_lower = question.lower()
-    
-    # Analytical: explicitly asking for explanation
-    analytical_keywords = ["why", "explain", "analyze", "trend", "pattern", "insight"]
-    if any(kw in question_lower for kw in analytical_keywords):
-        return AnswerIntent.ANALYTICAL
-    
-    # Comparative: asking to compare things
-    comparative_keywords = ["compare", "vs", "versus", "better", "worse", "higher", "lower"]
-    has_comparison = query.compare_to_previous or query.breakdown is not None
-    if any(kw in question_lower for kw in comparative_keywords) or has_comparison:
-        return AnswerIntent.COMPARATIVE
-    
-    # Simple: just asking for a value
-    simple_keywords = ["what", "how much", "how many", "show me"]
-    if any(question_lower.startswith(kw) for kw in simple_keywords):
-        return AnswerIntent.SIMPLE
-    
-    # Default to comparative (safe middle ground)
-    return AnswerIntent.COMPARATIVE
-```
-
-**Modify**: `backend/app/answer/answer_builder.py`
-
-```python
-def build_answer(self, dsl, result, ...):
-    # Classify intent
-    intent = classify_intent(dsl.question, dsl)
-    
-    if dsl.query_type == "metrics":
-        context = extract_rich_context(result, dsl, workspace_avg=...)
-        
-        # Filter context based on intent
-        if intent == AnswerIntent.SIMPLE:
-            # Only include basic value, no comparisons/trends
-            simplified_context = {
-                "metric_name": context.metric_name,
-                "metric_value": context.metric_value,
-                "metric_value_raw": context.metric_value_raw
-            }
-            user_prompt = self._build_simple_prompt(simplified_context, dsl)
-        elif intent == AnswerIntent.COMPARATIVE:
-            # Include comparison + top performer, skip trends
-            # ... filter context ...
-        else:  # ANALYTICAL
-            # Include everything (current behavior)
-            user_prompt = self._build_rich_context_prompt(context, dsl)
-```
-
-**New Prompts**:
-
-```python
-SIMPLE_ANSWER_PROMPT = """You are a helpful marketing analytics assistant.
-
-The user asked a simple factual question. Give them a direct, concise answer.
-
-RULES:
-1. Answer in ONE sentence
-2. State the metric value clearly
-3. NO comparisons, NO analysis, NO recommendations
-4. Be conversational but brief
-
-Examples:
-- "Your ROAS last month was 3.88×"
-- "You spent $1,234 yesterday"
-- "Your CPC this week is $0.48"
-
-Remember: Keep it simple. They asked for a fact, not an analysis."""
-```
-
-**Test**:
-```bash
-# Simple intent
-Q: "what was my roas last month"
-A: "Your ROAS last month was 3.88×"  # ✅ Just the fact
-
-# Comparative intent
-Q: "how does my roas compare to last month"
-A: "Your ROAS is 3.88× this month, up 12% from last month's 3.46×"  # ✅ Comparison
-
-# Analytical intent  
-Q: "why is my roas so volatile"
-A: "Your ROAS has been volatile, ranging from 1.38× to 5.80× over the past month..."  # ✅ Full analysis
-```
-
-**Success Criteria**:
-- ✅ Simple questions get 1-sentence answers
-- ✅ Comparative questions get comparison context
-- ✅ Analytical questions get full rich context
-
----
-
-## Phase 2: Natural Language Polish (Week 2)
-
-**Goal**: Make answers feel human, not robotic.
-
-### Task 2.1: Enhance GPT Prompts for Naturalness
-
-**Modify**: `backend/app/nlp/prompts.py`
-
-Update `SIMPLE_ANSWER_PROMPT`, `COMPARATIVE_ANSWER_PROMPT`, `ANALYTICAL_ANSWER_PROMPT` with better examples:
-
-```python
-COMPARATIVE_ANSWER_PROMPT = """You are a helpful marketing analytics colleague.
-
-The user wants to compare metrics. Give them a clear comparison in natural language.
-
-TONE: Conversational, like explaining to a friend over coffee
-STYLE: Use contractions (it's, you're), avoid formal business speak
-
-Good examples:
-- "Your ROAS jumped to 2.45× this week—that's 19% better than last week"
-- "Google's crushing it at $0.32 CPC while Meta's at $0.51"
-- "Summer Sale is your top performer at 3.20× ROAS, way ahead of the others"
-
-Bad examples (too formal):
-- "Your ROAS for the selected period is 2.45×. That represents a +19.0% change."
-- "The Google platform demonstrates superior performance..."
-
-Remember: Speak like a human, not a report."""
-```
-
-### Task 2.2: Remove Template Fallbacks
-
-**Current**: If GPT fails, system uses robotic templates
-
-**Change**: Make GPT calls more reliable so fallbacks are rarely used
-- Increase timeout from 5s to 10s
-- Add retry logic (1 retry with exponential backoff)
-- Only use fallback as last resort
-
-**Modify**: `backend/app/answer/answer_builder.py`
-
-```python
-async def build_answer(self, ...):
-    max_retries = 1
-    for attempt in range(max_retries + 1):
-        try:
-            response = self.client.chat.completions.create(...)
-            return response.choices[0].message.content.strip()
-        except Exception as e:
-            if attempt < max_retries:
-                await asyncio.sleep(0.5 * (2 ** attempt))  # Exponential backoff
-                continue
-            else:
-                logger.error(f"All retries exhausted: {e}")
-                return self.build_fallback(result, dsl)  # Last resort
-```
-
----
-
-## Phase 3: Expand Question Coverage (Week 3)
-
-**Goal**: Handle questions 61-75 (filters & segments).
-
-### Task 3.1: Better Filter Support
-
-**Current Gap**: Questions like "What's my ROAS for Google campaigns only?" work, but answers don't acknowledge the filter.
-
-**Example**:
-```
-Q: "What's my ROAS for Google campaigns?"
-A: "Your ROAS is 4.2×"  # ❌ Doesn't mention it's Google-only
-
-Better:
-A: "Your Google campaigns are at 4.2× ROAS"  # ✅ Acknowledges filter
-```
-
-**Solution**: Include filters in context sent to GPT
-
-**Modify**: `backend/app/answer/context_extractor.py`
-
-```python
-class RichContext:
-    # ... existing fields ...
-    filters_applied: Optional[Dict[str, str]] = None  # NEW
-```
-
-```python
-def extract_rich_context(result, query, workspace_avg):
-    context = RichContext()
-    # ... existing extraction ...
-    
-    # Extract filters
-    if query.filters:
-        filters_dict = {}
-        if query.filters.provider:
-            filters_dict["platform"] = query.filters.provider.capitalize()
-        if query.filters.status:
-            filters_dict["status"] = query.filters.status
-        if query.filters.level:
-            filters_dict["entity_type"] = query.filters.level
-        
-        if filters_dict:
-            context.filters_applied = filters_dict
-    
-    return context
-```
-
-**Update prompt to acknowledge filters**:
-```python
-"""
-...
-- If filters_applied exists, mention it in your answer
-  Example: "Your Google campaigns are at 4.2× ROAS"
-  Example: "Active campaigns spent $1,234 yesterday"
-...
-"""
-```
-
-### Task 3.2: Goal-Aware Answers
-
-**Future Enhancement** (not in Phase 3):
-Some questions ask about campaign-type specific metrics:
-- "How are my retargeting campaigns performing?"
-- "What's my conversion rate on mobile?"
-
-These require entity metadata (tags, device targeting) not yet in our data model.
-
-**Action**: Document as future enhancement, skip for now.
-
----
-
-## Phase 4: Testing & Validation (Week 4)
-
-**Goal**: Systematically test questions 1-85 and measure success rate.
-
-### Task 4.1: Create Test Harness
-
-**New File**: `backend/app/tests/test_realistic_questions.py`
-
-```python
-"""
-Test harness for 100 realistic questions.
-
-Loads questions from docs/100-realistic-questions.md
-Tests DSL generation, execution, and answer quality.
-"""
-
-import pytest
-from app.services.qa_service import QAService
-
-# Load questions from markdown
-BASIC_QUESTIONS = [
-    "What's my CPC today?",
-    "How much did I spend yesterday?",
-    "What's my ROAS this week?",
-    # ... 1-20 ...
-]
-
-COMPARISON_QUESTIONS = [
-    "How does this week compare to last week?",
-    "Compare Google vs Meta performance this month",
-    # ... 21-40 ...
-]
-
-@pytest.mark.parametrize("question", BASIC_QUESTIONS)
-async def test_basic_questions(question, qa_service, workspace_id):
-    """Test that basic questions get simple, direct answers."""
-    result = await qa_service.answer(
-        question=question,
-        workspace_id=workspace_id,
-        user_id="test_user"
-    )
-    
-    # Success criteria:
-    assert result["answer"] is not None
-    assert len(result["answer"]) < 200  # Should be concise
-    assert result["executed_dsl"]["query_type"] == "metrics"
-    
-    # Answer quality checks:
-    answer = result["answer"]
-    assert not answer.startswith("Your")  # Avoid robotic "Your X is..."
-    # Add more quality checks...
-```
-
-### Task 4.2: Manual Quality Review
-
-**Process**:
-1. Run test harness to get answers for all questions 1-60
-2. Export to CSV: question, DSL, answer, data
-3. Manual review: Rate each answer 1-5 stars
-4. Identify patterns in low-rated answers
-5. Iterate on prompts/intent classification
-
-**Success Criteria**:
-- 80% of questions 1-60 get 4+ star ratings
-- 90% generate valid DSL
-- 95% execute without errors
-
----
-
-## Phase 5: What-If Scenarios (Future - Week 5+)
-
-**Goal**: Handle questions 76-85 (simulations, what-if analysis).
+#### Issue 1: Timeframe Detection Errors (HIGH PRIORITY)
+**Problem**: Questions asking for "today" or "this week" are getting translated to wrong timeframes
 
 **Examples**:
-- "How much revenue would I have if my AOV was 40% higher?"
-- "What if I doubled my budget on Campaign X?"
-- "What's my break-even ROAS?"
+- Q: "How much did I spend yesterday?" → A: "You spent $0.00 **today**" (wrong timeframe!)
+- Q: "What's my ROAS this week?" → A: "Your ROAS was 4.36× **last week**" (asked this week, got last week!)
+- Q: "What's my CPC today?" → A: "Your CPC is N/A **today**" (correct but no data explanation)
 
-**Challenges**:
-- Requires computation layer beyond current query engine
-- Need to fetch current data, then simulate changes
-- May need multi-step LLM planning ("first get current AOV, then calculate 40% increase, then project revenue")
+**Root Cause**: DSL translation is mapping relative terms incorrectly. "This week" → "last 7 days" should mean the current week, not the past 7 days.
 
-**Approach**:
-1. **Simple Calculations**: Build calculator functions (e.g., `calculate_breakeven_roas`)
-2. **Simulation Endpoint**: New `/qa/simulate` endpoint for what-if queries
-3. **Multi-Step Planning**: LLM breaks question into steps, executes each
-
-**Timeline**: After Phase 4 is solid (not a priority for initial launch)
+**Impact**: 40% of basic time-based questions have wrong timeframes
 
 ---
 
-## Implementation Priority
+#### Issue 2: Missing Data Explanations (HIGH PRIORITY)
+**Problem**: When data is missing, system returns "N/A" or "$0.00" without explaining WHY
 
-### ✅ **Phase 1 (Week 1)**: CRITICAL - Fix Bugs
-- [ ] Fix workspace avg calculation bug
-- [ ] Implement intent classification
-- [ ] Add simple/comparative/analytical answer modes
-- [ ] Test with 10 representative questions
+**Examples**:
+- Q: "How much revenue on Google last week?" → A: "Your revenue was $0.00 last week"
+  - **Better**: "You don't have any Google campaigns connected. You're currently only running ads on Other."
 
-### ⚠️ **Phase 2 (Week 2)**: HIGH - Polish
-- [ ] Enhance GPT prompts for naturalness
-- [ ] Add retry logic for GPT calls
-- [ ] Update tests for new answer styles
-- [ ] Test with 20 questions
+- Q: "What's my CPC today?" → A: "Your CPC is N/A today"
+  - **Better**: "No data available for today yet. Your CPC last week was $0.48."
 
-### 📊 **Phase 3 (Week 3)**: MEDIUM - Coverage
-- [ ] Add filter acknowledgment in answers
-- [ ] Document unsupported question types
-- [ ] Test with questions 1-75
+**Root Cause**: System doesn't check if filters match any data before answering
 
-### 🧪 **Phase 4 (Week 4)**: MEDIUM - Validation
-- [ ] Build test harness
-- [ ] Run full suite 1-85
-- [ ] Manual quality review
-- [ ] Iterate based on feedback
+**Impact**: Confusing answers for filtered queries
 
-### 🔮 **Phase 5 (Future)**: LOW - Advanced Features
-- [ ] What-if scenarios (76-85)
-- [ ] Educational questions (86-95)
-- [ ] Advanced multi-step (96-100)
+---
+
+#### Issue 3: Platform Comparison Not Comparing (MEDIUM PRIORITY)
+**Problem**: "Compare Google vs Meta" just returns overall revenue, doesn't actually compare platforms
+
+**Example**:
+- Q: "Compare Google vs Meta performance" 
+- A: "Last month, your revenue was $77,580.62..." (no comparison!)
+- **Expected**: "You're only running ads on Other right now, not on Google or Meta."
+
+**Root Cause**: DSL generates provider breakdown but answer doesn't acknowledge no data exists
+
+**Impact**: Comparison questions fail when data doesn't exist
+
+---
+
+#### Issue 4: Campaign-Specific Queries Failing (MEDIUM PRIORITY)
+**Problem**: Asking about a specific campaign by name doesn't filter properly
+
+**Example**:
+- Q: "How is the Holiday Sale campaign performing?"
+- A: "Your cost per install was N/A last month. Top performer: App Install Campaign ($5.14)"
+  - Wrong metric, wrong campaign!
+
+**Root Cause**: DSL doesn't support filtering by entity name yet (only by entity_ids)
+
+**Impact**: Natural follow-up questions don't work
+
+---
+
+#### Issue 5: Workspace Average Still Buggy (LOW PRIORITY)
+**Problem**: Some queries still show workspace_avg = summary (comparing to itself)
+
+**Example**: Test 12 shows spend = $20,006.72, workspace avg = $20,006.72 (identical)
+
+**Root Cause**: Workspace average calculation when filters are applied
+
+**Impact**: Less severe now with intent filtering, but still misleading
+
+---
+
+## Revised Roadmap - Next 3 Phases
+
+### Phase 2: Fix Timeframe Detection (Week 5 - CRITICAL)
+
+**Goal**: "Today", "this week", "yesterday" should map to correct date ranges
+
+**The Problem**:
+Our DSL translator maps:
+- "today" → last_n_days: 1 (actually means "yesterday" in our data!)
+- "this week" → last_n_days: 7 (means "last 7 days", not current week)
+- "yesterday" → last_n_days: 1 (same as today!)
+
+**The Fix**:
+Need to distinguish between:
+- **Relative past**: "last week", "last month" → last_n_days works fine
+- **Current period**: "today", "this week" → need start/end dates for current period
+- **Recent absolute**: "yesterday" → specific date range
+
+**Where to Fix**:
+- Update canonicalization to preserve "today" vs "yesterday" vs "last N days"
+- Update DSL examples with explicit current period examples
+- Update prompts to explain the difference
+
+**Success Criteria**:
+- "What's my spend today?" → returns today's data or explains no data yet
+- "What's my ROAS this week?" → returns current week (Monday-Sunday) not last 7 days
+- "How much did I spend yesterday?" → returns specific yesterday's data
+
+**Testing**: Run tests 1, 2, 3 again and verify timeframes match questions
+
+---
+
+### Phase 3: Graceful Missing Data Handling (Week 6 - CRITICAL)
+
+**Goal**: When data is missing, explain WHY instead of showing "$0" or "N/A"
+
+**The Problem**:
+System doesn't check if:
+- Platform filter matches any actual data
+- Time period has any data yet (today might be empty)
+- Entity name exists
+
+**The Fix**:
+Add pre-execution validation:
+
+**Step 1: Platform Validation**
+Before executing query with provider filter, check what platforms exist:
+- If user asks for "Google" but only "Other" exists → explain before running query
+- Include available platforms in the explanation
+
+**Step 2: Entity Name Validation**
+Before executing query mentioning campaign name:
+- Check if that entity name exists
+- If not, suggest similar names or list available entities
+
+**Step 3: Smart Fallbacks**
+When result is null/zero/N/A:
+- Check if any data exists for that metric in general
+- Suggest alternative timeframe with data
+- Explain if it's truly zero vs no data
+
+**Where to Fix**:
+- Add validation layer in qa_service before execution
+- Enhance fallback templates to be context-aware
+- Add "data availability checker" helper function
+
+**Success Criteria**:
+- "Revenue on Google" → "You don't have Google campaigns. You're on Other."
+- "Spend today" → "No data for today yet. Last week you spent $X."
+- "Holiday Sale performance" → Finds the campaign or suggests correct name
+
+**Testing**: Run tests 5, 14, 16 and verify explanatory answers
+
+---
+
+### Phase 4: Filter Acknowledgment (Week 7 - MEDIUM)
+
+**Goal**: Answers should acknowledge when filters are applied
+
+**The Problem**:
+When user asks filtered question, answer doesn't mention the filter
+
+**Examples**:
+- Q: "How much did active campaigns spend?"
+- A: "Active campaigns spent $20,006.72" ✅ (Actually this one is good!)
+
+- Q: "What's my Google ROAS?"
+- A: "Your ROAS is 4.2×" ❌ (should say "Your **Google** ROAS is 4.2×")
+
+**The Fix**:
+Pass filter context to answer builder and include in prompt:
+
+**In Context**:
+- If provider filter: mention platform name
+- If status filter: mention "active" or "paused"
+- If entity_ids filter: mention entity names
+
+**In Prompts**:
+Update all three prompts with instruction:
+"If filters are present in context, acknowledge them naturally in your answer"
+
+**Success Criteria**:
+- "Google ROAS" → "Your Google campaigns are at 4.2× ROAS"
+- "Active campaigns revenue" → "Your active campaigns generated $X"
+- "Paused campaigns" → "Your paused campaigns..."
+
+**Testing**: Add filter-specific test questions and verify acknowledgment
+
+---
+
+## What We're NOT Fixing Yet (Future Phases)
+
+### Out of Scope for Now
+
+1. **What-If Scenarios** (Questions 76-85)
+   - "What if I doubled my budget?" requires simulation layer
+   - **Decision**: Phase 5 or later, not needed for MVP
+
+2. **Educational Questions** (Questions 86-95)
+   - "What is ROAS and why does it matter?" requires knowledge base
+   - **Decision**: Phase 5 or later, can add FAQ system
+
+3. **Advanced Multi-Step** (Questions 96-100)
+   - "Show campaigns where CPC > $1 AND ROAS < 2" requires complex boolean logic
+   - **Decision**: Phase 5 or later, advanced filtering
+
+4. **Device/Demographic Filters**
+   - "Mobile vs desktop performance" requires data we don't have
+   - **Decision**: Future when we have granular data
+
+5. **Cohort Analysis**
+   - "Users acquired in January vs February" requires advanced segmentation
+   - **Decision**: Future advanced feature
+
+---
+
+## Testing Strategy
+
+### After Each Phase
+
+**Automated Tests**:
+Run the 18-question test suite and log results:
+- Track success rate (currently ~60%)
+- Track answer quality (1-5 star rating)
+- Track DSL accuracy
+- Track execution errors
+
+**Manual Review**:
+1. Export test results to markdown
+2. Rate each answer: ✅ Perfect, ⚠️ Acceptable, ❌ Poor
+3. Identify patterns in failures
+4. Update prompts/logic based on patterns
+
+**Success Thresholds**:
+- Phase 2 target: 75% success rate (timeframes fixed)
+- Phase 3 target: 85% success rate (missing data explained)
+- Phase 4 target: 90% success rate (filters acknowledged)
+
+---
+
+## Current Test Results Summary
+
+**Total Questions Tested**: 18  
+**Fully Successful**: 11 (61%)  
+**Partially Successful**: 4 (22%)  
+**Failed**: 3 (17%)
+
+### Breakdown by Category
+
+**Basic Performance** (5 tests):
+- ✅ Works: 1 (20%)
+- ⚠️ Timeframe wrong: 3 (60%)
+- ❌ Missing data: 1 (20%)
+
+**Comparisons** (2 tests):
+- ✅ Works: 1 (50%)
+- ❌ Platform comparison failed: 1 (50%)
+
+**Breakdowns** (3 tests):
+- ✅ Works: 3 (100%) 🎉
+
+**Analytical** (2 tests):
+- ✅ Works: 2 (100%) 🎉
+
+**Filters** (2 tests):
+- ✅ Works: 2 (100%) 🎉
+
+**Edge Cases** (4 tests):
+- ✅ Works: 2 (50%)
+- ❌ Campaign name query failed: 1 (25%)
+- ⚠️ Missing context: 1 (25%)
+
+---
+
+## Priority Matrix
+
+| Phase | Priority | Effort | Impact | Status |
+|-------|----------|--------|--------|--------|
+| Phase 1.1 (Tactical Fixes) | P0 | Medium | High | ✅ DONE |
+| Phase 2 (Timeframe Detection) | P0 | Medium | Critical | 🔴 NEXT |
+| Phase 3 (Missing Data Handling) | P0 | Medium | Critical | 🟡 Planned |
+| Phase 4 (Filter Acknowledgment) | P1 | Low | Medium | 🟡 Planned |
+| Phase 5 (Advanced Features) | P2 | High | Low | ⚪ Future |
+
+---
+
+## Incremental Next Steps
+
+### Immediate (This Week)
+
+**Step 1: Fix "Today" Timeframe** (2-3 hours)
+- Add "today" as special case in canonicalization
+- Update DSL translator to use current date for "today"
+- Test "What's my spend today?"
+
+**Step 2: Fix "This Week" Timeframe** (2-3 hours)
+- Add logic to calculate current week boundaries (Monday-Sunday)
+- Update DSL to support "current_week" mode
+- Test "What's my ROAS this week?"
+
+**Step 3: Platform Pre-Check** (2 hours)
+- Add helper function: `check_platform_exists(workspace_id, provider)`
+- Update QA service to check before executing filtered queries
+- Return friendly message if platform doesn't exist
+
+### This Week (Days 2-3)
+
+**Step 4: Missing Data Fallbacks** (4 hours)
+- When result is null/zero, check if metric has any data at all
+- Suggest alternative timeframe if current timeframe empty
+- Update fallback templates to be explanatory
+
+**Step 5: Entity Name Search** (4 hours)
+- Add entity name search in validation layer
+- Find closest match for campaign names
+- Update DSL to support entity name filters (not just IDs)
+
+### Next Week
+
+**Step 6: Full Test Suite** (2 hours)
+- Run all 18 tests again
+- Track improvements
+- Identify remaining issues
+
+**Step 7: Documentation Update** (1 hour)
+- Update this roadmap with results
+- Document new timeframe handling
+- Update QA_SYSTEM_ARCHITECTURE.md
 
 ---
 
 ## Success Metrics
 
-### Week 1 Targets
-- ✅ Workspace avg bug fixed (verified with test)
-- ✅ Simple questions get 1-sentence answers
-- ✅ 10/10 test questions pass quality check
+### Current State (After Phase 1.1)
+- ✅ Intent classification: 100% working
+- ✅ Natural language: 90% improved
+- ⚠️ Timeframe accuracy: 40% correct
+- ⚠️ Missing data handling: 30% explained
+- ✅ Breakdowns: 100% working
+- ✅ Analytical depth: 100% appropriate
 
-### Week 2 Targets
-- ✅ Answers sound natural (not robotic)
-- ✅ <5% fallback rate (GPT succeeds 95%+ of time)
-- ✅ 18/20 test questions pass quality check
+### Target State (After Phases 2-4)
+- ✅ Intent classification: 100% working
+- ✅ Natural language: 95% improved
+- ✅ Timeframe accuracy: 90% correct
+- ✅ Missing data handling: 85% explained
+- ✅ Breakdowns: 100% working
+- ✅ Filter acknowledgment: 90% mentioned
 
-### Week 3 Targets
-- ✅ Filtered questions acknowledged ("Your Google campaigns...")
-- ✅ Questions 1-75: 80% coverage, 70% quality
-
-### Week 4 Targets
-- ✅ Questions 1-60: 90% coverage, 80% quality
-- ✅ Test harness integrated in CI/CD
-- ✅ Manual review process documented
-
----
-
-## Architecture Principles
-
-### Separation of Concerns
-
-```
-┌─────────────────────────────────────────────────┐
-│ Question Understanding (app/nlp/)               │
-│ - Canonicalize                                  │
-│ - Translate to DSL                              │
-│ - Validate                                      │
-└─────────────────┬───────────────────────────────┘
-                  ▼
-┌─────────────────────────────────────────────────┐
-│ Query Execution (app/dsl/)                      │
-│ - Plan query                                    │
-│ - Execute against DB                            │
-│ - Return structured results                     │
-└─────────────────┬───────────────────────────────┘
-                  ▼
-┌─────────────────────────────────────────────────┐
-│ Answer Generation (app/answer/)                 │
-│ - Classify intent (NEW)                         │
-│ - Extract appropriate context                   │
-│ - Generate natural language                     │
-└─────────────────────────────────────────────────┘
-```
-
-Each layer should be:
-- **Independently testable**
-- **Clearly documented**
-- **Single responsibility**
-- **Minimal dependencies**
+### Long-term Vision (Phase 5+)
+- What-if scenarios supported
+- Educational answers provided
+- Complex boolean filters working
+- Multi-step reasoning enabled
 
 ---
 
-## Documentation Updates
+## Philosophy
 
-### After Each Phase
+**Incremental Progress Over Perfection**
+- Fix one thing at a time
+- Test after each change
+- Build on what works
+- Don't break existing functionality
 
-**Update `QA_SYSTEM_ARCHITECTURE.md`**:
-- Add Intent Classification section (Phase 1)
-- Update Answer Generation flow diagram (Phase 1)
-- Document new answer modes (Phase 1)
-- Add test coverage stats (Phase 4)
+**User-Centric Fixes**
+- Fix issues users will actually notice
+- Prioritize confusing answers over edge cases
+- Make errors helpful, not mysterious
 
-**Update `ADNAVI_BUILD_LOG.md`**:
-- Changelog entry for each phase
-- Example before/after for major changes
-- Known issues / tech debt
-
-**Create New Docs**:
-- `INTENT_CLASSIFICATION.md`: Deep dive on intent detection
-- `ANSWER_QUALITY_RUBRIC.md`: How we measure answer quality
-- `TESTING_GUIDE.md`: How to run test harness, interpret results
-
----
-
-## Next Steps (Immediate Action)
-
-### Step 1: Debug Workspace Avg (Today)
-```bash
-# Add debug logging
-cd backend
-# Edit app/dsl/executor.py, add logs to _calculate_workspace_avg
-# Run a test query and check logs
-```
-
-### Step 2: Implement Intent Classification (Tomorrow)
-```bash
-# Create new file
-touch app/answer/intent_classifier.py
-# Implement classify_intent() function
-# Add tests
-# Wire into AnswerBuilder
-```
-
-### Step 3: Create Simple Answer Mode (Day 3)
-```bash
-# Update prompts.py with SIMPLE_ANSWER_PROMPT
-# Modify AnswerBuilder to use intent
-# Test with "what was my roas last month"
-```
-
-### Step 4: Test & Iterate (Day 4-5)
-```bash
-# Test 10 questions manually
-# Collect feedback
-# Adjust prompts/thresholds
-# Repeat
-```
+**Data-Driven Decisions**
+- Test with real questions
+- Measure success rates
+- Track improvements over time
+- Let results guide priorities
 
 ---
 
-## Questions to Answer
-
-Before starting implementation:
-
-1. **Workspace Avg Bug**: Confirm it's actually a bug by checking the calculation logic
-2. **Intent Thresholds**: What keywords/patterns reliably indicate each intent?
-3. **Answer Length**: What's acceptable range for simple/comparative/analytical?
-4. **Fallback Rate**: What % GPT failure rate is acceptable?
-5. **Test Data**: Do we have enough diverse data to test all question types?
-
----
-
-_This roadmap is a living document. Update it as we learn and iterate._
-
-_Last updated: 2025-10-08_
+**Next Action**: Start Phase 2 - Fix "today" and "this week" timeframe detection
 

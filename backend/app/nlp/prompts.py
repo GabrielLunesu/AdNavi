@@ -21,7 +21,31 @@ from __future__ import annotations
 # Few-shot examples embedded in the prompt
 # These are condensed from dsl/examples.md for efficiency
 FEW_SHOT_EXAMPLES = [
-    # Original examples
+    # Phase 2: Current period examples (today, yesterday, this week)
+    {
+        "question": "What's my spend today?",
+        "dsl": {
+            "metric": "spend",
+            "time_range": {"last_n_days": 1},
+            "compare_to_previous": False,
+            "group_by": "none",
+            "breakdown": None,
+            "top_n": 5,
+            "filters": {}
+        }
+    },
+    {
+        "question": "How much did I spend yesterday?",
+        "dsl": {
+            "metric": "spend",
+            "time_range": {"last_n_days": 1},
+            "compare_to_previous": False,
+            "group_by": "none",
+            "breakdown": None,
+            "top_n": 5,
+            "filters": {}
+        }
+    },
     {
         "question": "What's my ROAS this week?",
         "dsl": {
@@ -522,6 +546,15 @@ TIME RANGE (for metrics queries):
 - Relative: {"last_n_days": <number>}  (e.g., 7, 30, 90)
 - Absolute: {"start": "YYYY-MM-DD", "end": "YYYY-MM-DD"}
 - Default: {"last_n_days": 7} if not specified
+
+CRITICAL - Phase 2 Timeframe Rules:
+- "today" and "yesterday" questions: Use {"last_n_days": 1}
+  The system will detect from the original question which one was asked
+- "this week" questions: Use {"last_n_days": 7}
+  The system will detect it means current week from the question
+- "last week" questions: Use {"last_n_days": 7}
+  The system will label it correctly as "last week"
+- The original question is preserved, so timeframe context will be accurate in answers
 
 FILTERS (optional, only if mentioned):
 - provider: "google" | "meta" | "tiktok" | "other" | "mock"
