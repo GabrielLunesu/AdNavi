@@ -1,11 +1,11 @@
 #!/bin/bash
 # Simple QA Test Runner
 
-WORKSPACE_ID="914019de-2190-4fcc-855a-d1e719d05cdc"
+WORKSPACE_ID="a8fef057-4b82-49d7-8049-4257fd9d272b"
 API_URL="http://localhost:8000/qa/?workspace_id=$WORKSPACE_ID"
 COOKIE_FILE="../cookies.txt"
 TEST_RESULTS_DIR="test-results"
-OUTPUT_FILE="$TEST_RESULTS_DIR/qa_test_results-phase-5-3.md"
+OUTPUT_FILE="$TEST_RESULTS_DIR/qa_test_results-phase-5-4.md"
 
 # Create test-results directory if it doesn't exist
 mkdir -p "$TEST_RESULTS_DIR"
