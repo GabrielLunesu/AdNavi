@@ -288,6 +288,11 @@ class MetricQuery(BaseModel):
         description="Number of items to return in breakdown or entities list"
     )
     
+    sort_order: Literal["asc", "desc"] = Field(
+        default="desc",
+        description="Sort order for breakdown results: 'desc' for highest first (default), 'asc' for lowest first"
+    )
+    
     filters: Filters = Field(
         default_factory=Filters,
         description="Optional scoping filters (ANDed together)"

@@ -414,6 +414,61 @@ FEW_SHOT_EXAMPLES = [
             "top_n": 10
         }
     },
+    
+    # NEW Phase 4.5: Sort order examples (lowest vs highest)
+    # CRITICAL: Use "sort_order": "asc" for LOWEST queries, "desc" for HIGHEST queries
+    {
+        "question": "Which campaign had the highest ROAS last week?",
+        "dsl": {
+            "metric": "roas",
+            "time_range": {"last_n_days": 7},
+            "compare_to_previous": False,
+            "group_by": "campaign",
+            "breakdown": "campaign",
+            "top_n": 1,
+            "sort_order": "desc",  # HIGHEST = descending order
+            "filters": {}
+        }
+    },
+    {
+        "question": "Which adset had the lowest CPC last week?",
+        "dsl": {
+            "metric": "cpc",
+            "time_range": {"last_n_days": 7},
+            "compare_to_previous": False,
+            "group_by": "adset",
+            "breakdown": "adset",
+            "top_n": 1,
+            "sort_order": "asc",  # LOWEST = ascending order
+            "filters": {}
+        }
+    },
+    {
+        "question": "Show me the 3 campaigns with the worst CTR this month",
+        "dsl": {
+            "metric": "ctr",
+            "time_range": {"last_n_days": 30},
+            "compare_to_previous": False,
+            "group_by": "campaign",
+            "breakdown": "campaign",
+            "top_n": 3,
+            "sort_order": "asc",  # WORST (for normal metrics) = ascending order
+            "filters": {}
+        }
+    },
+    {
+        "question": "Which ad had the best CPA last week?",
+        "dsl": {
+            "metric": "cpa",
+            "time_range": {"last_n_days": 7},
+            "compare_to_previous": False,
+            "group_by": "ad",
+            "breakdown": "ad",
+            "top_n": 1,
+            "sort_order": "asc",  # BEST CPA (inverse metric) = ascending order (lower is better)
+            "filters": {}
+        }
+    },
 ]
 
 # Follow-up examples (demonstrating context usage)
@@ -612,6 +667,22 @@ THRESHOLDS (optional, for filtering outliers):
 - min_conversions: Minimum conversions to include in breakdown
 Use when user says: "ignore tiny/small", "meaningful traffic", "significant volume", etc.
 
+SORT ORDER (NEW Phase 4.5 - CRITICAL FOR LOWEST/HIGHEST QUERIES):
+- "desc": Descending order (highest first) — DEFAULT
+- "asc": Ascending order (lowest first)
+
+RULES FOR sort_order:
+- HIGHEST/MAXIMUM/BEST (for normal metrics like ROAS, CTR, Revenue): Use "desc"
+- LOWEST/MINIMUM/BEST (for inverse metrics like CPC, CPA, CPM): Use "asc"
+- WORST (depends on metric type): "asc" for normal metrics, "desc" for inverse metrics
+- If not specified in question: Default to "desc"
+
+EXAMPLES:
+- "Which campaign had the HIGHEST ROAS?" → sort_order: "desc"
+- "Which adset had the LOWEST CPC?" → sort_order: "asc"
+- "Show me the WORST performing campaigns by CTR" → sort_order: "asc"
+- "Which ad had the BEST CPA?" → sort_order: "asc" (lower CPA is better)
+
 JSON SCHEMA:
 {
   "query_type": "metrics" | "providers" | "entities" (default: "metrics"),
@@ -621,6 +692,7 @@ JSON SCHEMA:
   "group_by": "none" | "provider" | "campaign" | "adset" | "ad" (default: "none"),
   "breakdown": "provider" | "campaign" | "adset" | "ad" | null (default: null),
   "top_n": number (default: 5, range: 1-50),
+  "sort_order": "asc" | "desc" (default: "desc"),
   "filters": object (default: {}),
   "thresholds": object (optional, default: null)
 }

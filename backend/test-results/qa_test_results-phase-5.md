@@ -1,6 +1,6 @@
 # QA Test Results
 
-**Test Run**: Wed Oct  8 16:24:17 CEST 2025
+**Test Run**: Wed Oct  8 16:31:48 CEST 2025
 **Workspace**: Defang Labs (914019de-2190-4fcc-855a-d1e719d05cdc)
 **System Version**: Phase 3 (v2.1.3)
 
@@ -306,7 +306,7 @@
 ## Test 10: Which campaign had the highest ROAS last week?
 
 **Answer**:
-> Last week, your Holiday Sale - Purchases campaign had the highest ROAS at an impressive 11.58×—that's crushing it! Just to give you some context, the average ROAS across your workspace was 4.36×, so you're way ahead of the pack.
+> Last week, the Holiday Sale - Purchases campaign had the highest ROAS at an impressive 11.58×—that's your top performer! To put it in perspective, the average ROAS for your workspace was 4.36×, so this campaign really crushed it.
 
 **DSL**:
 ```json
@@ -405,7 +405,7 @@
 ## Test 13: List all active campaigns
 
 **Answer**:
-> You currently have three active campaigns: Holiday Sale - Purchases, App Install Campaign, and Lead Gen - B2B.
+> You have three active campaigns: Holiday Sale - Purchases, App Install Campaign, and Lead Gen - B2B.
 
 **DSL**:
 ```json
@@ -434,7 +434,7 @@
 ## Test 14: Which ad has the highest CTR?
 
 **Answer**:
-> Ad 2 from AdSet 2, focused on Brand Awareness, had the highest CTR at 2.1% last week—your top performer! That's a bit above the workspace average of 1.7%, so it's definitely standing out.
+> Last week, Ad 2 from AdSet 2 had the highest CTR at 2.1%, which is a bit better than your workspace average of 1.7%. So, it's definitely your top performer in terms of engagement!
 
 **DSL**:
 ```json
@@ -467,6 +467,109 @@
 ## Test 15: Show me campaigns with ROAS above 4
 
 **Answer**:
+> Last month, your overall ROAS was 3.88×, which is right at the workspace average. However, the Holiday Sale - Purchases campaign really stood out as your top performer with an impressive 11.77×—that's a huge win!
+
+**DSL**:
+```json
+{
+  "query_type": "metrics",
+  "metric": "roas",
+  "time_range": {
+    "last_n_days": 30,
+    "start": null,
+    "end": null
+  },
+  "compare_to_previous": false,
+  "group_by": "campaign",
+  "breakdown": "campaign",
+  "top_n": 10,
+  "filters": {
+    "provider": null,
+    "level": null,
+    "entity_ids": null,
+    "status": null
+  },
+  "thresholds": {
+    "min_spend": 0.0,
+    "min_clicks": null,
+    "min_conversions": 0
+  },
+  "question": "Show me campaigns with ROAS above 4",
+  "timeframe_description": "last month"
+}
+```
+
+---
+
+## Test 16: Which campaign generated the most leads?
+
+**Answer**:
+> Last month, your top campaign for generating leads was "Lead Gen - B2B," bringing in 1,964 leads—right on par with the workspace average. That means it’s performing well, especially since it’s your best performer!
+
+**DSL**:
+```json
+{
+  "query_type": "metrics",
+  "metric": "leads",
+  "time_range": {
+    "last_n_days": 30,
+    "start": null,
+    "end": null
+  },
+  "compare_to_previous": false,
+  "group_by": "campaign",
+  "breakdown": "campaign",
+  "top_n": 1,
+  "filters": {
+    "provider": null,
+    "level": null,
+    "entity_ids": null,
+    "status": null
+  },
+  "thresholds": null,
+  "question": "Which campaign generated the most leads?",
+  "timeframe_description": "last month"
+}
+```
+
+---
+
+## Test 17: Rank platforms by cost per conversion
+
+**Answer**:
+> Last month, your cost per conversion was $5.53, which is right on par with the workspace average—so you're doing just fine. Interestingly, "other" platforms ranked as the top performer at the same cost, so it looks like you're all in the same boat!
+
+**DSL**:
+```json
+{
+  "query_type": "metrics",
+  "metric": "cpa",
+  "time_range": {
+    "last_n_days": 30,
+    "start": null,
+    "end": null
+  },
+  "compare_to_previous": false,
+  "group_by": "provider",
+  "breakdown": "provider",
+  "top_n": 10,
+  "filters": {
+    "provider": null,
+    "level": null,
+    "entity_ids": null,
+    "status": null
+  },
+  "thresholds": null,
+  "question": "Rank platforms by cost per conversion",
+  "timeframe_description": "last month"
+}
+```
+
+---
+
+## Test 18: give me a breakdown of holiday campaign performance
+
+**Answer**:
 > You have four campaigns running: Holiday Sale - Purchases, App Install Campaign, Lead Gen - B2B, and Brand Awareness.
 
 **DSL**:
@@ -485,112 +588,9 @@
     "entity_ids": null,
     "status": null
   },
-  "thresholds": {
-    "min_spend": 0.0,
-    "min_clicks": null,
-    "min_conversions": 0
-  },
-  "question": "Show me campaigns with ROAS above 4",
-  "timeframe_description": null
-}
-```
-
----
-
-## Test 16: Which campaign generated the most leads?
-
-**Answer**:
-> Last week, your top campaign for leads was "Lead Gen - B2B," generating 273 leads—right on par with the workspace average. It's great to see it performing at that level, especially since it’s your best performer!
-
-**DSL**:
-```json
-{
-  "query_type": "metrics",
-  "metric": "leads",
-  "time_range": {
-    "last_n_days": 7,
-    "start": null,
-    "end": null
-  },
-  "compare_to_previous": false,
-  "group_by": "campaign",
-  "breakdown": "campaign",
-  "top_n": 1,
-  "filters": {
-    "provider": null,
-    "level": null,
-    "entity_ids": null,
-    "status": null
-  },
-  "thresholds": null,
-  "question": "Which campaign generated the most leads?",
-  "timeframe_description": "last week"
-}
-```
-
----
-
-## Test 17: Rank platforms by cost per conversion
-
-**Answer**:
-> Last week, your cost per conversion was $5.58, which matches the workspace average—so you're right on track. Interestingly, "other" platforms are also sitting at the same CPA, making them your top performer in this case. Overall, it looks like you're performing at an average level across the board.
-
-**DSL**:
-```json
-{
-  "query_type": "metrics",
-  "metric": "cpa",
-  "time_range": {
-    "last_n_days": 7,
-    "start": null,
-    "end": null
-  },
-  "compare_to_previous": false,
-  "group_by": "provider",
-  "breakdown": "provider",
-  "top_n": 10,
-  "filters": {
-    "provider": null,
-    "level": null,
-    "entity_ids": null,
-    "status": null
-  },
-  "thresholds": null,
-  "question": "Rank platforms by cost per conversion",
-  "timeframe_description": "last week"
-}
-```
-
----
-
-## Test 18: give me a breakdown of holiday campaign performance
-
-**Answer**:
-> Your holiday campaign didn't generate any leads last week, which is concerning since the workspace average was 273. That puts you well below average, especially when your top performer, Lead Gen - B2B, brought in 273 leads. It looks like there’s some room for improvement here!
-
-**DSL**:
-```json
-{
-  "query_type": "metrics",
-  "metric": "leads",
-  "time_range": {
-    "last_n_days": 7,
-    "start": null,
-    "end": null
-  },
-  "compare_to_previous": false,
-  "group_by": "campaign",
-  "breakdown": "campaign",
-  "top_n": 10,
-  "filters": {
-    "provider": null,
-    "level": "campaign",
-    "entity_ids": null,
-    "status": null
-  },
   "thresholds": null,
   "question": "give me a breakdown of holiday campaign performance",
-  "timeframe_description": "last week"
+  "timeframe_description": null
 }
 ```
 
@@ -632,13 +632,13 @@
 ## Test 20: How does this week compare to last week?
 
 **Answer**:
-> This week, you generated 273 leads, which is down 50.1% from 548 leads last week. Interestingly, you're right at the workspace average of 273, so it's a mixed bag. Overall, it looks like you're performing at an average level compared to others.
+> Your AOV is $24.30 this week, which is up 10.5% from $21.99 last week—so that's a nice improvement! It’s right on par with the workspace average, so you’re holding steady.
 
 **DSL**:
 ```json
 {
   "query_type": "metrics",
-  "metric": "leads",
+  "metric": "aov",
   "time_range": {
     "last_n_days": 7,
     "start": null,
@@ -665,13 +665,13 @@
 ## Test 21: Compare Google vs Meta performance
 
 **Answer**:
-> Last month, both Google and Meta brought in 1,964 leads, which is right on par with the workspace average—pretty solid performance overall. It looks like they’re both performing equally well, so you can feel good about that consistency.
+> Last month, both Google and Meta had a ROAS of 3.88×, which is right on par with the workspace average. It looks like they’re performing equally well, so you’re in a solid spot with both platforms.
 
 **DSL**:
 ```json
 {
   "query_type": "metrics",
-  "metric": "leads",
+  "metric": "roas",
   "time_range": {
     "last_n_days": 30,
     "start": null,
@@ -698,7 +698,7 @@
 ## Test 22: Is my ROAS improving or declining?
 
 **Answer**:
-> Your ROAS was 3.88× last month, which is a solid improvement of 46.8% from 2.64× the month before—so that's definitely a good sign! Plus, you're right on par with the workspace average, so you're performing well overall.
+> Your ROAS was 3.88× last month, which is a solid improvement of 46.8% from 2.64× the month before—so that's definitely a positive trend! Plus, you're right at the workspace average, so you're performing well compared to others.
 
 **DSL**:
 ```json
@@ -731,7 +731,7 @@
 ## Test 23: Which campaign had the highest ROAS last week?
 
 **Answer**:
-> Last week, the Holiday Sale - Purchases campaign had the highest ROAS at an impressive 11.58×—that's really crushing it! For some context, your overall ROAS was 4.36×, which is right on par with the workspace average. So, that campaign really stood out!
+> Last week, your top campaign was the Holiday Sale - Purchases, which had an impressive ROAS of 11.58×—that's crushing it! For some context, the average ROAS in your workspace was 4.36×, so this campaign really stood out.
 
 **DSL**:
 ```json
@@ -764,7 +764,7 @@
 ## Test 24: Show me top 5 campaigns by revenue
 
 **Answer**:
-> Last week, your total revenue was $12,691.04, which matches the workspace average—so you're right on track. The top performer was the "Holiday Sale - Purchases," bringing in $9,560.16, making it a solid contributor to your overall revenue.
+> Last month, your total revenue was $77,580.62, which is right on par with the workspace average—so you're performing well! The top campaign, "Holiday Sale - Purchases," brought in $56,972.77, making it your best performer.
 
 **DSL**:
 ```json
@@ -772,7 +772,7 @@
   "query_type": "metrics",
   "metric": "revenue",
   "time_range": {
-    "last_n_days": 7,
+    "last_n_days": 30,
     "start": null,
     "end": null
   },
@@ -788,7 +788,7 @@
   },
   "thresholds": null,
   "question": "Show me top 5 campaigns by revenue",
-  "timeframe_description": "last week"
+  "timeframe_description": "last month"
 }
 ```
 
@@ -797,7 +797,7 @@
 ## Test 25: List all active campaigns
 
 **Answer**:
-> You currently have three active campaigns: Holiday Sale - Purchases, App Install Campaign, and Lead Gen - B2B.
+> You have three active campaigns: Holiday Sale - Purchases, App Install Campaign, and Lead Gen - B2B.
 
 **DSL**:
 ```json
@@ -826,7 +826,7 @@
 ## Test 26: Which adset had the highest cpc last week?
 
 **Answer**:
-> Last week, AdSet 2 - Lead Gen - B2B had the highest CPC at $0.54, which is right at the workspace average of $0.47. So, it’s definitely on the higher side and might need some attention.
+> Last week, AdSet 2 - Lead Gen - B2B had the highest CPC at $0.54, which is right at the workspace average of $0.47. So, it’s definitely your worst performer in terms of cost efficiency. You might want to keep an eye on that one!
 
 **DSL**:
 ```json
@@ -859,7 +859,7 @@
 ## Test 27: Which adset had the lowest ctr last week?
 
 **Answer**:
-> Last week, the ad set with the lowest CTR was at 1.7%, which is right on par with the workspace average. For context, your top performer, AdSet 1 for the Holiday Sale, had a CTR of 1.9%—so there’s a bit of room for improvement.
+> Last week, the ad set with the lowest CTR was at 1.7%, which is right on par with the workspace average. For comparison, your top performer, AdSet 1 - Holiday Sale - Purchases, had a CTR of 1.9%. So, this ad set is performing average but could use a little boost to stand out!
 
 **DSL**:
 ```json
@@ -892,7 +892,7 @@
 ## Test 28: Which adset had the highest ctr last week?
 
 **Answer**:
-> AdSet 1 - Holiday Sale - Purchases had the highest CTR last week at 1.9%, which is a bit better than the workspace average of 1.7%. So, it's definitely your top performer in that area!
+> AdSet 1 - Holiday Sale - Purchases had the highest CTR last week at 1.9%, which is a bit above the workspace average of 1.7%. That means it’s your top performer in terms of engagement—nice job!
 
 **DSL**:
 ```json
@@ -925,7 +925,7 @@
 ## Test 29: Which adset had the lowest cpc last week?
 
 **Answer**:
-> Last week, your CPC was $0.47, which is right on par with the workspace average. AdSet 2 - Lead Gen - B2B had the highest CPC at $0.54, so you’re doing pretty well overall!
+> Last week, your CPC was $0.47, which is right on par with the workspace average—pretty solid! Just to give you some context, AdSet 2 had the highest CPC at $0.54, so you're doing well compared to that.
 
 **DSL**:
 ```json
@@ -958,7 +958,7 @@
 ## Test 30: Which adset had the highest cpc last week?
 
 **Answer**:
-> Last week, AdSet 2 - Lead Gen - B2B had the highest CPC at $0.54, which is right at the workspace average of $0.47. So, it's definitely your worst performer in terms of cost efficiency. It might be worth looking into how to bring that down!
+> Last week, AdSet 2 - Lead Gen - B2B had the highest CPC at $0.54, which is right at the workspace average of $0.47. That's a bit on the higher side, so it might need some attention moving forward.
 
 **DSL**:
 ```json
@@ -991,7 +991,7 @@
 ## Test 31: Which adset had the lowest ctr last week?
 
 **Answer**:
-> Last week, the ad set with the lowest CTR was at 1.7%, which is right on par with the workspace average. In comparison, your top performer, AdSet 1 for the Holiday Sale, had a CTR of 1.9%. So, it looks like this ad set is performing just average and could use a little boost!
+> Last week, the ad set with the lowest CTR was at 1.7%, which is right on par with the workspace average. For context, your top performer, AdSet 1 for the Holiday Sale, had a CTR of 1.9%, so there's a bit of room for improvement here.
 
 **DSL**:
 ```json
@@ -1024,7 +1024,7 @@
 ## Test 32: what is my total CVR last month?
 
 **Answer**:
-> Your total CVR was 8.5% last month.
+> Your CVR was 8.5% last month.
 
 **DSL**:
 ```json
@@ -1057,7 +1057,7 @@
 ## Test 33: What's my ROAS for active campaigns?
 
 **Answer**:
-> Your ROAS for active campaigns was 3.88× last month, which is right on par with the workspace average—so that's solid. Just to give you some context, your top performer, the Holiday Sale - Purchases, is crushing it at 11.77×!
+> Your ROAS for active campaigns was 3.88× last month, which is right on par with the workspace average—so you're doing just fine. The top performer, Holiday Sale - Purchases, is crushing it at 11.77×, but overall, you're holding steady!
 
 **DSL**:
 ```json
@@ -1098,7 +1098,7 @@
   "query_type": "metrics",
   "metric": "spend",
   "time_range": {
-    "last_n_days": 7,
+    "last_n_days": 30,
     "start": null,
     "end": null
   },
@@ -1114,7 +1114,7 @@
   },
   "thresholds": null,
   "question": "How much did I spend on Meta ads?",
-  "timeframe_description": "last week"
+  "timeframe_description": "last month"
 }
 ```
 
@@ -1222,7 +1222,7 @@
 ## Test 38: wich ad had the lowest cpc last week?
 
 **Answer**:
-> Last week, the ad with the lowest CPC was $0.47, which is right on par with the workspace average—so it's performing pretty average. Just to give you some context, your top performer, Ad 1 from AdSet 2, had a CPC of $0.70, so you're doing well in comparison!
+> Last week, your CPC was $0.47, which is right on par with the workspace average—so pretty average overall. The top performer, Ad 1 from AdSet 2, had a higher CPC at $0.70, so it looks like you’re doing just fine in comparison!
 
 **DSL**:
 ```json
@@ -1255,7 +1255,7 @@
 ## Test 39: What time on average do i get the best cpc?
 
 **Answer**:
-> Last week, your average CPC was $0.47, which is right on par with the workspace average. That means you’re performing pretty consistently with others in your space. It's a solid spot to be in!
+> Last week, your average CPC was $0.47, which is right on par with the workspace average—so you're performing pretty consistently. It looks like you're hitting that sweet spot, but there’s no standout time that’s giving you a better rate than others.
 
 **DSL**:
 ```json

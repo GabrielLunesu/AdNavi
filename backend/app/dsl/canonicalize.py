@@ -22,6 +22,7 @@ Example:
 """
 
 from __future__ import annotations
+import re
 
 # Metric synonyms: map common variations to canonical metric names
 METRIC_SYNONYMS = {
@@ -69,17 +70,22 @@ METRIC_SYNONYMS = {
     "convs": "conversions",
 }
 
-# Performance-related phrase mappings (NEW in Phase 5)
+# Performance-related phrase patterns (NEW in Phase 5 - UPDATED with regex)
 # Maps vague "performance" questions to clearer metric-based questions
-PERFORMANCE_PHRASES = {
-    "breakdown of performance": "show me performance by",
-    "campaign performance": "campaign metrics",
-    "how are campaigns performing": "show me campaign metrics",
-    "how is performing": "what are the metrics for",
-    "performance breakdown": "show me metrics by",
-    "performance metrics": "metrics",
-    "show performance": "show metrics",
-}
+# Uses regex patterns to handle variations like "breakdown of holiday campaign performance"
+PERFORMANCE_PATTERNS = [
+    # Match "breakdown of ... performance" → "show me ... metrics by"
+    (r'breakdown of (.+?) performance\b', r'show me \1 metrics by'),
+    # Match "... performance breakdown" → "show me ... metrics by"
+    (r'(.+?) performance breakdown\b', r'show me \1 metrics by'),
+    # Match "how are ... performing" → "show me ... metrics"
+    (r'how (?:are|is) (.+?) performing\b', r'show me \1 metrics'),
+    # Standalone patterns (no entity in between)
+    (r'\bperformance breakdown\b', 'show me metrics by'),
+    (r'\bcampaign performance\b', 'campaign metrics'),
+    (r'\bshow performance\b', 'show metrics'),
+    (r'\bperformance metrics\b', 'metrics'),
+]
 
 # Time phrase mappings: normalize vague time references
 # Phase 2 fix: Distinguish current periods from past periods
@@ -140,21 +146,25 @@ def canonicalize_question(question: str) -> str:
         "How much did we spend yesterday?"
         
         >>> canonicalize_question("Give me a breakdown of campaign performance")
-        "Give me a show me performance by campaign"
+        "Give me show me campaign metrics by"
+        
+        >>> canonicalize_question("breakdown of holiday campaign performance")
+        "show me holiday campaign metrics by"
     
     Design notes:
     - Case-insensitive matching (converts to lowercase)
     - Preserves word boundaries to avoid partial matches
-    - Multiple passes: first performance phrases, then metrics, then time phrases
-    - Keeps transformation simple for MVP; can enhance with regex later
+    - Multiple passes: first performance patterns (regex), then metrics, then time phrases
+    - Phase 5 update: Uses regex for flexible performance phrase matching
     """
     # Convert to lowercase for consistent matching
     result = question.lower()
     
-    # Pass 0: Replace performance-related vague phrases (NEW in Phase 5)
-    # Do this FIRST so "breakdown of performance" becomes clearer before metric extraction
-    for phrase, canonical in PERFORMANCE_PHRASES.items():
-        result = result.replace(phrase, canonical)
+    # Pass 0: Replace performance-related vague phrases (NEW in Phase 5 - REGEX)
+    # Do this FIRST so "breakdown of X performance" becomes clearer before metric extraction
+    # Uses regex to handle variations like "breakdown of holiday campaign performance"
+    for pattern, replacement in PERFORMANCE_PATTERNS:
+        result = re.sub(pattern, replacement, result)
     
     # Pass 1: Replace metric synonyms
     for synonym, canonical in METRIC_SYNONYMS.items():

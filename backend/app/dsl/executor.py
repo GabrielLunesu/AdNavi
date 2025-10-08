@@ -586,8 +586,14 @@ def _execute_metrics_plan(
             order_expr = func.coalesce(func.sum(MF.spend), 0)
         
         # Apply ordering and limit
-        # desc().nulls_last() ensures NULL values (from divide-by-zero) appear last
-        rows = breakdown_query.order_by(order_expr.desc().nulls_last()).limit(plan.top_n).all()
+        # NEW: Dynamic ordering based on plan.sort_order
+        # - desc(): Highest first (default) - for "which had the highest X"
+        # - asc(): Lowest first - for "which had the lowest X"
+        # nulls_last() ensures NULL values (from divide-by-zero) appear last regardless of sort order
+        if plan.sort_order == "asc":
+            rows = breakdown_query.order_by(order_expr.asc().nulls_last()).limit(plan.top_n).all()
+        else:  # Default to desc
+            rows = breakdown_query.order_by(order_expr.desc().nulls_last()).limit(plan.top_n).all()
         
         # Build breakdown list using Python-side formula registry for final 'value'
         # This ensures consistent calculation with the rest of the system

@@ -88,6 +88,7 @@ class Plan:
     base_measures: List[str]
     filters: dict
     top_n: int
+    sort_order: str  # "asc" or "desc" - sort order for breakdown results
     query: MetricQuery  # Original query for accessing thresholds
 
 
@@ -193,6 +194,7 @@ def build_plan(query: MetricQuery) -> Optional[Plan]:
         base_measures=sorted(base_measures),  # Sort for consistency
         filters=query.filters.model_dump() if hasattr(query.filters, 'model_dump') else query.filters,
         top_n=query.top_n,
+        sort_order=query.sort_order,  # NEW: Pass sort order for breakdown ordering
         query=query  # Include original query for accessing thresholds
     )
 
