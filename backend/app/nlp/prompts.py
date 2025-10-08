@@ -416,7 +416,7 @@ FEW_SHOT_EXAMPLES = [
     },
     
     # NEW Phase 4.5: Sort order examples (lowest vs highest)
-    # CRITICAL: Use "sort_order": "asc" for LOWEST queries, "desc" for HIGHEST queries
+    # CRITICAL: Use "sort_order": "asc" for LOWEST, "desc" for HIGHEST (by literal value)
     {
         "question": "Which campaign had the highest ROAS last week?",
         "dsl": {
@@ -426,7 +426,20 @@ FEW_SHOT_EXAMPLES = [
             "group_by": "campaign",
             "breakdown": "campaign",
             "top_n": 1,
-            "sort_order": "desc",  # HIGHEST = descending order
+            "sort_order": "desc",  # HIGHEST = descending order (literal highest value)
+            "filters": {}
+        }
+    },
+    {
+        "question": "Which adset had the highest CPC last week?",
+        "dsl": {
+            "metric": "cpc",
+            "time_range": {"last_n_days": 7},
+            "compare_to_previous": False,
+            "group_by": "adset",
+            "breakdown": "adset",
+            "top_n": 1,
+            "sort_order": "desc",  # HIGHEST CPC = descending order (literal highest value, even though higher CPC is worse)
             "filters": {}
         }
     },
@@ -439,7 +452,7 @@ FEW_SHOT_EXAMPLES = [
             "group_by": "adset",
             "breakdown": "adset",
             "top_n": 1,
-            "sort_order": "asc",  # LOWEST = ascending order
+            "sort_order": "asc",  # LOWEST CPC = ascending order (literal lowest value)
             "filters": {}
         }
     },
@@ -452,20 +465,7 @@ FEW_SHOT_EXAMPLES = [
             "group_by": "campaign",
             "breakdown": "campaign",
             "top_n": 3,
-            "sort_order": "asc",  # WORST (for normal metrics) = ascending order
-            "filters": {}
-        }
-    },
-    {
-        "question": "Which ad had the best CPA last week?",
-        "dsl": {
-            "metric": "cpa",
-            "time_range": {"last_n_days": 7},
-            "compare_to_previous": False,
-            "group_by": "ad",
-            "breakdown": "ad",
-            "top_n": 1,
-            "sort_order": "asc",  # BEST CPA (inverse metric) = ascending order (lower is better)
+            "sort_order": "asc",  # WORST CTR = ascending order (lowest values are worst for CTR)
             "filters": {}
         }
     },
@@ -671,17 +671,22 @@ SORT ORDER (NEW Phase 4.5 - CRITICAL FOR LOWEST/HIGHEST QUERIES):
 - "desc": Descending order (highest first) — DEFAULT
 - "asc": Ascending order (lowest first)
 
-RULES FOR sort_order:
-- HIGHEST/MAXIMUM/BEST (for normal metrics like ROAS, CTR, Revenue): Use "desc"
-- LOWEST/MINIMUM/BEST (for inverse metrics like CPC, CPA, CPM): Use "asc"
-- WORST (depends on metric type): "asc" for normal metrics, "desc" for inverse metrics
-- If not specified in question: Default to "desc"
+SIMPLIFIED RULES FOR sort_order (DO NOT OVERTHINK):
+1. User asks for "HIGHEST" or "MAXIMUM" → ALWAYS use "desc" (sort by highest value)
+2. User asks for "LOWEST" or "MINIMUM" → ALWAYS use "asc" (sort by lowest value)
+3. If not specified → Default to "desc"
+
+IMPORTANT: Sort by LITERAL VALUE, not by performance interpretation!
+- "highest CPC" = highest value = "desc" (even though higher CPC is worse)
+- "lowest CPC" = lowest value = "asc" (lower CPC is better)
+- The answer builder will handle performance language ("best"/"worst"), not the DSL!
 
 EXAMPLES:
 - "Which campaign had the HIGHEST ROAS?" → sort_order: "desc"
-- "Which adset had the LOWEST CPC?" → sort_order: "asc"
-- "Show me the WORST performing campaigns by CTR" → sort_order: "asc"
-- "Which ad had the BEST CPA?" → sort_order: "asc" (lower CPA is better)
+- "Which adset had the HIGHEST CPC?" → sort_order: "desc" (literal highest value)
+- "Which adset had the LOWEST CPC?" → sort_order: "asc" (literal lowest value)
+- "Which ad had the LOWEST CTR?" → sort_order: "asc"
+- "Rank platforms by cost per conversion" → sort_order: "asc" (rank = ascending from lowest)
 
 JSON SCHEMA:
 {

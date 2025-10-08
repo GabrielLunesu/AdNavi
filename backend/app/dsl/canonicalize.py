@@ -74,15 +74,16 @@ METRIC_SYNONYMS = {
 # Maps vague "performance" questions to clearer metric-based questions
 # Uses regex patterns to handle variations like "breakdown of holiday campaign performance"
 PERFORMANCE_PATTERNS = [
-    # Match "breakdown of ... performance" → "show me ... metrics by"
-    (r'breakdown of (.+?) performance\b', r'show me \1 metrics by'),
-    # Match "... performance breakdown" → "show me ... metrics by"
-    (r'(.+?) performance breakdown\b', r'show me \1 metrics by'),
+    # Match "breakdown of ... performance" → "revenue breakdown for ..."
+    # This makes it clearer that we want metrics data, not just entity listing
+    (r'breakdown of (.+?) performance\b', r'revenue breakdown for \1'),
+    # Match "... performance breakdown" → "revenue breakdown for ..."
+    (r'(.+?) performance breakdown\b', r'revenue breakdown for \1'),
     # Match "how are ... performing" → "show me ... metrics"
     (r'how (?:are|is) (.+?) performing\b', r'show me \1 metrics'),
     # Standalone patterns (no entity in between)
-    (r'\bperformance breakdown\b', 'show me metrics by'),
-    (r'\bcampaign performance\b', 'campaign metrics'),
+    (r'\bperformance breakdown\b', 'revenue breakdown'),
+    (r'\bcampaign performance\b', 'campaign revenue'),
     (r'\bshow performance\b', 'show metrics'),
     (r'\bperformance metrics\b', 'metrics'),
 ]
@@ -146,10 +147,10 @@ def canonicalize_question(question: str) -> str:
         "How much did we spend yesterday?"
         
         >>> canonicalize_question("Give me a breakdown of campaign performance")
-        "Give me show me campaign metrics by"
+        "give me revenue breakdown for campaign"
         
         >>> canonicalize_question("breakdown of holiday campaign performance")
-        "show me holiday campaign metrics by"
+        "revenue breakdown for holiday campaign"
     
     Design notes:
     - Case-insensitive matching (converts to lowercase)
