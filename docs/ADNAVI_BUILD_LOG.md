@@ -202,6 +202,31 @@ _Last updated: 2025-10-05T12:00:00Z_
 ---
 
 ## 11) Changelog
+| - 2025-10-08T22:30:00Z — **TOOLING**: Simple QA Test Suite — Easy-to-use testing tool for incremental question testing.
+  - **Overview**: Created simple testing infrastructure for ongoing QA quality tracking
+  - **Files created**:
+    - `backend/qa_test_suite.md`: Question list organized by category (40 starter questions)
+    - `backend/run_qa_tests.sh`: Bash script that runs questions and logs results
+    - `backend/QA_TESTING_README.md`: Simple usage instructions
+    - `backend/qa_test_results.md`: Auto-generated results file (answers + DSL)
+  - **Features**:
+    - ✅ Run all questions with one command: `./run_qa_tests.sh`
+    - ✅ Logs both answer and DSL for each question
+    - ✅ Color-coded terminal output (green ✓, red ✗)
+    - ✅ Easy to expand: just add questions to markdown file
+    - ✅ No complex test infrastructure needed
+    - ✅ Results timestamped and saved
+  - **Usage**:
+    1. Add questions to `qa_test_suite.md`
+    2. Run `./run_qa_tests.sh`
+    3. Review `qa_test_results.md`
+    4. Track improvements over time
+  - **Benefits**:
+    - Quick regression testing after changes
+    - Easy to see answer quality at a glance
+    - DSL validation visible for debugging
+    - Incrementally expandable as you find edge cases
+  - **Initial test run**: 19/19 questions successful with Phase 3 improvements
 | - 2025-10-08T22:00:00Z — **IMPLEMENTATION**: Phase 3 - Graceful Missing Data Handling ✅ — Helpful explanations instead of "$0" or "N/A".
   - **Overview**: Fixed confusing answers when data is missing by providing intelligent explanations
   - **Success Rate Improvement**: 78% → 85% (7% improvement!)
