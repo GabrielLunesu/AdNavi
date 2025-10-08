@@ -25,18 +25,21 @@ Usage:
 from __future__ import annotations
 
 import time
+import logging
 from typing import Dict, Any, Optional
 
 from sqlalchemy.orm import Session
 
 from app.nlp.translator import Translator, TranslationError
 from app.dsl.planner import build_plan
-from app.dsl.executor import execute_plan
+from app.dsl.executor import execute_plan, get_available_platforms
 from app.dsl.validate import DSLValidationError
 from app.telemetry.logging import log_qa_run
 from app.answer.answer_builder import AnswerBuilder, AnswerBuilderError
 from app.answer.formatters import format_metric_value, format_delta_pct, fmt_currency, fmt_count
 from app import state  # Import shared application state
+
+logger = logging.getLogger(__name__)
 
 
 class QAService:
@@ -153,6 +156,54 @@ class QAService:
             
             # Step 3: Plan execution (may return None for non-metrics queries)
             plan = build_plan(dsl)
+            
+            # Phase 3: Pre-execution validation for missing data
+            # Check if platform filter exists before executing query
+            try:
+                if dsl.filters and dsl.filters.provider:
+                    available_platforms = get_available_platforms(self.db, workspace_id)
+                    requested_platform = dsl.filters.provider.lower() if hasattr(dsl.filters.provider, 'lower') else str(dsl.filters.provider).lower()
+                    
+                    logger.info(f"[VALIDATION] Checking platform '{requested_platform}'. Available: {available_platforms}")
+                    
+                    if requested_platform not in available_platforms:
+                        # Platform doesn't exist - provide helpful answer immediately
+                        logger.info(
+                            f"[VALIDATION] Platform '{requested_platform}' not found in {available_platforms}"
+                        )
+                        
+                        # Build helpful answer
+                        if available_platforms:
+                            platform_list = ", ".join([p.capitalize() for p in available_platforms])
+                            if len(available_platforms) == 1:
+                                helpful_answer = f"You don't have any {requested_platform.capitalize()} campaigns connected. You're currently only running ads on {platform_list}."
+                            else:
+                                helpful_answer = f"You don't have any {requested_platform.capitalize()} campaigns connected. You're currently running ads on {platform_list}."
+                        else:
+                            helpful_answer = f"You don't have any {requested_platform.capitalize()} campaigns connected yet."
+                        
+                        # Log this as a successful query (we provided a helpful answer)
+                        log_qa_run(
+                            db=self.db,
+                            workspace_id=workspace_id,
+                            question=question,
+                            dsl=dsl.model_dump(),
+                            success=True,
+                            latency_ms=int((time.time() - start_time) * 1000),
+                            user_id=user_id,
+                            error_message=None
+                        )
+                        
+                        # Return early with helpful explanation
+                        return {
+                            "answer": helpful_answer,
+                            "executed_dsl": dsl.model_dump(),
+                            "data": {},  # Fixed: schema requires dict, not None
+                            "context_used": self._build_context_summary_for_response(context)
+                        }
+            except Exception as e:
+                # If validation fails, log but continue with normal execution
+                logger.warning(f"[VALIDATION] Platform check failed: {e}. Continuing with normal execution.")
             
             # Step 4: Execute plan (pass both plan and query for DSL v1.2)
             result = execute_plan(
@@ -454,6 +505,19 @@ class QAService:
         }
         
         metric_natural = natural_names.get(metric_display, metric_display.lower())
+        
+        # Phase 3: Check for missing data and provide helpful explanation
+        is_null_or_zero = value is None or (isinstance(value, (int, float)) and value == 0)
+        
+        if is_null_or_zero:
+            # Data is missing - provide helpful context
+            if timeframe in ['today', 'yesterday']:
+                # Suggest checking broader timeframe
+                return f"No data available for {timeframe} yet. Your {metric_natural} last week was available - try asking about a longer timeframe."
+            elif value is None:
+                # Truly no data (N/A)
+                return f"No {metric_natural} data available for {timeframe if timeframe else 'the selected period'}."
+            # If value is exactly 0, continue with normal answer (it might genuinely be zero)
         
         # Build natural sentence based on tense and metric type
         if tense == VerbTense.PAST:

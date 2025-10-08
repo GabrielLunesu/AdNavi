@@ -48,6 +48,47 @@ logger = logging.getLogger(__name__)
 
 
 # =====================================================================
+# Phase 3: Data Availability Helpers
+# =====================================================================
+
+def get_available_platforms(db: Session, workspace_id: str) -> List[str]:
+    """
+    Get list of platforms that actually have data in this workspace.
+    
+    WHY: Needed for graceful handling of platform filter queries
+    WHEN: Before executing queries with provider filters
+    WHERE: Called by QA service before execute_plan()
+    
+    Args:
+        db: Database session
+        workspace_id: Workspace UUID
+        
+    Returns:
+        List of provider names that have metric data (lowercase strings)
+        
+    Example:
+        >>> platforms = get_available_platforms(db, workspace_id)
+        >>> platforms
+        ['meta', 'tiktok', 'other']  # Google not present
+        
+    Related:
+    - Used by: app/services/qa_service.py for pre-execution validation
+    """
+    E = models.Entity
+    MF = models.MetricFact
+    
+    result = (
+        db.query(MF.provider)
+        .join(E, E.id == MF.entity_id)
+        .filter(E.workspace_id == workspace_id)
+        .distinct()
+        .all()
+    )
+    
+    return [r[0].value for r in result]
+
+
+# =====================================================================
 # REMOVED: _derive_metric() function
 # =====================================================================
 # Derived Metrics v1 change:
