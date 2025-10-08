@@ -172,7 +172,7 @@ Output the JSON DSL:"""
         # Step 4: Call OpenAI
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4o-mini",  # Cost-effective for structured tasks
+                model="gpt-4-turbo",  # Phase 4.5: Upgraded for better sort_order detection
                 temperature=0,         # Deterministic outputs
                 messages=[
                     {"role": "system", "content": system_prompt},
@@ -198,6 +198,9 @@ Output the JSON DSL:"""
                 question=question,
                 raw_response=raw_content
             )
+        
+        # NEW: Add original question for tense detection
+        dsl_dict['question'] = question
         
         # Step 6: Validate via Pydantic
         # This will raise DSLValidationError if invalid

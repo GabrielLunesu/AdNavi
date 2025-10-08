@@ -277,11 +277,31 @@ def seed():
         ads = []
         
         # Derived Metrics v1: Create campaigns with varying goals
+        # EXPANDED: More campaigns for richer testing
         campaign_configs = [
-            {"name": "Holiday Sale - Purchases", "goal": models.GoalEnum.purchases, "provider": models.ProviderEnum.meta},
-            {"name": "App Install Campaign", "goal": models.GoalEnum.app_installs, "provider": models.ProviderEnum.google},
-            {"name": "Lead Gen - B2B", "goal": models.GoalEnum.leads, "provider": models.ProviderEnum.google},
-            {"name": "Brand Awareness", "goal": models.GoalEnum.awareness, "provider": models.ProviderEnum.tiktok},
+            # Purchases campaigns (3 campaigns)
+            {"name": "Holiday Sale - Purchases", "goal": models.GoalEnum.purchases, "provider": models.ProviderEnum.meta, "status": "active"},
+            {"name": "Summer Sale Campaign", "goal": models.GoalEnum.purchases, "provider": models.ProviderEnum.google, "status": "active"},
+            {"name": "Black Friday Deals", "goal": models.GoalEnum.purchases, "provider": models.ProviderEnum.meta, "status": "active"},
+            
+            # App install campaigns (2 campaigns)
+            {"name": "App Install Campaign", "goal": models.GoalEnum.app_installs, "provider": models.ProviderEnum.google, "status": "active"},
+            {"name": "Mobile Game Installs", "goal": models.GoalEnum.app_installs, "provider": models.ProviderEnum.tiktok, "status": "active"},
+            
+            # Lead gen campaigns (2 campaigns)
+            {"name": "Lead Gen - B2B", "goal": models.GoalEnum.leads, "provider": models.ProviderEnum.google, "status": "active"},
+            {"name": "Newsletter Signup Campaign", "goal": models.GoalEnum.leads, "provider": models.ProviderEnum.meta, "status": "active"},
+            
+            # Awareness campaigns (2 campaigns)
+            {"name": "Brand Awareness", "goal": models.GoalEnum.awareness, "provider": models.ProviderEnum.tiktok, "status": "active"},
+            {"name": "Product Launch Teaser", "goal": models.GoalEnum.awareness, "provider": models.ProviderEnum.other, "status": "active"},
+            
+            # Traffic campaigns (2 campaigns)
+            {"name": "Website Traffic Push", "goal": models.GoalEnum.traffic, "provider": models.ProviderEnum.google, "status": "active"},
+            {"name": "Blog Content Promotion", "goal": models.GoalEnum.traffic, "provider": models.ProviderEnum.meta, "status": "paused"},
+            
+            # Generic conversion campaign
+            {"name": "General Conversions", "goal": models.GoalEnum.conversions, "provider": models.ProviderEnum.other, "status": "active"},
         ]
         
         for i, config in enumerate(campaign_configs, start=1):
@@ -290,7 +310,7 @@ def seed():
                 level=models.LevelEnum.campaign,
                 external_id=f"CAMP-{i:03d}",
                 name=config["name"],
-                status="active" if i <= 3 else "paused",  # Last campaign is paused
+                status=config["status"],  # Use status from config
                 parent_id=None,  # Campaigns have no parent
                 workspace_id=workspace.id,
                 connection_id=connection.id,
@@ -301,15 +321,18 @@ def seed():
         
         db.flush()  # Get campaign IDs
         
-        # Create 2 adsets per campaign
+        # EXPANDED: Create 3 adsets per campaign (was 2)
+        adset_names = ["Morning Audience", "Evening Audience", "Weekend Audience"]
         for campaign in campaigns:
-            for j in range(1, 3):
+            # Only create 2 adsets if campaign is paused (less data for paused campaigns)
+            num_adsets = 2 if campaign.status == "paused" else 3
+            for j in range(num_adsets):
                 adset = models.Entity(
                     id=uuid.uuid4(),
                     level=models.LevelEnum.adset,
-                    external_id=f"ADSET-{campaign.external_id}-{j:03d}",
-                    name=f"AdSet {j} - {campaign.name}",
-                    status="active",
+                    external_id=f"ADSET-{campaign.external_id}-{j+1:03d}",
+                    name=f"{adset_names[j]} - {campaign.name}",
+                    status=campaign.status,  # Inherit parent status
                     parent_id=campaign.id,
                     workspace_id=workspace.id,
                     connection_id=connection.id
@@ -319,15 +342,16 @@ def seed():
         
         db.flush()  # Get adset IDs
         
-        # Create 2 ads per adset
+        # EXPANDED: Create 3 ads per adset (was 2)
+        ad_types = ["Image Ad", "Video Ad", "Carousel Ad"]
         for adset in adsets:
-            for k in range(1, 3):
+            for k in range(3):
                 ad = models.Entity(
                     id=uuid.uuid4(),
                     level=models.LevelEnum.ad,
-                    external_id=f"AD-{adset.external_id}-{k:03d}",
-                    name=f"Ad {k} - {adset.name}",
-                    status="active", 
+                    external_id=f"AD-{adset.external_id}-{k+1:03d}",
+                    name=f"{ad_types[k]} - {adset.name}",
+                    status=adset.status,  # Inherit parent status
                     parent_id=adset.id,
                     workspace_id=workspace.id,
                     connection_id=connection.id
@@ -341,12 +365,19 @@ def seed():
         print("📊 Generating metric facts (goal-aware)...")
         today = datetime.utcnow().date()
         
+        # Build a lookup for campaign configs by campaign ID for faster access
+        campaign_config_map = {}
+        for campaign, config in zip(campaigns, campaign_configs):
+            campaign_config_map[campaign.id] = config
+        
         for ad in ads:
-            # Find ad's campaign to get goal
+            # Find ad's campaign to get goal and provider
             adset = next(a for a in adsets if a.id == ad.parent_id)
             campaign = next(c for c in campaigns if c.id == adset.parent_id)
+            config = campaign_config_map[campaign.id]
+            
             goal = campaign.goal.value
-            provider = connection.provider.value
+            provider = config["provider"].value  # Use campaign's provider, not connection's
             
             for day_offset in range(30):
                 event_date = today - timedelta(days=day_offset)
@@ -358,7 +389,7 @@ def seed():
                 fact = models.MetricFact(
                     id=uuid.uuid4(),
                     entity_id=ad.id,
-                    provider=connection.provider,
+                    provider=config["provider"],  # Use campaign's provider for realistic multi-platform data
                     level=models.LevelEnum.ad,
                     event_at=event_datetime,
                     event_date=event_datetime,
@@ -405,29 +436,63 @@ def seed():
         print(f"✅ Generated {pnl_count} P&L snapshots with ALL derived metrics")
         
         # Print summary
-        print("\n🎉 Seed complete!")
-        print(f"✅ Created workspace: {workspace.name}")
-        print(f"✅ Created {len([owner, viewer])} users")
-        print(f"✅ Created {len([connection])} connection")
-        print(f"✅ Created {len(campaigns)} campaigns with goals:")
-        for c in campaigns:
-            print(f"   - {c.name} (goal: {c.goal.value})")
-        print(f"✅ Created {len(adsets)} adsets, {len(ads)} ads")
-        print(f"✅ Generated {len(ads) * 30} metric facts (30 days × {len(ads)} ads)")
-        print(f"   - Includes NEW base measures: leads, installs, purchases, visitors, profit")
-        print(f"✅ P&L snapshots include ALL derived metrics:")
-        print(f"   - Cost: CPC, CPM, CPA, CPL, CPI, CPP")
-        print(f"   - Value: ROAS, POAS, ARPV, AOV")
-        print(f"   - Engagement: CTR, CVR")
-        print("\n📝 Login credentials:")
-        print("   Owner: owner@defanglabs.com / password123")
-        print("   Viewer: viewer@defanglabs.com / password123")
-        print("\n🔗 View data at: http://localhost:8000/admin")
-        print("\n🧪 Test queries (try in Swagger UI /docs):")
-        print('   - "What was my CPC last week?"')
-        print('   - "Show me CPL for the lead gen campaign"')
-        print('   - "What\'s my average order value this month?"')
-        print('   - "Compare CTR by campaign"')
+        print("\n" + "="*70)
+        print("🎉 SEED COMPLETE!")
+        print("="*70)
+        print(f"\n📊 DATABASE SUMMARY:")
+        print(f"   Workspace: {workspace.name}")
+        print(f"   Users: {len([owner, viewer])} (owner + viewer)")
+        print(f"   Connections: 1")
+        print(f"\n🎯 CAMPAIGN BREAKDOWN:")
+        print(f"   Total campaigns: {len(campaigns)}")
+        
+        # Group by goal
+        from collections import Counter
+        goal_counts = Counter(c.goal.value for c in campaigns)
+        for goal, count in sorted(goal_counts.items()):
+            print(f"   - {goal}: {count} campaign{'s' if count > 1 else ''}")
+        
+        # Group by provider
+        provider_counts = Counter(config["provider"].value for config in campaign_configs)
+        print(f"\n🌐 PROVIDER DISTRIBUTION:")
+        for provider, count in sorted(provider_counts.items()):
+            print(f"   - {provider}: {count} campaign{'s' if count > 1 else ''}")
+        
+        print(f"\n📈 ENTITY HIERARCHY:")
+        print(f"   Campaigns: {len(campaigns)} ({len([c for c in campaigns if c.status == 'active'])} active, {len([c for c in campaigns if c.status == 'paused'])} paused)")
+        print(f"   Adsets: {len(adsets)}")
+        print(f"   Ads: {len(ads)}")
+        print(f"   Total entities: {len(campaigns) + len(adsets) + len(ads)}")
+        
+        print(f"\n📊 METRIC FACTS:")
+        print(f"   Days of data: 30")
+        print(f"   Total metric facts: {len(ads) * 30:,}")
+        print(f"   Providers: Google, Meta, TikTok, Other (multi-platform)")
+        print(f"   Base measures: spend, revenue, clicks, impressions, conversions,")
+        print(f"                  leads, installs, purchases, visitors, profit")
+        
+        print(f"\n💰 P&L SNAPSHOTS:")
+        print(f"   Total snapshots: {pnl_count}")
+        print(f"   Derived metrics (12): CPC, CPM, CPA, CPL, CPI, CPP,")
+        print(f"                         ROAS, POAS, ARPV, AOV, CTR, CVR")
+        
+        print(f"\n📝 LOGIN CREDENTIALS:")
+        print(f"   Owner: owner@defanglabs.com / password123")
+        print(f"   Viewer: viewer@defanglabs.com / password123")
+        
+        print(f"\n🔗 ACCESS POINTS:")
+        print(f"   Admin UI: http://localhost:8000/admin")
+        print(f"   Swagger UI: http://localhost:8000/docs")
+        
+        print(f"\n🧪 SAMPLE QUERIES (try in Swagger /qa endpoint):")
+        print(f'   - "What was my CPC last week?"')
+        print(f'   - "Which campaign had the highest ROAS?"')
+        print(f'   - "Show me revenue breakdown by platform"')
+        print(f'   - "Which adset had the lowest CPC last week?"')
+        print(f'   - "Give me a breakdown of Holiday Sale performance"')
+        print(f'   - "Compare Google vs Meta CPC"')
+        print(f'   - "What\'s my average order value this month?"')
+        print("="*70 + "\n")
 
 
 if __name__ == "__main__":

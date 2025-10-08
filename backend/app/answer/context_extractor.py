@@ -245,6 +245,12 @@ def _extract_workspace_comparison(
     REFERENCES:
         - Uses: app/answer/formatters.py::format_metric_value()
     """
+    # Guard against division by zero
+    if workspace_avg == 0:
+        # If workspace avg is 0, we can't compute deviation percentage
+        # Return None to indicate no comparison is possible
+        return None
+    
     deviation_pct = (value - workspace_avg) / workspace_avg
     
     if abs(deviation_pct) < 0.10:

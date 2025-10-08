@@ -22,6 +22,7 @@ Example:
 """
 
 from __future__ import annotations
+import re
 
 # Metric synonyms: map common variations to canonical metric names
 METRIC_SYNONYMS = {
@@ -69,31 +70,55 @@ METRIC_SYNONYMS = {
     "convs": "conversions",
 }
 
+# Performance-related phrase patterns (NEW in Phase 5 - UPDATED with regex)
+# Maps vague "performance" questions to clearer metric-based questions
+# Uses regex patterns to handle variations like "breakdown of holiday campaign performance"
+PERFORMANCE_PATTERNS = [
+    # Match "breakdown of ... performance" → "revenue breakdown for ..."
+    # This makes it clearer that we want metrics data, not just entity listing
+    (r'breakdown of (.+?) performance\b', r'revenue breakdown for \1'),
+    # Match "... performance breakdown" → "revenue breakdown for ..."
+    (r'(.+?) performance breakdown\b', r'revenue breakdown for \1'),
+    # Match "how are ... performing" → "show me ... metrics"
+    (r'how (?:are|is) (.+?) performing\b', r'show me \1 metrics'),
+    # Standalone patterns (no entity in between)
+    (r'\bperformance breakdown\b', 'revenue breakdown'),
+    (r'\bcampaign performance\b', 'campaign revenue'),
+    (r'\bshow performance\b', 'show metrics'),
+    (r'\bperformance metrics\b', 'metrics'),
+]
+
 # Time phrase mappings: normalize vague time references
+# Phase 2 fix: Distinguish current periods from past periods
 TIME_PHRASES = {
-    # Week references
-    "this week": "last 7 days",
+    # PAST Week references (last N days)
     "past week": "last 7 days",
     "last week": "last 7 days",
-    "1 week": "last 7 days",
-    "one week": "last 7 days",
+    "1 week ago": "last 7 days",
+    "one week ago": "last 7 days",
     
-    # Month references
-    "this month": "last 30 days",
+    # CURRENT Week reference - keep as-is for special handling
+    # DON'T map "this week" to "last 7 days" - they mean different things!
+    # "this week" = current calendar week (Monday-today)
+    # "last 7 days" = rolling 7-day window
+    
+    # PAST Month references (last N days)
     "past month": "last 30 days",
     "last month": "last 30 days",
-    "1 month": "last 30 days",
-    "one month": "last 30 days",
+    "1 month ago": "last 30 days",
+    "one month ago": "last 30 days",
     
-    # Day references
-    "today": "last 1 days",
-    "yesterday": "yesterday",  # Keep for special handling
+    # CURRENT Month reference - keep as-is for special handling
+    # DON'T map "this month" to "last 30 days"
+    
+    # Day references - keep for special handling
+    # DON'T map "today" or "yesterday" to "last N days"
+    # They are absolute dates, not rolling windows
     "yday": "yesterday",
-    "ytd": "year to date",  # Keep for future enhancement
     
     # Quarter references (for future use)
-    "this quarter": "last 90 days",
     "past quarter": "last 90 days",
+    "last quarter": "last 90 days",
     "q1": "quarter 1",
     "q2": "quarter 2",
     "q3": "quarter 3",
@@ -120,15 +145,27 @@ def canonicalize_question(question: str) -> str:
         
         >>> canonicalize_question("How much did we spend yesterday?")
         "How much did we spend yesterday?"
+        
+        >>> canonicalize_question("Give me a breakdown of campaign performance")
+        "give me revenue breakdown for campaign"
+        
+        >>> canonicalize_question("breakdown of holiday campaign performance")
+        "revenue breakdown for holiday campaign"
     
     Design notes:
     - Case-insensitive matching (converts to lowercase)
     - Preserves word boundaries to avoid partial matches
-    - Multiple passes: first metrics, then time phrases
-    - Keeps transformation simple for MVP; can enhance with regex later
+    - Multiple passes: first performance patterns (regex), then metrics, then time phrases
+    - Phase 5 update: Uses regex for flexible performance phrase matching
     """
     # Convert to lowercase for consistent matching
     result = question.lower()
+    
+    # Pass 0: Replace performance-related vague phrases (NEW in Phase 5 - REGEX)
+    # Do this FIRST so "breakdown of X performance" becomes clearer before metric extraction
+    # Uses regex to handle variations like "breakdown of holiday campaign performance"
+    for pattern, replacement in PERFORMANCE_PATTERNS:
+        result = re.sub(pattern, replacement, result)
     
     # Pass 1: Replace metric synonyms
     for synonym, canonical in METRIC_SYNONYMS.items():
