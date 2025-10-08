@@ -69,6 +69,18 @@ METRIC_SYNONYMS = {
     "convs": "conversions",
 }
 
+# Performance-related phrase mappings (NEW in Phase 5)
+# Maps vague "performance" questions to clearer metric-based questions
+PERFORMANCE_PHRASES = {
+    "breakdown of performance": "show me performance by",
+    "campaign performance": "campaign metrics",
+    "how are campaigns performing": "show me campaign metrics",
+    "how is performing": "what are the metrics for",
+    "performance breakdown": "show me metrics by",
+    "performance metrics": "metrics",
+    "show performance": "show metrics",
+}
+
 # Time phrase mappings: normalize vague time references
 # Phase 2 fix: Distinguish current periods from past periods
 TIME_PHRASES = {
@@ -126,15 +138,23 @@ def canonicalize_question(question: str) -> str:
         
         >>> canonicalize_question("How much did we spend yesterday?")
         "How much did we spend yesterday?"
+        
+        >>> canonicalize_question("Give me a breakdown of campaign performance")
+        "Give me a show me performance by campaign"
     
     Design notes:
     - Case-insensitive matching (converts to lowercase)
     - Preserves word boundaries to avoid partial matches
-    - Multiple passes: first metrics, then time phrases
+    - Multiple passes: first performance phrases, then metrics, then time phrases
     - Keeps transformation simple for MVP; can enhance with regex later
     """
     # Convert to lowercase for consistent matching
     result = question.lower()
+    
+    # Pass 0: Replace performance-related vague phrases (NEW in Phase 5)
+    # Do this FIRST so "breakdown of performance" becomes clearer before metric extraction
+    for phrase, canonical in PERFORMANCE_PHRASES.items():
+        result = result.replace(phrase, canonical)
     
     # Pass 1: Replace metric synonyms
     for synonym, canonical in METRIC_SYNONYMS.items():

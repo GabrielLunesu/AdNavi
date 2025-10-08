@@ -39,7 +39,11 @@ from app.dsl.schema import MetricQuery, MetricResult
 from app.deps import get_settings
 from app.answer.formatters import format_metric_value, format_delta_pct, fmt_currency, fmt_count
 from app.answer.context_extractor import extract_rich_context  # NEW in v2.0.1
-from app.answer.intent_classifier import classify_intent, AnswerIntent, explain_intent, VerbTense, detect_tense  # NEW in Phase 1
+from app.answer.intent_classifier import (
+    classify_intent, AnswerIntent, explain_intent, 
+    VerbTense, detect_tense,
+    PerformerIntent, detect_performer_intent  # NEW in Phase 4
+)
 from app.nlp.prompts import (
     ANSWER_GENERATION_PROMPT,  # Existing (fallback for analytical)
     SIMPLE_ANSWER_PROMPT,      # NEW in Phase 1
@@ -226,13 +230,22 @@ class AnswerBuilder:
             question = getattr(dsl, 'question', None) or f"What is my {dsl.metric}?"
             intent = classify_intent(question, dsl)
             
-            # NEW Step 1.5: Detect tense and get timeframe
+            # Step 1.5: Detect tense and get timeframe
             timeframe_desc = getattr(dsl, 'timeframe_description', None) or ""
             tense = detect_tense(question, timeframe_desc)
             
+            # Step 1.6: Detect performer intent for breakdown queries (NEW in Phase 4)
+            performer_intent = detect_performer_intent(question, dsl)
+            
             logger.info(
-                f"[INTENT] Classified as {intent.value} with {tense.value} tense: {explain_intent(intent)}",
-                extra={"question": question, "intent": intent.value, "tense": tense.value, "timeframe": timeframe_desc}
+                f"[INTENT] Classified as {intent.value} with {tense.value} tense and {performer_intent.value} performer intent: {explain_intent(intent)}",
+                extra={
+                    "question": question, 
+                    "intent": intent.value, 
+                    "tense": tense.value, 
+                    "timeframe": timeframe_desc,
+                    "performer_intent": performer_intent.value
+                }
             )
             
             # Step 2: Extract context and build prompt based on query type and intent
@@ -251,8 +264,9 @@ class AnswerBuilder:
                         "metric_name": context.metric_name,
                         "metric_value": context.metric_value,
                         "metric_value_raw": context.metric_value_raw,
-                        "timeframe": timeframe_desc,  # NEW
-                        "tense": tense.value  # NEW
+                        "timeframe": timeframe_desc,
+                        "tense": tense.value,
+                        "performer_intent": performer_intent.value  # NEW in Phase 4
                     }
                     system_prompt = SIMPLE_ANSWER_PROMPT
                     user_prompt = self._build_simple_prompt(filtered_context, question)
@@ -267,8 +281,9 @@ class AnswerBuilder:
                         "workspace_comparison": context.workspace_comparison,
                         "top_performer": context.top_performer,
                         "performance_level": context.performance_level,
-                        "timeframe": timeframe_desc,  # NEW
-                        "tense": tense.value  # NEW
+                        "timeframe": timeframe_desc,
+                        "tense": tense.value,
+                        "performer_intent": performer_intent.value  # NEW in Phase 4
                     }
                     system_prompt = COMPARATIVE_ANSWER_PROMPT
                     user_prompt = self._build_comparative_prompt(filtered_context, question)

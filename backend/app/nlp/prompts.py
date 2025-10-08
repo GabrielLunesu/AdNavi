@@ -233,6 +233,44 @@ FEW_SHOT_EXAMPLES = [
         }
     },
     
+    # Phase 5: Performance breakdown queries
+    {
+        "question": "Give me a breakdown of campaign performance",
+        "dsl": {
+            "metric": "revenue",
+            "time_range": {"last_n_days": 30},
+            "compare_to_previous": False,
+            "group_by": "campaign",
+            "breakdown": "campaign",
+            "top_n": 10,
+            "filters": {}
+        }
+    },
+    {
+        "question": "How are my campaigns performing?",
+        "dsl": {
+            "metric": "revenue",
+            "time_range": {"last_n_days": 7},
+            "compare_to_previous": False,
+            "group_by": "campaign",
+            "breakdown": "campaign",
+            "top_n": 10,
+            "filters": {}
+        }
+    },
+    {
+        "question": "Show me the performance of my ad sets",
+        "dsl": {
+            "metric": "revenue",
+            "time_range": {"last_n_days": 7},
+            "compare_to_previous": False,
+            "group_by": "adset",
+            "breakdown": "adset",
+            "top_n": 10,
+            "filters": {}
+        }
+    },
+    
     # "Highest by X" queries (top_n=1 with breakdown)
     {
         "question": "Which campaign had highest ROAS?",
@@ -738,12 +776,16 @@ CRITICAL RULES:
    - past: "was", "were", "spent", "had"
    - present: "is", "are", "spend", "have"
    - future: "will be", "will have"
-5. NO comparisons unless explicitly in context
-6. NO analysis, NO trends, NO recommendations
-7. NO workspace average mentions
-8. Be conversational but BRIEF
-9. Use the formatted values (not raw numbers)
-10. If timeframe is empty, don't mention time period
+5. Use correct performer language based on context.performer_intent (NEW Phase 4):
+   - best_performer: "best", "most efficient", "top performer", "leading"
+   - worst_performer: "worst", "least efficient", "needs attention", "underperforming"
+   - neutral: no performance judgment
+6. NO comparisons unless explicitly in context
+7. NO analysis, NO trends, NO recommendations
+8. NO workspace average mentions
+9. Be conversational but BRIEF
+10. Use the formatted values (not raw numbers)
+11. If timeframe is empty, don't mention time period
 
 TENSE EXAMPLES:
 - Past + timeframe: "Your ROAS was 3.88× last week"
@@ -779,10 +821,23 @@ CRITICAL TIMEFRAME/TENSE RULES:
    - "was X last week, up from Y the week before"
    - "is X today, compared to Y yesterday"
 
+CRITICAL PERFORMER LANGUAGE RULES (NEW Phase 4):
+Use correct language based on context.performer_intent:
+- best_performer: "best", "most efficient", "top performer", "crushing it", "leading"
+- worst_performer: "worst", "least efficient", "needs attention", "underperforming", "struggling"
+- neutral: no performance judgment, just state facts
+
+EXAMPLES of performer language:
+- Best: "AdSet 1 had the lowest CPC at $0.32—your best performer" (CPC is inverse, lower=better)
+- Worst: "AdSet 2 had the highest CPC at $0.70—your worst performer" (CPC is inverse, higher=worse)
+- Best: "Campaign X had the highest ROAS at 5.2×—crushing it" (ROAS is normal, higher=better)
+- Worst: "Campaign Y had the lowest CTR at 1.2%—needs some attention" (CTR is normal, lower=worse)
+
 WHAT TO INCLUDE:
 - Main metric value with timeframe
 - Comparison context if available (previous period, workspace avg, top performer)
 - Brief interpretation ("that's good", "up from", "better than")
+- Correct performer language if breakdown query
 
 WHAT TO SKIP:
 - Long explanations
@@ -822,10 +877,20 @@ CRITICAL TIMEFRAME/TENSE RULES:
    - present: "is", "are", "has been", "showing", "performing"
 3. Be consistent with tense throughout the answer
 
+CRITICAL PERFORMER LANGUAGE RULES (NEW Phase 4):
+Use correct language based on context.performer_intent when discussing entities:
+- best_performer: "best", "most efficient", "top performer", "strongest", "leading"
+- worst_performer: "worst", "least efficient", "underperforming", "weakest", "struggling"
+- neutral: no performance judgment
+
+EXAMPLES:
+- Best: "The spike was driven by Campaign X (lowest CPC at $0.28—your most efficient)" 
+- Worst: "Campaign Y is pulling down performance (highest CPC at $1.20—needs review)"
+
 WHAT TO INCLUDE:
 - Main metric value with timeframe
 - Relevant trends with time context
-- Notable outliers or patterns
+- Notable outliers or patterns (with correct performer language)
 - Workspace comparison (if available)
 - Constructive interpretation or observation
 

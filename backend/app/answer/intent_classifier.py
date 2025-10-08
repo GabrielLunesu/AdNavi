@@ -171,6 +171,23 @@ class VerbTense(str, Enum):
     FUTURE = "future"
 
 
+class PerformerIntent(str, Enum):
+    """
+    Performer query intent for breakdown queries.
+    
+    Used to determine correct language when user asks for "lowest" or "highest".
+    
+    Examples:
+        - "Which campaign had the lowest CPC?" → BEST_PERFORMER (CPC is inverse, lower is better)
+        - "Which campaign had the highest CPC?" → WORST_PERFORMER (CPC is inverse, higher is worse)
+        - "Which campaign had the lowest CTR?" → WORST_PERFORMER (CTR is normal, lower is worse)
+        - "Which campaign had the highest ROAS?" → BEST_PERFORMER (ROAS is normal, higher is better)
+    """
+    BEST_PERFORMER = "best_performer"    # User wants to see the best performing entity
+    WORST_PERFORMER = "worst_performer"  # User wants to see the worst performing entity
+    NEUTRAL = "neutral"                  # User just wants data, no performance judgment
+
+
 def detect_tense(question: str, timeframe_desc: Optional[str] = None) -> VerbTense:
     """
     Detect appropriate verb tense for the answer.
@@ -221,4 +238,93 @@ def detect_tense(question: str, timeframe_desc: Optional[str] = None) -> VerbTen
     
     # Default to present
     return VerbTense.PRESENT
+
+
+def detect_performer_intent(question: str, query: MetricQuery) -> PerformerIntent:
+    """
+    Detect whether user is asking for best or worst performer.
+    
+    WHY this exists:
+    - "Lowest CPC" means best performer (since CPC is inverse - lower is better)
+    - "Lowest CTR" means worst performer (since CTR is normal - higher is better)
+    - Need to adjust language accordingly to avoid confusion
+    
+    WHAT it does:
+    - Detects "lowest/minimum/worst" vs "highest/maximum/best" keywords
+    - Checks if metric is inverse (lower=better) or normal (higher=better)
+    - Returns appropriate intent for answer language
+    
+    Args:
+        question: User's original question
+        query: MetricQuery with metric name
+        
+    Returns:
+        PerformerIntent: Whether to use "best" or "worst" language
+        
+    Examples:
+        >>> query = MetricQuery(metric="cpc", breakdown="campaign")
+        >>> detect_performer_intent("Which campaign had the lowest CPC?", query)
+        PerformerIntent.BEST_PERFORMER  # Lower CPC is better
+        
+        >>> query = MetricQuery(metric="cpc", breakdown="campaign")
+        >>> detect_performer_intent("Which campaign had the highest CPC?", query)
+        PerformerIntent.WORST_PERFORMER  # Higher CPC is worse
+        
+        >>> query = MetricQuery(metric="ctr", breakdown="campaign")
+        >>> detect_performer_intent("Which campaign had the lowest CTR?", query)
+        PerformerIntent.WORST_PERFORMER  # Lower CTR is worse
+        
+        >>> query = MetricQuery(metric="roas", breakdown="campaign")
+        >>> detect_performer_intent("Which campaign had the highest ROAS?", query)
+        PerformerIntent.BEST_PERFORMER  # Higher ROAS is better
+    
+    Logic:
+        1. Check if question contains "lowest/minimum/worst" or "highest/maximum/best"
+        2. Import metric directionality from registry
+        3. Combine to determine if user wants best or worst
+        
+        Truth table:
+        | Keyword  | Metric Type | Intent           |
+        |----------|-------------|------------------|
+        | Lowest   | Inverse     | BEST_PERFORMER   |
+        | Lowest   | Normal      | WORST_PERFORMER  |
+        | Highest  | Inverse     | WORST_PERFORMER  |
+        | Highest  | Normal      | BEST_PERFORMER   |
+    
+    References:
+        - app/metrics/registry.py: INVERSE_METRICS, NORMAL_METRICS
+        - Used by: app/answer/answer_builder.py
+    """
+    from app.metrics.registry import is_inverse_metric
+    
+    question_lower = question.lower()
+    
+    # Check if it's a breakdown query (only relevant for breakdowns)
+    if not query.breakdown:
+        return PerformerIntent.NEUTRAL
+    
+    # Detect if user is asking for lowest/minimum
+    asking_for_lowest = any(kw in question_lower for kw in [
+        "lowest", "minimum", "min", "smallest", "least", "worse", "worst"
+    ])
+    
+    # Detect if user is asking for highest/maximum
+    asking_for_highest = any(kw in question_lower for kw in [
+        "highest", "maximum", "max", "largest", "most", "best", "top"
+    ])
+    
+    # If neither, return neutral
+    if not asking_for_lowest and not asking_for_highest:
+        return PerformerIntent.NEUTRAL
+    
+    # Check if metric is inverse (lower is better)
+    metric_is_inverse = is_inverse_metric(query.metric)
+    
+    # Apply truth table logic
+    if asking_for_lowest:
+        # Lowest CPC (inverse) = BEST, Lowest CTR (normal) = WORST
+        return PerformerIntent.BEST_PERFORMER if metric_is_inverse else PerformerIntent.WORST_PERFORMER
+    else:  # asking_for_highest
+        # Highest CPC (inverse) = WORST, Highest ROAS (normal) = BEST
+        return PerformerIntent.WORST_PERFORMER if metric_is_inverse else PerformerIntent.BEST_PERFORMER
 

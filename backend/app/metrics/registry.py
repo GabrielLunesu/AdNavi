@@ -55,6 +55,53 @@ BASE_MEASURES = {
 
 
 # =====================================================================
+# METRIC DIRECTIONALITY CLASSIFICATION
+# =====================================================================
+# Used for "lowest/highest" query language to determine if lower or higher is better.
+#
+# INVERSE METRICS: Lower values are BETTER (cost metrics)
+# - "lowest CPC" = best performer (most efficient)
+# - "highest CPC" = worst performer (least efficient)
+#
+# NORMAL METRICS: Higher values are BETTER (value/engagement metrics)
+# - "highest ROAS" = best performer
+# - "lowest ROAS" = worst performer
+
+INVERSE_METRICS = {
+    # Cost/Efficiency metrics: Lower is better
+    "cpc",   # Lower cost per click = more efficient
+    "cpm",   # Lower cost per thousand impressions = more efficient
+    "cpa",   # Lower cost per acquisition = more efficient
+    "cpl",   # Lower cost per lead = more efficient
+    "cpi",   # Lower cost per install = more efficient
+    "cpp",   # Lower cost per purchase = more efficient
+}
+
+NORMAL_METRICS = {
+    # Value metrics: Higher is better
+    "roas",      # Higher return on ad spend = better
+    "poas",      # Higher profit on ad spend = better
+    "arpv",      # Higher average revenue per visitor = better
+    "aov",       # Higher average order value = better
+    
+    # Engagement metrics: Higher is better
+    "ctr",       # Higher click-through rate = better
+    "cvr",       # Higher conversion rate = better
+    
+    # Volume metrics: Higher is better (though context-dependent)
+    "revenue",   # More revenue = better
+    "profit",    # More profit = better
+    "clicks",    # More clicks = better (usually)
+    "conversions", # More conversions = better
+    "leads",     # More leads = better
+    "installs",  # More installs = better
+    "purchases", # More purchases = better
+    "visitors",  # More visitors = better (usually)
+    "impressions", # More impressions = better (usually)
+}
+
+
+# =====================================================================
 # DERIVED METRICS REGISTRY
 # =====================================================================
 # Maps metric name → {required base measures, computation function}
@@ -316,4 +363,53 @@ def get_metric_format(metric: str) -> str:
         return METRIC_REGISTRY[metric].get("format", "number")
     
     return "number"
+
+
+def is_inverse_metric(metric: str) -> bool:
+    """
+    Check if a metric is inverse (lower is better).
+    
+    Used for determining correct language in "lowest/highest" queries.
+    
+    Args:
+        metric: Metric name (e.g., "cpc", "roas")
+        
+    Returns:
+        True if lower values are better, False otherwise
+        
+    Examples:
+        >>> is_inverse_metric("cpc")
+        True  # Lower CPC is better
+        
+        >>> is_inverse_metric("roas")
+        False  # Higher ROAS is better
+        
+        >>> is_inverse_metric("ctr")
+        False  # Higher CTR is better
+    
+    Use cases:
+        - "Which campaign had the lowest CPC?" → Best performer (CPC is inverse)
+        - "Which campaign had the lowest CTR?" → Worst performer (CTR is normal)
+    """
+    return metric in INVERSE_METRICS
+
+
+def is_normal_metric(metric: str) -> bool:
+    """
+    Check if a metric is normal (higher is better).
+    
+    Args:
+        metric: Metric name
+        
+    Returns:
+        True if higher values are better, False otherwise
+        
+    Examples:
+        >>> is_normal_metric("roas")
+        True
+        
+        >>> is_normal_metric("cpc")
+        False
+    """
+    return metric in NORMAL_METRICS
 
