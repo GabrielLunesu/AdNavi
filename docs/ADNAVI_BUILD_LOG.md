@@ -202,6 +202,41 @@ _Last updated: 2025-10-05T12:00:00Z_
 ---
 
 ## 11) Changelog
+| - 2025-10-08T17:10:00Z — **IMPLEMENTATION**: Phase 4.5 - Sort Order & Performance Breakdown Fixes ✅ — Dynamic ordering for lowest/highest queries + GPT-4-turbo upgrade.
+  - **Overview**: Fixed critical issues with "lowest/highest" queries returning wrong entities and performance breakdown query errors.
+  - **Success Rate Improvement**: 4 out of 5 target tests fixed (80% success rate on edge cases)
+  - **Files modified**:
+    - `backend/app/dsl/schema.py`: Added `sort_order: Literal["asc", "desc"]` field to MetricQuery (default "desc")
+    - `backend/app/dsl/planner.py`: Added `sort_order` to Plan dataclass, passed from query
+    - `backend/app/dsl/executor.py`: Dynamic ordering based on sort_order (`.asc()` vs `.desc()`)
+    - `backend/app/nlp/translator.py`: Upgraded from GPT-4o-mini → GPT-4-turbo for better accuracy
+    - `backend/app/nlp/prompts.py`: Simplified sort_order rules + 4 new few-shot examples
+    - `backend/app/dsl/canonicalize.py`: Regex-based patterns for flexible performance phrase matching
+  - **Fixes implemented**:
+    - ✅ "Which adset had the LOWEST CPC?" → Returns actual lowest CPC entity (was returning highest)
+    - ✅ "Which adset had the HIGHEST CPC?" → Returns actual highest CPC entity + correct "worst performer" language
+    - ✅ DSL sort_order field: "asc" for lowest, "desc" for highest (literal value sorting)
+    - ✅ Executor dynamic ordering: Chooses `.asc()` or `.desc()` based on plan.sort_order
+    - ✅ GPT-4-turbo: Better instruction following for complex sort_order rules
+    - ⚠️ Performance breakdown: Regex patterns added but Test 18 still needs entity name filtering (future feature)
+  - **Test results**: Critical "lowest/highest" queries now working
+    - Test 29: "Which adset had lowest CPC?" → ✅ Correct entity, "top performer" language
+    - Test 38: "Which ad had lowest CPC?" → ✅ Correct entity, "best performer" language
+    - Test 26: "Which adset had highest CPC?" → ✅ Correct entity, "worst performer" language
+    - Test 30: "Which adset had highest CPC?" → ✅ Correct entity, "worst performer" language
+    - Test 18: "breakdown of holiday campaign performance" → ❌ Still needs named entity filters (documented as limitation)
+  - **Architecture impact**:
+    - New DSL field: `sort_order` (backward compatible with default "desc")
+    - Separation of concerns: DSL = literal sorting, Answer Builder = performance interpretation
+    - Model upgrade: GPT-4-turbo for critical DSL translation path (~55x cost increase, worth it for accuracy)
+  - **Files created**: 
+    - `backend/PHASE_4_5_SORT_ORDER_IMPLEMENTATION.md`: Implementation details and architecture
+    - `backend/PHASE_4_5_FINAL_FIXES.md`: Final improvements and cost analysis
+  - **Known limitations**:
+    - Named entity filtering: "breakdown of X campaign performance" requires entity name filters (DSL v1.5 planned)
+    - Time-of-day queries: "What time do I get best CPC?" requires hour/time grouping (not supported)
+  - **Cost impact**: GPT-4-turbo = ~$0.011/query (vs $0.0002 with GPT-4o-mini), estimated $110/month for 10K queries
+  - **Next priority**: Week 3 - Named entity filters for specific campaign/adset queries
 | - 2025-10-08T22:30:00Z — **TOOLING**: Simple QA Test Suite — Easy-to-use testing tool for incremental question testing.
   - **Overview**: Created simple testing infrastructure for ongoing QA quality tracking
   - **Files created**:

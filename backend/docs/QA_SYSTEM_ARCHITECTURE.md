@@ -1,8 +1,8 @@
 # QA System Architecture & DSL Specification
 
-**Version**: DSL v2.1.3 (Intent-Based Answers - Phase 3)  
+**Version**: DSL v2.1.4 (Sort Order & Performance Breakdown - Phase 4.5)  
 **Last Updated**: 2025-10-08  
-**Status**: Production Ready - Natural Copilot Phase 3 Implemented
+**Status**: Production Ready - Natural Copilot Phase 4.5 Implemented
 
 ✅ **Phase 1 Complete**: Intent-based answer depth implemented. Simple questions now get simple answers (1 sentence), comparative questions get comparisons (2-3 sentences), analytical questions get full context (3-4 sentences).
 
@@ -24,6 +24,19 @@
 - Helpful explanations instead of "$0.00" or "N/A"
 - Suggests alternative timeframes for missing data
 - Lists available platforms when requested platform doesn't exist
+
+✅ **Phase 4 Complete**: Inverse metrics performance language:
+- Metric directionality classification (inverse vs normal metrics)
+- Performer intent detection for breakdown queries
+- Correct "best/worst performer" language based on metric type
+- "Lowest CPC" correctly identified as "best performer"
+
+✅ **Phase 4.5 Complete**: Sort order support for lowest/highest queries:
+- Added `sort_order` field to DSL ("asc" for lowest, "desc" for highest)
+- Dynamic executor ordering based on user query intent
+- GPT-4-turbo upgrade for improved instruction following
+- Regex-based canonicalization for flexible phrase matching
+- **Impact**: "Lowest CPC" queries now return correct entities (80% success on target tests)
 
 ---
 
@@ -81,9 +94,9 @@ graph TD
     
     Context --> Canon["Canonicalize<br/>app/dsl/canonicalize.py<br/><br/>Map synonyms:<br/>'return on ad spend' → 'roas'<br/>'this week' → 'last 7 days'"]
     
-    Canon --> Translate["Translator<br/>app/nlp/translator.py<br/><br/>LLM: OpenAI GPT-4o-mini<br/>Temperature: 0<br/>Mode: JSON<br/>Context-aware"]
+    Canon --> Translate["Translator<br/>app/nlp/translator.py<br/><br/>LLM: OpenAI GPT-4-turbo<br/>Temperature: 0<br/>Mode: JSON<br/>Context-aware"]
     
-    Translate --> Prompt["Build Prompt<br/>app/nlp/prompts.py<br/><br/>System prompt +<br/>Conversation history +<br/>17 few-shot examples +<br/>User question"]
+    Translate --> Prompt["Build Prompt<br/>app/nlp/prompts.py<br/><br/>System prompt +<br/>Conversation history +<br/>22 few-shot examples +<br/>User question"]
     
     Prompt --> LLM["OpenAI API Call<br/><br/>Returns JSON"]
     
@@ -163,19 +176,20 @@ graph TD
   - `"yesterday"` → `"last 1 day"`
 
 ### 5️⃣ **Translation** (`app/nlp/translator.py`)
-- **LLM**: OpenAI GPT-4o-mini (cost-effective, fast)
+- **LLM**: OpenAI GPT-4-turbo (upgraded in Phase 4.5 for better accuracy)
 - **Settings**: Temperature=0 (deterministic), JSON mode
 - **Input**: Canonicalized question + conversation context
 - **Output**: Raw JSON DSL (validated in next step)
 - **Context handling**: Includes last 1-2 queries for follow-up resolution
-- **Few-shot learning**: 17 examples covering all query types
+- **Few-shot learning**: 22 examples covering all query types (including sort_order patterns)
 
 ### 6️⃣ **Prompting** (`app/nlp/prompts.py`)
-- **System Prompt**: Task explanation, constraints, schema
-- **Few-Shot Examples**: 17 question → DSL pairs
+- **System Prompt**: Task explanation, constraints, schema, sort_order rules
+- **Few-Shot Examples**: 22 question → DSL pairs
   - 5 original examples (ROAS, conversions, revenue, CPA)
-  - 10 new examples (Derived Metrics v1: CPC, CPM, CPL, CPI, CPP, POAS, AOV, ARPV, CTR)
+  - 10 derived metrics examples (CPC, CPM, CPL, CPI, CPP, POAS, AOV, ARPV, CTR)
   - 2 non-metrics examples (providers, entities)
+  - 5 sort_order examples (highest/lowest variations) — **NEW in v2.1.4**
 - **Follow-up Examples**: 5 examples for context-aware queries
 - **Format**: System prompt + examples + context (if available) + user question
 
@@ -420,6 +434,7 @@ DSL supports three types of queries:
   "group_by": "none" | "provider" | "campaign" | "adset" | "ad",  // default: "none"
   "breakdown": "provider" | "campaign" | "adset" | "ad" | null,  // default: null
   "top_n": number,  // default: 5, range: 1-50
+  "sort_order": "asc" | "desc",  // NEW in v2.1.4: "asc" for lowest, "desc" for highest (default)
   "filters": {
     "provider": "google" | "meta" | "tiktok" | "other" | null,
     "level": "account" | "campaign" | "adset" | "ad" | null,
@@ -442,8 +457,9 @@ DSL supports three types of queries:
 4. **Dates**: End date must be >= start date
 5. **Breakdown**: Must match `group_by` (or group_by must be "none")
 6. **Top N**: Between 1 and 50
-7. **Filters**: Optional but must use valid enum values
-8. **Thresholds**: Optional; all values must be >= 0
+7. **Sort Order**: Must be "asc" (ascending/lowest first) or "desc" (descending/highest first)
+8. **Filters**: Optional but must use valid enum values
+9. **Thresholds**: Optional; all values must be >= 0
 
 ### Thresholds (NEW in v1.4)
 
@@ -495,6 +511,55 @@ DSL supports three types of queries:
 ```
 
 **Result**: Shows top 3 platforms by CPC with spend, clicks, conversions context.
+
+### Sort Order (NEW in v2.1.4)
+
+**Purpose**: Enable "lowest" vs "highest" queries to return the correct entities by controlling sort direction.
+
+**How it works**:
+- `"desc"` (descending): Highest values first — **DEFAULT**
+- `"asc"` (ascending): Lowest values first
+
+**Critical Rule**: Sort by **literal value**, not by performance interpretation!
+- "highest CPC" → `"desc"` (literal highest value, even though higher CPC is worse)
+- "lowest CPC" → `"asc"` (literal lowest value)
+- Answer Builder handles performance language ("best"/"worst"), not the DSL
+
+**Use cases**:
+- **"Which campaign had the highest ROAS?"** → `sort_order: "desc"` (sort descending)
+- **"Which adset had the lowest CPC?"** → `sort_order: "asc"` (sort ascending)
+- **"Rank platforms by cost per conversion"** → `sort_order: "asc"` (lowest cost first)
+
+**Architecture decision**:
+- **DSL layer**: Literal sorting (what value to sort by)
+- **Answer Builder layer**: Performance interpretation (what language to use)
+- **Benefit**: Separation of concerns, clearer logic
+
+**Example - Lowest CPC Query**:
+```json
+{
+  "metric": "cpc",
+  "time_range": {"last_n_days": 7},
+  "breakdown": "adset",
+  "top_n": 1,
+  "sort_order": "asc"  // Returns adset with LOWEST CPC value
+}
+```
+
+**Result**: System returns AdSet with CPC $0.42 (lowest), Answer Builder says "your best performer" (because lower CPC is better).
+
+**Example - Highest CPC Query**:
+```json
+{
+  "metric": "cpc",
+  "time_range": {"last_n_days": 7},
+  "breakdown": "adset",
+  "top_n": 1,
+  "sort_order": "desc"  // Returns adset with HIGHEST CPC value
+}
+```
+
+**Result**: System returns AdSet with CPC $0.54 (highest), Answer Builder says "your worst performer" (because higher CPC is worse).
 
 ### Query Examples
 
@@ -782,12 +847,12 @@ All queries scoped at SQL level:
 | Stage | Latency | Notes |
 |-------|---------|-------|
 | Context Retrieval | <1ms | In-memory lookup |
-| Canonicalization | <1ms | String replacements |
-| **LLM Translation** | **500-1000ms** | **OpenAI API (DSL)** |
+| Canonicalization | <1ms | String + regex replacements |
+| **LLM Translation** | **500-1000ms** | **GPT-4-turbo (upgraded v2.1.4)** |
 | Validation | 1-5ms | Pydantic validation |
 | Planning | <1ms | Pure Python logic |
 | Database Query | 10-50ms | Depends on data volume |
-| **Answer Generation** | **200-500ms** | **LLM rephrase (hybrid)** |
+| **Answer Generation** | **200-500ms** | **GPT-4o-mini (hybrid)** |
 | Answer Fallback | <1ms | Template-based (if LLM fails) |
 | Context Storage | <1ms | In-memory append |
 | **Total** | **~700-1550ms** | **End-to-end** |
@@ -971,9 +1036,126 @@ backend/app/
 
 ---
 
+## Known Limitations & Constraints
+
+### Current Constraints (v2.1.4)
+
+#### 1. Named Entity Filtering Not Supported
+
+**Problem**: Cannot filter by campaign/adset/ad name in queries.
+
+**Impact**: Queries like "breakdown of holiday campaign performance" fail because:
+- User wants metrics for a specific campaign named "holiday"
+- DSL only supports filtering by `entity_ids` (UUIDs), not by name
+- LLM cannot translate "holiday campaign" into a UUID
+
+**Current workaround**: 
+- Ask for general breakdown: "show me campaign revenue"
+- User manually identifies the campaign from results
+
+**Example failing query**:
+```
+User: "give me a breakdown of holiday campaign performance"
+Canonicalized: "revenue breakdown for holiday campaign"
+Problem: "holiday campaign" cannot be mapped to entity_ids filter
+Result: ERROR (LLM cannot generate valid DSL)
+```
+
+**How to fix in future (DSL v1.5)**:
+1. Add `entity_name` filter to DSL schema:
+   ```json
+   "filters": {
+     "entity_name": "holiday",  // NEW: Filter by name pattern (case-insensitive)
+     "entity_ids": ["uuid1"],
+     "status": "active"
+   }
+   ```
+
+2. Update executor to support name-based filtering:
+   ```python
+   if filters.get("entity_name"):
+       query = query.filter(Entity.name.ilike(f"%{filters['entity_name']}%"))
+   ```
+
+3. Add few-shot examples:
+   ```json
+   {
+     "question": "Show me holiday campaign revenue",
+     "dsl": {
+       "metric": "revenue",
+       "breakdown": "campaign",
+       "filters": {"entity_name": "holiday"}
+     }
+   }
+   ```
+
+**Priority**: Week 3-4 (after current phase stabilizes)
+
+---
+
+#### 2. Time-of-Day Breakdown Not Supported
+
+**Problem**: Cannot group metrics by hour or time-of-day.
+
+**Impact**: Queries like "What time do I get the best CPC?" fail because:
+- DSL only supports grouping by entity hierarchy (campaign/adset/ad) and provider
+- No temporal grouping dimensions (hour, day-of-week, etc.)
+
+**Example failing query**:
+```
+User: "What time on average do I get the best CPC?"
+Problem: No "hour" or "time_of_day" breakdown dimension
+Result: ERROR (LLM cannot generate valid DSL)
+```
+
+**How to fix in future (DSL v1.6)**:
+1. Add temporal breakdown dimensions:
+   ```json
+   "breakdown": "provider" | "campaign" | "adset" | "ad" | "hour" | "day_of_week" | "date"
+   ```
+
+2. Extend executor to support temporal grouping:
+   ```python
+   if breakdown == "hour":
+       query = query.group_by(func.extract('hour', MF.event_date))
+   ```
+
+3. Requires database schema change:
+   - Add `event_hour` or `event_timestamp` column to MetricFact
+   - Or extract from existing `event_date` if it includes time
+
+**Priority**: Future (requires schema changes)
+
+---
+
+#### 3. Hypothetical/Scenario Queries Not Supported
+
+**Problem**: Cannot answer "what-if" questions with hypothetical values.
+
+**Impact**: Queries like "How much revenue would I have if my CPC was $0.20?" fail because:
+- DSL executes against historical data only
+- No simulation or scenario modeling capability
+
+**Current behavior**: Returns actual revenue (ignores the hypothetical constraint)
+
+**How to fix in future (DSL v2.0)**:
+- Requires separate "scenario" query type with simulation engine
+- Out of scope for current DSL architecture
+- Consider as advanced feature for Year 2
+
+**Priority**: Long-term (complex feature)
+
+---
+
 ## Future Enhancements
 
-### Immediate Enhancements (DSL v1.4+)
+### Immediate Enhancements (DSL v1.5+)
+
+#### Named Entity Filtering (Week 3-4 Priority)
+- Add `entity_name` filter to support queries like "holiday campaign performance"
+- Enable name-based pattern matching (case-insensitive, partial match)
+- Update few-shot examples with named entity patterns
+- **Impact**: Fixes Test 18 and enables more natural campaign-specific queries
 
 #### Phase 5: Validation Repair
 - Re-ask LLM with error message for repair
@@ -990,6 +1172,8 @@ backend/app/
 - Nested breakdowns (campaign → adset → ad)
 - Cohort analysis
 - Basic trend detection
+- Temporal breakdowns (hour, day-of-week)
+- Scenario/what-if queries
 
 ### Long-term Vision: Agentic Marketing Intelligence
 
@@ -1028,6 +1212,17 @@ The roadmap outlines our evolution from Q&A system to autonomous marketing intel
 ---
 
 ## Version History
+
+- **v2.1.4 (2025-10-08)**: Sort Order Support - Dynamic ordering for lowest/highest queries
+  - Added `sort_order` field to MetricQuery ("asc" for lowest, "desc" for highest)
+  - Updated Plan dataclass to include sort_order
+  - Executor now uses dynamic ordering (`.asc()` or `.desc()` based on sort_order)
+  - Upgraded LLM from GPT-4o-mini → GPT-4-turbo for better accuracy
+  - Added 5 few-shot examples for sort_order (highest/lowest variations)
+  - Simplified prompt rules: "HIGHEST → desc, LOWEST → asc, don't overthink"
+  - Regex-based canonicalization for flexible performance phrase matching
+  - Fixed: "Which adset had lowest CPC?" now returns correct entity (was returning highest)
+  - Known limitation: Named entity filtering (e.g., "holiday campaign performance") requires DSL v1.5
 
 - **v1.4 (2025-10-05)**: Highest By v2.0 - Intent-first answers + Thresholds + Provider Breakdown
   - Added thresholds field (min_spend, min_clicks, min_conversions) to filter outliers
@@ -1096,6 +1291,36 @@ Try the `/qa` endpoint with:
 ---
 
 ## Changelog
+
+### 2025-10-08T17:10:00Z - Phase 4.5: Sort Order & Performance Breakdown Fixes
+- Added `app/dsl/schema.py`: `sort_order: Literal["asc", "desc"]` field to MetricQuery
+  - Default: "desc" (highest first) for backward compatibility
+  - "asc" for lowest-first queries, "desc" for highest-first queries
+  - Literal value sorting, not performance interpretation
+- Updated `app/dsl/planner.py`: Added `sort_order` field to Plan dataclass
+  - Passed from query to plan for executor consumption
+- Updated `app/dsl/executor.py`: Dynamic ordering based on sort_order
+  - Replaced hardcoded `.desc()` with conditional `.asc()` or `.desc()`
+  - Enables "lowest CPC" queries to return actual lowest values
+- Upgraded `app/nlp/translator.py`: GPT-4o-mini → GPT-4-turbo
+  - Better instruction following for complex sort_order rules
+  - Cost increase: ~$0.0002 → ~$0.011 per query (~55x)
+  - Worth it for accuracy on critical DSL translation path
+- Enhanced `app/nlp/prompts.py`: Simplified sort_order rules + 5 new few-shot examples
+  - Added explicit "highest CPC" example (sort_order: "desc")
+  - Added "lowest CPC" example (sort_order: "asc")
+  - Clarified: "Sort by literal value, not performance interpretation"
+- Updated `app/dsl/canonicalize.py`: Regex-based performance phrase patterns
+  - Changed from exact string matching to flexible regex patterns
+  - "breakdown of X performance" → "revenue breakdown for X"
+  - Handles variations like "breakdown of holiday campaign performance"
+- **Results**: 
+  - ✅ Test 29: "Which adset had lowest CPC?" → Correct entity, "top performer" language
+  - ✅ Test 38: "Which ad had lowest CPC?" → Correct entity, "best performer" language
+  - ✅ Test 26: "Which adset had highest CPC?" → Correct entity, "worst performer" language
+  - ✅ Test 30: "Which adset had highest CPC?" → Correct entity, "worst performer" language
+  - ❌ Test 18: Still requires named entity filtering (documented as known limitation)
+- **Architecture**: Separation of concerns - DSL handles literal sorting, Answer Builder handles performance interpretation
 
 ### 2025-10-08T22:00:00Z - Phase 3: Graceful Missing Data Handling
 - Added `app/dsl/executor.py`: `get_available_platforms()` helper function
