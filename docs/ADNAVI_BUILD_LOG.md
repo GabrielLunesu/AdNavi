@@ -208,7 +208,9 @@ _Last updated: 2025-10-05T12:00:00Z_
     - `backend/qa_test_suite.md`: Question list organized by category (40 starter questions)
     - `backend/run_qa_tests.sh`: Bash script that runs questions and logs results
     - `backend/QA_TESTING_README.md`: Simple usage instructions
-    - `backend/qa_test_results.md`: Auto-generated results file (answers + DSL)
+    - `backend/test-results/`: Directory for test results
+    - `backend/test-results/qa_test_results.md`: Auto-generated results file (answers + DSL)
+    - `backend/test-results/README.md`: Directory explanation
   - **Features**:
     - ✅ Run all questions with one command: `./run_qa_tests.sh`
     - ✅ Logs both answer and DSL for each question

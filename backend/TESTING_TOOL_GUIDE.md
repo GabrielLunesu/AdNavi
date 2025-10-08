@@ -31,11 +31,12 @@ Simple bash script that:
 - Logs answer + DSL to `qa_test_results.md`
 - Shows progress with colored output (✓ green, ✗ red)
 
-### 3. `qa_test_results.md` - Auto-Generated Results
-Markdown file with timestamped results showing:
+### 3. `test-results/qa_test_results.md` - Auto-Generated Results
+Saved in `test-results/` folder, timestamped results showing:
 - Question
 - Answer (what the AI said)
 - DSL (how it was translated)
+- All results organized in one markdown file
 
 ---
 
@@ -74,7 +75,7 @@ You'll see:
 
 ### Step 3: Review Results
 ```bash
-cat qa_test_results.md
+cat test-results/qa_test_results.md
 ```
 
 Or open in your IDE to see formatted markdown!

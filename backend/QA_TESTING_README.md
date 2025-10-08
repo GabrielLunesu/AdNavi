@@ -19,7 +19,7 @@ cd backend
 
 ### 3. View Results
 ```bash
-cat qa_test_results.md
+cat test-results/qa_test_results.md
 ```
 
 ---
@@ -28,7 +28,7 @@ cat qa_test_results.md
 
 1. **Questions**: Edit `qa_test_suite.md` to add/remove questions
 2. **Script**: `run_qa_tests.sh` reads questions and calls API
-3. **Results**: `qa_test_results.md` logs answers + DSL for each question
+3. **Results**: `test-results/qa_test_results.md` logs answers + DSL for each question
 4. **Repeat**: Run script anytime to test changes
 
 ---

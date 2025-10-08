@@ -1,11 +1,14 @@
 #!/bin/bash
 # Simple QA Test Runner
-# Reads questions from qa_test_suite.md and logs results
 
 WORKSPACE_ID="914019de-2190-4fcc-855a-d1e719d05cdc"
 API_URL="http://localhost:8000/qa/?workspace_id=$WORKSPACE_ID"
 COOKIE_FILE="../cookies.txt"
-OUTPUT_FILE="qa_test_results.md"
+TEST_RESULTS_DIR="test-results"
+OUTPUT_FILE="$TEST_RESULTS_DIR/qa_test_results.md"
+
+# Create test-results directory if it doesn't exist
+mkdir -p "$TEST_RESULTS_DIR"
 
 # Colors for terminal output
 GREEN='\033[0;32m'
