@@ -51,6 +51,20 @@ QUESTIONS=(
     "How much revenue did I generate today?"
     "What's my conversion rate?"
     "How many clicks did I get last week?"
+    "How much profit did I make last week?"
+    "How many leads did I generate this month?"
+    "What is my cost per lead this month?"
+    "Which campaign had the highest ROAS last week?"
+    "What's my ROAS for Google campaigns only?"
+    "Which campaign spent the most yesterday?"
+    "List all active campaigns"
+    "Which ad has the highest CTR?"
+    "Show me campaigns with ROAS above 4"
+    "Which campaign generated the most leads?"
+    "Rank platforms by cost per conversion"
+    "give me a breakdown of holiday campaign performance"
+    "what is my average order value?"
+   
     
     # Comparisons
     "How does this week compare to last week?"
@@ -61,11 +75,14 @@ QUESTIONS=(
     "Which campaign had the highest ROAS last week?"
     "Show me top 5 campaigns by revenue"
     "List all active campaigns"
-    
-    # Analytical
-    "Why is my ROAS volatile?"
-    "Explain my spend trend"
-    
+    "Which adset had the highest cpc last week?"
+    "Which adset had the lowest ctr last week?"
+    "Which adset had the highest ctr last week?"
+    "Which adset had the lowest cpc last week?"
+    "Which adset had the highest cpc last week?"
+    "Which adset had the lowest ctr last week?"
+    "what is my total CVR last month?"
+        
     # Filters
     "What's my ROAS for active campaigns?"
     "How much did I spend on Meta ads?"
@@ -74,6 +91,13 @@ QUESTIONS=(
     "How much revenue on Google last week?"
     "What's my cost per install?"
     "How many leads did I generate today?"
+
+    # User generated Questions
+    "wich ad had the lowest cpc last week?"
+    "What time on average do i get the best cpc?"
+    "how much revenue would i have last week if my cpc was 0.20?"
+    ""
+
 )
 
 total=${#QUESTIONS[@]}
