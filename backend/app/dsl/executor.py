@@ -615,6 +615,9 @@ def _calculate_workspace_avg(
     WHY: Provides comparison baseline for "above/below average" context
     WHERE: Called by _execute_metrics_plan() during metrics query execution
     
+    CRITICAL: This function must NOT apply any filters from the original query.
+    It should calculate the metric across ALL entities in the workspace.
+    
     ARGS:
         db: Database session
         workspace_id: Workspace UUID (tenant isolation)
@@ -624,20 +627,11 @@ def _calculate_workspace_avg(
     RETURNS:
         float: Workspace average for the metric, or None if cannot compute
     
-    LOGIC:
-        1. Aggregate ALL entities in workspace (no filters)
-        2. Compute metric using same formula as query
-        3. Return single average value
-    
     EXAMPLE:
-        Query: "What's ROAS for Campaign X?"
-        Workspace avg: ROAS across ALL campaigns = 2.30×
-        Context: "Your Campaign X ROAS (2.45×) is above workspace average (2.30×)"
-    
-    PERFORMANCE:
-        - Uses same base query as main execution
-        - Single aggregation (fast, <10ms typically)
-        - Cached by query_cache (future enhancement)
+        Query: "What's ROAS for Google campaigns?" (filter: provider=google)
+        Main query summary: 4.2× (Google only)
+        workspace_avg: 3.8× (ALL platforms)
+        Result: Different values ✅
     
     REFERENCES:
         - Uses: app/metrics/registry.py::compute_metric()
@@ -650,42 +644,56 @@ def _calculate_workspace_avg(
         # Get required base measures for this metric
         dependencies = get_required_bases(metric)
         if not dependencies:
-            return None  # Unknown metric
+            logger.warning(f"[WORKSPACE_AVG] Unknown metric: {metric}")
+            return None
         
-        # Base query: all entities in workspace
+        logger.info(f"[WORKSPACE_AVG] Calculating for metric: {metric}")
+        logger.info(f"[WORKSPACE_AVG] Dependencies: {dependencies}")
+        logger.info(f"[WORKSPACE_AVG] Time range: start={time_range.start}, end={time_range.end}, last_n_days={time_range.last_n_days}")
+        
+        # Base query: ALL entities in workspace (NO FILTERS except workspace_id and time)
+        # CRITICAL: Do NOT apply provider, level, status, or entity_ids filters
         query = (
             db.query(
                 *[func.coalesce(func.sum(getattr(MF, dep)), 0).label(dep) 
                   for dep in dependencies]
             )
             .join(E, E.id == MF.entity_id)
-            .filter(E.workspace_id == workspace_id)
+            .filter(E.workspace_id == workspace_id)  # ✅ Only workspace filter
         )
         
-        # Apply time range filter
+        logger.info(f"[WORKSPACE_AVG] Query filters: workspace_id={workspace_id}")
+        
+        # Apply time range filter (but NO other filters)
         if time_range.start and time_range.end:
             query = query.filter(
                 cast(MF.event_date, Date).between(
                     time_range.start, time_range.end
                 )
             )
+            logger.info(f"[WORKSPACE_AVG] Time filter: {time_range.start} to {time_range.end}")
         elif time_range.last_n_days:
             cutoff = datetime.now() - timedelta(days=time_range.last_n_days)
             query = query.filter(
                 cast(MF.event_date, Date) >= cutoff.date()
             )
+            logger.info(f"[WORKSPACE_AVG] Time filter: last {time_range.last_n_days} days")
         
         # Execute
         row = query.first()
         if not row:
+            logger.warning(f"[WORKSPACE_AVG] No data found for workspace {workspace_id}")
             return None
         
         # Compute metric (with divide-by-zero protection)
         base_measures = {dep: getattr(row, dep) or 0 for dep in dependencies}
         workspace_avg = compute_metric(metric, base_measures)
         
+        logger.info(f"[WORKSPACE_AVG] Base measures: {base_measures}")
+        logger.info(f"[WORKSPACE_AVG] Calculated workspace avg: {workspace_avg}")
+        
         return workspace_avg
     
     except Exception as e:
-        logger.error(f"Failed to calculate workspace avg for {metric}: {e}")
+        logger.error(f"[WORKSPACE_AVG] Failed to calculate workspace avg for {metric}: {e}")
         return None

@@ -19,7 +19,7 @@ Related files:
 from __future__ import annotations
 
 from enum import Enum
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import Literal, Optional, List, Dict, Union
 from datetime import date
 
@@ -271,7 +271,7 @@ class MetricQuery(BaseModel):
         description="Include previous period comparison for delta calculation (metrics only)"
     )
     
-    group_by: Literal["none", "campaign", "adset", "ad"] = Field(
+    group_by: Literal["none", "provider", "campaign", "adset", "ad"] = Field(
         default="none",
         description="Grouping dimension (none = single aggregate value)"
     )
@@ -297,6 +297,33 @@ class MetricQuery(BaseModel):
         default=None,
         description="Optional significance guards for breakdowns (min spend/clicks/conversions)"
     )
+    
+    # NEW in Phase 1.1
+    question: Optional[str] = Field(None, description="Original user question for tense/context")
+    timeframe_description: Optional[str] = Field(None, description="Natural language timeframe like 'last week', 'today'")
+    
+    @model_validator(mode='after')
+    def set_timeframe_description(self):
+        """Auto-generate timeframe description from time_range."""
+        time_range = self.time_range
+        if time_range and not self.timeframe_description:
+            if hasattr(time_range, 'last_n_days') and time_range.last_n_days:
+                if time_range.last_n_days == 1:
+                    self.timeframe_description = 'today'
+                elif time_range.last_n_days == 7:
+                    self.timeframe_description = 'last week'
+                elif time_range.last_n_days == 30:
+                    self.timeframe_description = 'last month'
+                elif time_range.last_n_days == 90:
+                    self.timeframe_description = 'last quarter'
+                elif time_range.last_n_days == 365:
+                    self.timeframe_description = 'last year'
+                else:
+                    self.timeframe_description = f'last {time_range.last_n_days} days'
+            elif hasattr(time_range, 'start') and hasattr(time_range, 'end') and time_range.start and time_range.end:
+                # Format dates nicely
+                self.timeframe_description = f'from {time_range.start} to {time_range.end}'
+        return self
     
     def model_dump_json_schema(self) -> dict:
         """Export JSON Schema for LLM structured outputs."""

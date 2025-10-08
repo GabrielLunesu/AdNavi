@@ -1,8 +1,17 @@
 # QA System Architecture & DSL Specification
 
-**Version**: DSL v1.4 (Highest By v2.0) + Thresholds + Provider Breakdown  
-**Last Updated**: 2025-10-05  
-**Status**: Production Ready
+**Version**: DSL v2.1.1 (Intent-Based Answers - Phase 1.1)  
+**Last Updated**: 2025-10-08  
+**Status**: Production Ready - Natural Copilot Phase 1.1 Implemented
+
+✅ **Phase 1 Complete**: Intent-based answer depth implemented. Simple questions now get simple answers (1 sentence), comparative questions get comparisons (2-3 sentences), analytical questions get full context (3-4 sentences).
+
+✅ **Phase 1.1 Complete**: Critical fixes for natural language quality:
+- Timeframe context in all answers ("last week", "yesterday", "today")
+- Correct verb tense based on timeframe (was/is/will be)
+- Fixed analytical intent detection for volatility questions
+- Natural fallback templates ("You spent" vs "Your SPEND")
+- Platform comparison queries working correctly
 
 ---
 
@@ -244,42 +253,91 @@ WHERE e.workspace_id = :workspace_id
 
 Used by both AnswerBuilder (GPT prompts) and QAService (fallback templates).
 
-### 1️⃣3️⃣ **Answer Generation (Hybrid)** (`app/answer/answer_builder.py`)
+### 1️⃣2️⃣½ **Intent Classification** (`app/answer/intent_classifier.py`) **NEW in Phase 1**
 
-**Hybrid approach** (deterministic facts + LLM rephrasing):
+**Purpose**: Match answer depth to user's question intent
 
-**Process:**
-1. **Extract facts** deterministically from results
+**Classification Logic** (keyword + DSL analysis):
+
+- **SIMPLE Intent** → 1 sentence answer
+  - Keywords: "what was", "how much", "show me"
+  - DSL: No comparison, no breakdown
+  - Example: "what was my roas" → "Your ROAS last month was 3.88×"
+
+- **COMPARATIVE Intent** → 2-3 sentence answer with comparison
+  - Keywords: "compare", "vs", "which", "better", "worse"
+  - DSL: Has comparison OR breakdown
+  - Example: "which campaign had highest roas" → "Summer Sale had the highest ROAS at 3.20× during the period. Overall you're at 2.88×"
+
+- **ANALYTICAL Intent** → 3-4 sentence answer with full insights
+  - Keywords: "why", "explain", "analyze", "trend", "pattern"
+  - DSL: Any query type
+  - Example: "why is my roas volatile" → "Your ROAS has been quite volatile this month, swinging from 1.38× to 5.80×. The swings are coming from Meta campaigns showing inconsistent performance. Your overall average of 3.88× is on par with your workspace norm, but the volatility suggests reviewing your bidding strategy"
+
+**Design**:
+- Simple keyword matching (no ML)
+- Combines question text + DSL structure
+- Fast (<1ms), deterministic
+- Easy to debug and extend
+
+**Benefits**:
+- ✅ Simple questions get simple answers
+- ✅ No over-contextualization
+- ✅ Better user experience
+- ✅ Matches user expectations
+
+### 1️⃣3️⃣ **Answer Generation (Hybrid + Intent-Based)** (`app/answer/answer_builder.py`)
+
+**Hybrid approach** (deterministic facts + LLM rephrasing + intent filtering):
+
+**Process (Phase 1):**
+1. **Classify intent** using question + DSL
+   - SIMPLE: Just want the number
+   - COMPARATIVE: Want comparison
+   - ANALYTICAL: Want understanding
+
+2. **Extract facts** deterministically from results
    - Summary value, delta %, top performer
    - No hallucinations possible (validated DB results)
 
-2. **Format values** using shared formatters
+3. **Filter context** based on intent
+   - SIMPLE: Only metric name + value
+   - COMPARATIVE: + comparison + top performer
+   - ANALYTICAL: Full rich context (trends, outliers, workspace avg)
+
+4. **Select intent-specific prompt**
+   - SIMPLE_ANSWER_PROMPT: "Answer in ONE sentence"
+   - COMPARATIVE_ANSWER_PROMPT: "2-3 sentences with comparison"
+   - ANALYTICAL_ANSWER_PROMPT: "3-4 sentences with insights"
+
+5. **Format values** using shared formatters
    - Currency: CPC = 0.4794 → "$0.48" (prevents "$0" bug)
    - Ratios: ROAS = 2.456 → "2.46×"
    - Percentages: CTR = 0.042 → "4.2%"
    - Counts: clicks = 1234 → "1,234"
    - GPT receives **both raw and formatted** values
-   - System prompt: "Always prefer formatted values"
 
-3. **LLM rephrase** with GPT-4o-mini
+6. **LLM rephrase** with GPT-4o-mini
    - Temperature: 0.3 (natural but controlled)
    - Strict instructions: "Do NOT invent numbers or formatting"
-   - Max tokens: 150 (concise, 2-3 sentences)
+   - Max tokens: 200 (enough for analytical answers)
 
-4. **Fallback** to template if LLM fails
+7. **Fallback** to template if LLM fails
    - Always returns an answer
    - Uses same formatters for consistency
    - Robotic but safe
 
-**Examples:**
-- **LLM version**: `"Your CPC is $0.48, up 15.5% from the previous period."`
-- **Template fallback**: `"Your CPC for the selected period is $0.48. That's a +15.5% change vs the previous period."`
+**Examples by Intent:**
+- **SIMPLE**: `"Your ROAS last month was 3.88×"` (1 sentence)
+- **COMPARATIVE**: `"Your ROAS is 2.45× this week, up 19% from last week's 2.06×—nice improvement"` (2 sentences)
+- **ANALYTICAL**: `"Your ROAS has been quite volatile this month, swinging from 1.38× to 5.80×. The volatility is coming from your Meta campaigns. Your overall average of 3.88× is on par with your workspace norm, but the wide swings suggest reviewing your bidding strategy"` (3 sentences)
 
 **Safety:**
 - ✅ LLM cannot invent numbers
 - ✅ LLM cannot invent formatting
 - ✅ Deterministic extraction ensures accuracy
 - ✅ Fallback ensures reliability
+- ✅ Intent-based filtering prevents over-verbosity
 
 ### 1️⃣4️⃣ **Context Storage** (`app/context/context_manager.py`)
 - Saves conversation history for future follow-ups
@@ -885,6 +943,22 @@ backend/app/
 
 ---
 
+## Active Development
+
+🚀 **See [ROADMAP_TO_NATURAL_COPILOT.md](./ROADMAP_TO_NATURAL_COPILOT.md)** for the complete plan to achieve natural, context-appropriate answers.
+
+**Current Focus** (Week 1):
+- Fix workspace average calculation bug
+- Implement intent-based answer depth (simple/comparative/analytical)
+- Make answers natural, not robotic
+
+**Next Steps** (Weeks 2-4):
+- Natural language polish
+- Expand question coverage (questions 61-75)
+- Systematic testing & validation
+
+---
+
 ## Future Enhancements
 
 ### Immediate Enhancements (DSL v1.4+)
@@ -1010,6 +1084,42 @@ Try the `/qa` endpoint with:
 ---
 
 ## Changelog
+
+### 2025-10-08T18:00:00Z - Phase 1.1: Critical Natural Language Fixes
+- Added `timeframe_description` and `question` fields to `app/dsl/schema.py` MetricQuery
+- Updated `app/nlp/translator.py`: Pass original question to DSL for tense detection
+- Enhanced `app/answer/intent_classifier.py`: Added VerbTense enum and detect_tense() function
+- Fixed analytical keywords: Added "fluctuating", "swinging", "unstable", "erratic"
+- Updated `app/answer/answer_builder.py`: Extract and pass timeframe/tense to all prompts
+- Updated `app/nlp/prompts.py`: All 3 intent prompts now include timeframe/tense rules
+- Added platform comparison DSL examples for "compare google vs meta"
+- Fixed `app/dsl/schema.py`: Added "provider" to group_by literal options
+- Enhanced `app/services/qa_service.py`: Natural fallback templates with tense awareness
+- Fixed Pydantic v2 compatibility: @root_validator → @model_validator(mode='after')
+- **Results**: 
+  - ✅ Answers include timeframe: "Your ROAS was 4.36× last week"
+  - ✅ Correct verb tense: "was" for past, "is" for present
+  - ✅ Analytical questions get full analysis (3-4 sentences)
+  - ✅ Platform comparisons work correctly
+  - ✅ Natural fallback: "You spent $X" instead of "Your SPEND for..."
+
+### 2025-10-08T14:00:00Z - Phase 1: Intent-Based Answers (Natural Copilot)
+- Added `app/answer/intent_classifier.py`: Classify questions as SIMPLE/COMPARATIVE/ANALYTICAL
+- Updated `app/answer/answer_builder.py`: Intent-based context filtering and prompt selection
+- Updated `app/nlp/prompts.py`: Added 3 intent-specific prompts (SIMPLE/COMPARATIVE/ANALYTICAL)
+- Updated `app/dsl/executor.py`: Enhanced workspace avg logging with [WORKSPACE_AVG] prefix
+- Created `app/tests/test_intent_classifier.py`: 30+ tests for intent classification
+- Created `app/tests/test_workspace_avg.py`: 6 tests for workspace avg bug verification
+- Created `app/tests/test_phase1_manual.py`: Manual testing script for Phase 1
+- **Benefits**:
+  - Simple questions get 1-sentence answers (no more over-verbosity)
+  - Comparative questions get 2-3 sentences with comparison context
+  - Analytical questions get 3-4 sentences with full insights
+  - Answer depth now matches user intent
+- **Examples**:
+  - "what was my roas" → "Your ROAS last month was 3.88×" ✅
+  - "compare google vs meta" → "Google's at $0.32 CPC while Meta's at $0.51. Overall you're at $0.42" ✅
+  - "why is my roas volatile" → Full 3-4 sentence analysis with trends and recommendations ✅
 
 ### 2025-10-05T20:00:00Z - Highest By v2.0
 - Added `app/dsl/schema.py`: Thresholds model, provider to breakdown options

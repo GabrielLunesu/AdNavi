@@ -297,6 +297,11 @@ class QAService:
         NEW v2.0: window parameter
         - Accepts optional date window for including date range in fallback answers
         
+        NEW Phase 1.1: Natural fallback templates
+        - Uses timeframe_description and tense detection
+        - More natural language ("You spent" vs "Your SPEND")
+        - Correct verb tenses based on timeframe
+        
         DSL v1.2 changes:
         - Handles providers queries: "You are running ads on Google, Meta, TikTok."
         - Handles entities queries: "Here are your campaigns: Summer Sale, Winter Promo, ..."
@@ -307,7 +312,7 @@ class QAService:
             result: MetricResult (metrics) or dict (providers/entities) from execution
             
         Returns:
-            Human-readable answer text (template-based, robotic)
+            Human-readable answer text (template-based, more natural)
             
         Design:
         - Deterministic (no LLM, no randomness)
@@ -319,6 +324,8 @@ class QAService:
         - Primary: app/answer/answer_builder.py (LLM-based, preferred)
         - Used when: AnswerBuilder raises AnswerBuilderError
         """
+        # Import tense detection
+        from app.answer.intent_classifier import detect_tense, VerbTense
         # DSL v1.2: Handle providers queries
         # Example: "Which platforms am I advertising on?"
         # Result: {"providers": ["google", "meta", "tiktok"]}
@@ -420,14 +427,61 @@ class QAService:
             
             return answer
         
-        # Default answer format (for non-top-n-1 queries)
-        answer = f"Your {metric_display} for the selected period is {value_str}."
+        # Get timeframe and tense
+        timeframe = getattr(dsl, 'timeframe_description', '')
+        question = getattr(dsl, 'question', '')
+        tense = detect_tense(question, timeframe)
+        
+        # Natural metric names
+        natural_names = {
+            "ROAS": "ROAS",
+            "CPC": "cost per click", 
+            "CPA": "cost per acquisition",
+            "CTR": "click-through rate",
+            "SPEND": "ad spend",
+            "REVENUE": "revenue",
+            "CLICKS": "clicks",
+            "IMPRESSIONS": "impressions",
+            "CONVERSIONS": "conversions",
+            "CVR": "conversion rate",
+            "CPM": "cost per thousand impressions",
+            "CPL": "cost per lead",
+            "CPI": "cost per install",
+            "CPP": "cost per purchase",
+            "POAS": "profit on ad spend",
+            "AOV": "average order value",
+            "ARPV": "average revenue per visitor"
+        }
+        
+        metric_natural = natural_names.get(metric_display, metric_display.lower())
+        
+        # Build natural sentence based on tense and metric type
+        if tense == VerbTense.PAST:
+            if metric_display == "SPEND":
+                answer = f"You spent {value_str}{' ' + timeframe if timeframe else ''}."
+            elif metric_display == "REVENUE":
+                answer = f"You generated {value_str} in revenue{' ' + timeframe if timeframe else ''}."
+            elif metric_display == "CLICKS":
+                answer = f"You got {value_str} clicks{' ' + timeframe if timeframe else ''}."
+            elif metric_display == "IMPRESSIONS":
+                answer = f"Your ads received {value_str} impressions{' ' + timeframe if timeframe else ''}."
+            elif metric_display == "CONVERSIONS":
+                answer = f"You had {value_str} conversions{' ' + timeframe if timeframe else ''}."
+            else:
+                # For ratio/rate metrics
+                answer = f"Your {metric_natural} was {value_str}{' ' + timeframe if timeframe else ''}."
+        else:  # PRESENT or FUTURE
+            verb = "is" if tense == VerbTense.PRESENT else "will be"
+            answer = f"Your {metric_natural} {verb} {value_str}{' ' + timeframe if timeframe else ''}."
         
         # Add comparison if available (using shared formatters)
         # WHY format_delta_pct: Consistent with AnswerBuilder, includes sign (+/-)
         if delta_pct is not None:
             delta_display = format_delta_pct(delta_pct)
-            answer += f" That's a {delta_display} change vs the previous period."
+            if tense == VerbTense.PAST:
+                answer += f" That was a {delta_display} change from the previous period."
+            else:
+                answer += f" That's a {delta_display} change from the previous period."
         
         # Mention breakdown if available
         if breakdown and len(breakdown) > 0:

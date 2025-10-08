@@ -199,6 +199,9 @@ Output the JSON DSL:"""
                 raw_response=raw_content
             )
         
+        # NEW: Add original question for tense detection
+        dsl_dict['question'] = question
+        
         # Step 6: Validate via Pydantic
         # This will raise DSLValidationError if invalid
         validated_dsl = validate_dsl(dsl_dict)

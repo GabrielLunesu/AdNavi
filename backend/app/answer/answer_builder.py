@@ -39,7 +39,13 @@ from app.dsl.schema import MetricQuery, MetricResult
 from app.deps import get_settings
 from app.answer.formatters import format_metric_value, format_delta_pct, fmt_currency, fmt_count
 from app.answer.context_extractor import extract_rich_context  # NEW in v2.0.1
-from app.nlp.prompts import ANSWER_GENERATION_PROMPT  # NEW in v2.0.1
+from app.answer.intent_classifier import classify_intent, AnswerIntent, explain_intent, VerbTense, detect_tense  # NEW in Phase 1
+from app.nlp.prompts import (
+    ANSWER_GENERATION_PROMPT,  # Existing (fallback for analytical)
+    SIMPLE_ANSWER_PROMPT,      # NEW in Phase 1
+    COMPARATIVE_ANSWER_PROMPT, # NEW in Phase 1
+    ANALYTICAL_ANSWER_PROMPT   # NEW in Phase 1
+)
 
 logger = logging.getLogger(__name__)
 
@@ -216,31 +222,65 @@ class AnswerBuilder:
         start_time = time.time() if log_latency else None
         
         try:
-            # Step 1: Extract context or facts based on query type
-            # WHY v2.0.1 change: Metrics queries now use rich context for better answers
+            # Step 1: Classify intent (NEW in Phase 1)
+            question = getattr(dsl, 'question', None) or f"What is my {dsl.metric}?"
+            intent = classify_intent(question, dsl)
+            
+            # NEW Step 1.5: Detect tense and get timeframe
+            timeframe_desc = getattr(dsl, 'timeframe_description', None) or ""
+            tense = detect_tense(question, timeframe_desc)
+            
+            logger.info(
+                f"[INTENT] Classified as {intent.value} with {tense.value} tense: {explain_intent(intent)}",
+                extra={"question": question, "intent": intent.value, "tense": tense.value, "timeframe": timeframe_desc}
+            )
+            
+            # Step 2: Extract context and build prompt based on query type and intent
             if dsl.query_type == "metrics":
-                # NEW v2.0.1: Use rich context extractor for metrics
+                # Extract rich context
                 context = extract_rich_context(
                     result=result,
                     query=dsl,
                     workspace_avg=result.workspace_avg if isinstance(result, MetricResult) else None
                 )
                 
-                logger.info(
-                    "Extracted rich context for answer generation",
-                    extra={
-                        "metric": context.metric_name,
-                        "performance": context.performance_level,
-                        "has_comparison": context.comparison is not None,
-                        "has_workspace_comparison": context.workspace_comparison is not None,
-                        "has_trend": context.trend is not None,
-                        "has_outliers": len(context.outliers) > 0
+                # Filter context based on intent (NEW in Phase 1)
+                if intent == AnswerIntent.SIMPLE:
+                    # SIMPLE: Only basic value, no extra context
+                    filtered_context = {
+                        "metric_name": context.metric_name,
+                        "metric_value": context.metric_value,
+                        "metric_value_raw": context.metric_value_raw,
+                        "timeframe": timeframe_desc,  # NEW
+                        "tense": tense.value  # NEW
                     }
-                )
+                    system_prompt = SIMPLE_ANSWER_PROMPT
+                    user_prompt = self._build_simple_prompt(filtered_context, question)
+                    
+                elif intent == AnswerIntent.COMPARATIVE:
+                    # COMPARATIVE: Include comparison + top performer, skip trends
+                    filtered_context = {
+                        "metric_name": context.metric_name,
+                        "metric_value": context.metric_value,
+                        "metric_value_raw": context.metric_value_raw,
+                        "comparison": context.comparison,
+                        "workspace_comparison": context.workspace_comparison,
+                        "top_performer": context.top_performer,
+                        "performance_level": context.performance_level,
+                        "timeframe": timeframe_desc,  # NEW
+                        "tense": tense.value  # NEW
+                    }
+                    system_prompt = COMPARATIVE_ANSWER_PROMPT
+                    user_prompt = self._build_comparative_prompt(filtered_context, question)
+                    
+                else:  # ANALYTICAL
+                    # ANALYTICAL: Include everything (full rich context)
+                    system_prompt = ANALYTICAL_ANSWER_PROMPT
+                    user_prompt = self._build_rich_context_prompt(context, dsl)
                 
-                # Build prompt with rich context
-                user_prompt = self._build_rich_context_prompt(context, dsl)
-                system_prompt = ANSWER_GENERATION_PROMPT  # NEW in v2.0.1
+                logger.info(
+                    f"[INTENT] Using {intent.value} prompt with filtered context"
+                )
                 
             elif dsl.query_type == "providers":
                 facts = self._extract_providers_facts(result)
@@ -272,7 +312,10 @@ class AnswerBuilder:
             if log_latency and start_time:
                 latency_ms = int((time.time() - start_time) * 1000)
             
-            logger.info(f"Generated natural answer ({len(answer_text)} chars) in {latency_ms}ms")
+            logger.info(
+                f"[ANSWER] Generated {intent.value if dsl.query_type == 'metrics' else 'default'} answer "
+                f"({len(answer_text)} chars) in {latency_ms}ms"
+            )
             
             return answer_text, latency_ms
             
@@ -664,4 +707,69 @@ Facts: {facts}
 
 Please rephrase these facts into a natural, helpful answer for a marketer.
 Remember: Use only the provided facts, do not invent any numbers."""
+    
+    def _build_simple_prompt(self, context: Dict[str, Any], question: str) -> str:
+        """
+        Build user prompt for SIMPLE intent answers.
+        
+        WHY: Simple questions need minimal context to avoid verbose answers
+        WHAT: Only includes metric name and value, nothing else
+        WHERE: Called by build_answer() when intent=SIMPLE
+        
+        Args:
+            context: Filtered context with only basic fields
+            question: Original user question
+            
+        Returns:
+            Minimal prompt for GPT
+            
+        Example:
+            context = {
+                "metric_name": "ROAS",
+                "metric_value": "3.88×",
+                "metric_value_raw": 3.88
+            }
+            
+            Output prompt:
+            "The user asked: 'what was my roas last month'
+             
+             Answer with ONE sentence stating the fact:
+             Metric: ROAS
+             Value: 3.88×"
+        """
+        return f"""The user asked: "{question}"
+
+Answer with ONE sentence stating the fact.
+
+CONTEXT:
+{json.dumps(context, indent=2)}
+
+Remember: Just the fact. One sentence. No analysis."""
+    
+    def _build_comparative_prompt(self, context: Dict[str, Any], question: str) -> str:
+        """
+        Build user prompt for COMPARATIVE intent answers.
+        
+        WHY: Comparative questions need comparison context but not full analysis
+        WHAT: Includes metric value, comparison data, and top performer
+        WHERE: Called by build_answer() when intent=COMPARATIVE
+        
+        Args:
+            context: Filtered context with comparison fields
+            question: Original user question
+            
+        Returns:
+            Moderate prompt for GPT with comparison context
+        """
+        # Filter out None values
+        filtered = {k: v for k, v in context.items() if v is not None}
+        
+        return f"""The user asked: "{question}"
+
+Provide a natural answer with comparison context (2-3 sentences).
+
+CONTEXT:
+{json.dumps(filtered, indent=2)}
+
+Remember: Include comparison, keep it conversational, 2-3 sentences max."""
 
