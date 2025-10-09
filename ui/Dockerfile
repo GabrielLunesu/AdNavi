@@ -18,6 +18,9 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
+# Install curl for healthchecks
+RUN apk add --no-cache curl
+
 # Create non-root user
 RUN addgroup -S nodejs && adduser -S nextjs -G nodejs
 
