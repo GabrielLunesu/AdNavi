@@ -13,6 +13,11 @@ services:
       resources:
         reservations:
           memory: 512M
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3000/', (r) => process.exit(r.statusCode === 404 ? 0 : 1))\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   backend:
     build:
@@ -33,3 +38,8 @@ services:
       resources:
         reservations:
           memory: 512M
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
