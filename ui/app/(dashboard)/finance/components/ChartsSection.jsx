@@ -1,56 +1,100 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Chart, registerables } from "chart.js";
+import { fetchWorkspaceKpis } from "../../../../lib/api";
+import { currentUser } from "../../../../lib/auth";
 
 Chart.register(...registerables);
 
 export default function ChartsSection() {
-  const budgetChartRef = useRef(null);
+  const revenueChartRef = useRef(null);
   const profitChartRef = useRef(null);
-  const budgetChartInstance = useRef(null);
+  const revenueChartInstance = useRef(null);
   const profitChartInstance = useRef(null);
+  const [workspaceId, setWorkspaceId] = useState(null);
+  const [revenueData, setRevenueData] = useState(null);
+  const [conversionsData, setConversionsData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch workspace ID and revenue data
+  useEffect(() => {
+    let mounted = true;
+    
+    currentUser().then(user => {
+      if (!mounted || !user) return;
+      setWorkspaceId(user.workspace_id);
+      
+      // Fetch last 7 days of revenue data
+      return fetchWorkspaceKpis({
+        workspaceId: user.workspace_id,
+        metrics: ['revenue', 'conversions'],
+        lastNDays: 7,
+        dayOffset: 0,
+        compareToPrevious: false,
+        sparkline: true
+      });
+    }).then(data => {
+      if (!mounted || !data) return;
+      
+      const revenueMetric = data.find(m => m.key === 'revenue');
+      const conversionsMetric = data.find(m => m.key === 'conversions');
+      
+      setRevenueData(revenueMetric);
+      setConversionsData(conversionsMetric);
+      setLoading(false);
+    }).catch(err => {
+      console.error('Failed to fetch revenue data:', err);
+      setLoading(false);
+    });
+    
+    return () => { mounted = false; };
+  }, []);
 
   useEffect(() => {
-    // Budget vs Actual Chart
-    if (budgetChartRef.current) {
-      const ctx = budgetChartRef.current.getContext('2d');
+    // Revenue Chart (Last 7 Days)
+    if (revenueChartRef.current && revenueData && !loading) {
+      const ctx = revenueChartRef.current.getContext('2d');
       
-      if (budgetChartInstance.current) {
-        budgetChartInstance.current.destroy();
+      if (revenueChartInstance.current) {
+        revenueChartInstance.current.destroy();
       }
       
-      budgetChartInstance.current = new Chart(ctx, {
-        type: 'line',
+      // Get last 7 days labels
+      const getDayLabels = () => {
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const labels = [];
+        const today = new Date();
+        
+        for (let i = 6; i >= 0; i--) {
+          const date = new Date(today);
+          date.setDate(date.getDate() - i);
+          labels.push(days[date.getDay()]);
+        }
+        
+        return labels;
+      };
+      
+      const labels = getDayLabels();
+      const revenueValues = revenueData.sparkline ? revenueData.sparkline.map(sp => sp.value || 0) : [];
+      const conversionsValues = conversionsData && conversionsData.sparkline ? conversionsData.sparkline.map(sp => sp.value || 0) : [];
+      
+      // Calculate totals for legend
+      const totalRevenue = revenueValues.reduce((sum, val) => sum + val, 0);
+      const totalConversions = conversionsValues.reduce((sum, val) => sum + val, 0);
+      
+      revenueChartInstance.current = new Chart(ctx, {
+        type: 'bar',
         data: {
-          labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+          labels: labels,
           datasets: [
             {
-              label: 'Planned',
-              data: [2500, 2500, 2500, 2600],
+              label: `Revenue: $${totalRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`,
+              data: revenueValues,
+              backgroundColor: 'rgba(6, 182, 212, 0.8)',
               borderColor: '#06B6D4',
-              backgroundColor: 'rgba(6, 182, 212, 0.1)',
-              borderWidth: 2,
-              tension: 0.4,
-              fill: false,
-              pointRadius: 5,
-              pointHoverRadius: 7,
-              pointBackgroundColor: '#06B6D4',
-              pointBorderColor: '#fff',
-              pointBorderWidth: 2
-            },
-            {
-              label: 'Actual',
-              data: [2380, 2420, 2510, 2790],
-              borderColor: '#0B0B0B',
-              backgroundColor: 'rgba(11, 11, 11, 0.05)',
-              borderWidth: 2,
-              tension: 0.4,
-              fill: false,
-              pointRadius: 5,
-              pointHoverRadius: 7,
-              pointBackgroundColor: '#0B0B0B',
-              pointBorderColor: '#fff',
-              pointBorderWidth: 2
+              borderWidth: 0,
+              borderRadius: 8,
+              barPercentage: 0.7
             }
           ]
         },
@@ -64,7 +108,8 @@ export default function ChartsSection() {
               labels: {
                 usePointStyle: true,
                 padding: 20,
-                font: { size: 12, weight: '500' }
+                font: { size: 12, weight: '500' },
+                color: '#0B0B0B'
               }
             },
             tooltip: {
@@ -77,7 +122,7 @@ export default function ChartsSection() {
               displayColors: true,
               callbacks: {
                 label: function(context) {
-                  return context.dataset.label + ': €' + context.parsed.y.toLocaleString();
+                  return 'Revenue: $' + context.parsed.y.toLocaleString(undefined, { maximumFractionDigits: 0 });
                 }
               }
             }
@@ -93,7 +138,7 @@ export default function ChartsSection() {
                 color: '#737373',
                 font: { size: 11 },
                 callback: function(value) {
-                  return '€' + value.toLocaleString();
+                  return '$' + value.toLocaleString(undefined, { maximumFractionDigits: 0 });
                 }
               }
             }
@@ -189,30 +234,36 @@ export default function ChartsSection() {
     }
 
     return () => {
-      if (budgetChartInstance.current) {
-        budgetChartInstance.current.destroy();
+      if (revenueChartInstance.current) {
+        revenueChartInstance.current.destroy();
       }
       if (profitChartInstance.current) {
         profitChartInstance.current.destroy();
       }
     };
-  }, []);
+  }, [revenueData, conversionsData, loading]);
 
   return (
     <div className="grid grid-cols-2 gap-6 mb-8">
-      {/* Budget vs Actual Chart */}
-      <div className="glass-card rounded-3xl border border-black/5 shadow-xl p-8 relative overflow-hidden fade-up-in" style={{ animationDelay: '500ms' }}>
+      {/* Revenue Chart (Last 7 Days) */}
+      <div className="glass-card rounded-3xl border border-neutral-200/60 shadow-lg p-8 relative overflow-hidden fade-up-in" style={{ animationDelay: '500ms' }}>
         <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-cyan-400 rounded-full blur-[100px] opacity-15 pulse-glow-aura"></div>
-        <h3 className="text-lg font-semibold text-black mb-6">Budget vs Actual</h3>
+        <h3 className="text-lg font-semibold text-neutral-900 mb-6">Revenue</h3>
         <div className="h-64">
-          <canvas ref={budgetChartRef}></canvas>
+          {loading ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          ) : (
+            <canvas ref={revenueChartRef}></canvas>
+          )}
         </div>
       </div>
 
       {/* Profit Composition Chart */}
-      <div className="glass-card rounded-3xl border border-black/5 shadow-xl p-8 relative overflow-hidden fade-up-in" style={{ animationDelay: '600ms' }}>
+      <div className="glass-card rounded-3xl border border-neutral-200/60 shadow-lg p-8 relative overflow-hidden fade-up-in" style={{ animationDelay: '600ms' }}>
         <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-cyan-400 rounded-full blur-[100px] opacity-15 pulse-glow-aura" style={{ animationDelay: '3s' }}></div>
-        <h3 className="text-lg font-semibold text-black mb-6">Profit Composition</h3>
+        <h3 className="text-lg font-semibold text-neutral-900 mb-6">Profit Composition</h3>
         <div className="h-64 flex items-center justify-center">
           <canvas ref={profitChartRef}></canvas>
         </div>
