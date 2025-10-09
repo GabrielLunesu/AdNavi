@@ -80,7 +80,7 @@ export default function CopilotPage() {
   };
 
   return (
-    <main className="flex-1 pt-12 pb-32 px-8 max-w-5xl mx-auto">
+    <main className="flex-1 pt-12 pb-32 px-8 max-w-5xl mx-auto page-transition">
       {/* AI Header Section */}
       <SnapshotHeader />
 

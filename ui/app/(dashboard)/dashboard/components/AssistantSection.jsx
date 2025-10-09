@@ -5,6 +5,7 @@ import { TrendingUp, Lightbulb, Target, Send } from 'lucide-react';
 
 export default function AssistantSection({ workspaceId }) {
   const [inputValue, setInputValue] = useState("");
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const router = useRouter();
 
   const quickActions = [
@@ -15,16 +16,29 @@ export default function AssistantSection({ workspaceId }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!inputValue.trim()) return;
-    router.push(`/copilot?q=${encodeURIComponent(inputValue.trim())}&ws=${workspaceId}`);
+    if (!inputValue.trim() || isTransitioning) return;
+    
+    // Trigger exit animation
+    setIsTransitioning(true);
+    
+    // Navigate after animation completes
+    setTimeout(() => {
+      router.push(`/copilot?q=${encodeURIComponent(inputValue.trim())}&ws=${workspaceId}`);
+    }, 300); // Match animation duration
   };
 
   const handleQuickAction = (text) => {
-    router.push(`/copilot?q=${encodeURIComponent(text)}&ws=${workspaceId}`);
+    // Trigger exit animation
+    setIsTransitioning(true);
+    
+    // Navigate after animation completes
+    setTimeout(() => {
+      router.push(`/copilot?q=${encodeURIComponent(text)}&ws=${workspaceId}`);
+    }, 300);
   };
 
   return (
-    <div className="mb-12">
+    <div className={`mb-12 ${isTransitioning ? 'chat-exit' : ''}`}>
       {/* Header */}
       <div className="mb-8">
         <h2 className="text-5xl font-semibold tracking-tight gradient-text text-center">
@@ -42,10 +56,12 @@ export default function AssistantSection({ workspaceId }) {
               onChange={(e) => setInputValue(e.target.value)}
               placeholder="Ask me anything about your campaigns..."
               className="flex-1 bg-transparent outline-none text-neutral-900 placeholder:text-neutral-400"
+              disabled={isTransitioning}
             />
             <button
               type="submit"
-              className="w-10 h-10 rounded-full bg-cyan-500 hover:bg-cyan-600 text-white flex items-center justify-center transition-colors"
+              disabled={isTransitioning}
+              className="w-10 h-10 rounded-full bg-cyan-500 hover:bg-cyan-600 text-white flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Send className="w-4 h-4" strokeWidth={1.5} />
             </button>
@@ -61,7 +77,8 @@ export default function AssistantSection({ workspaceId }) {
             <button
               key={idx}
               onClick={() => handleQuickAction(action.text)}
-              className="px-5 py-3 rounded-full bg-white/80 backdrop-blur-xl border border-neutral-200/60 hover:border-cyan-400/60 text-sm font-medium text-neutral-900 shadow-sm hover:shadow-md hover:shadow-cyan-500/10 transition-all flex items-center gap-2"
+              disabled={isTransitioning}
+              className="px-5 py-3 rounded-full bg-white/80 backdrop-blur-xl border border-neutral-200/60 hover:border-cyan-400/60 text-sm font-medium text-neutral-900 shadow-sm hover:shadow-md hover:shadow-cyan-500/10 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Icon className="w-4 h-4" strokeWidth={1.5} />
               {action.text}
