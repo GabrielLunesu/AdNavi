@@ -1,18 +1,43 @@
-import FinanceHeader from "../../../components/finance/FinanceHeader";
-import KPIGrid from "../../../components/finance/KPIGrid";
-import CostsPanel from "../../../components/finance/CostsPanel";
-import RevenueChartCard from "../../../components/finance/RevenueChartCard";
-import RulesPanel from "../../../components/finance/RulesPanel";
-import { financeKpis } from "../../../data/finance/kpis";
+"use client";
+import { useState } from "react";
+import TopBar from "./components/TopBar";
+import FinancialSummaryCards from "./components/FinancialSummaryCards";
+import PLTable from "./components/PLTable";
+import ChartsSection from "./components/ChartsSection";
+import AlertsPanel from "./components/AlertsPanel";
+import AIFinancialSummary from "./components/AIFinancialSummary";
 
 export default function FinancePage() {
+  const [compareEnabled, setCompareEnabled] = useState(true);
+
+  const handlePeriodChange = (period) => {
+    console.log('Period changed to:', period);
+    // TODO: Fetch data for selected period
+  };
+
   return (
-    <div className="max-w-[1200px] mx-auto">
-      <FinanceHeader subtitle="Simplified P&L for paid media. Adjust time to update KPIs, costs, and charts." />
-      <KPIGrid kpis={financeKpis} />
-      <CostsPanel />
-      <RevenueChartCard />
-      <RulesPanel />
+    <div>
+      {/* Sticky Top Bar with Filters */}
+      <TopBar
+        onPeriodChange={handlePeriodChange}
+        compareEnabled={compareEnabled}
+        onCompareToggle={setCompareEnabled}
+      />
+
+      {/* Core Metrics Row (P&L Summary Cards) */}
+      <FinancialSummaryCards />
+
+      {/* Editable P&L Grid */}
+      <PLTable />
+
+      {/* Variance Visualization Section */}
+      <ChartsSection />
+
+      {/* Alert / Notification Panel */}
+      <AlertsPanel />
+
+      {/* Financial AI Summary (Copilot Integration) */}
+      <AIFinancialSummary />
     </div>
   );
 }
