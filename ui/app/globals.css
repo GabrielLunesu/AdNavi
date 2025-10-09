@@ -50,12 +50,42 @@ body {
   50% { transform: translateY(-20px) scale(1.05); }
 }
 
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-line {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
 .aura-glow {
   animation: glow-pulse 4s ease-in-out infinite;
 }
 
 .float-orb {
   animation: float 8s ease-in-out infinite;
+}
+
+.card-animate {
+  animation: fadeInUp 0.6s ease-out forwards;
+  opacity: 0;
+}
+
+.card-animate:nth-child(1) { animation-delay: 0ms; }
+.card-animate:nth-child(2) { animation-delay: 60ms; }
+.card-animate:nth-child(3) { animation-delay: 120ms; }
+.card-animate:nth-child(4) { animation-delay: 180ms; }
+
+.sparkline-pulse {
+  animation: pulse-line 2s ease-in-out infinite;
 }
 
 /* Gradient text */
