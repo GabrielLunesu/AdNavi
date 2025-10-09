@@ -1,15 +1,15 @@
 # Roadmap: Natural AI Copilot - Based on Real Testing
 
-**Last Updated**: 2025-10-08 (Post 46-Question Test Run)  
-**Status**: Phases 1-3 COMPLETE ✅ | Success Rate: ~87% | Production-Ready for Core Use Cases
+**Last Updated**: 2025-10-08 (Post Fresh Data & Analysis)  
+**Status**: Phases 1-4.5 COMPLETE ✅ | New Issues Identified | Revised Plan for Weeks 3-4
 
 ---
 
 ## 🎉 Executive Summary
 
-**MAJOR MILESTONE ACHIEVED**: After running 46 comprehensive test questions, the system is performing **significantly better than expected**.
+**MAJOR MILESTONE ACHIEVED**: After Phases 1-4.5 and running 40+ test questions with fresh expanded data (12 campaigns, 105 ads, multi-platform), the system is performing **well** but new quality issues surfaced.
 
-### Current Success Rate: ~87% (40/46 tests working well)
+### Current Success Rate: ~82% (33/40 tests working correctly)
 
 **What This Means**:
 - ✅ Core Q&A functionality is **production-ready**
@@ -20,7 +20,217 @@
 
 ---
 
-## 🏆 What's Working Exceptionally Well (Tests 1-46)
+## 🔥 NEW ISSUES IDENTIFIED (Post Fresh Data - Tests 1-40)
+
+After re-seeding with richer data and re-running tests, **7 new quality issues** were identified:
+
+### Issue 1: Entities Lists Not Actually Listed (Test 13)
+**Priority**: HIGH | **Effort**: LOW | **Tests Affected**: 13
+
+**Problem**: When asking "List all active campaigns", system returns summary instead of actual list.
+
+**Current behavior**:
+```
+Answer: "You have 10 active campaigns, including the Holiday Sale - Purchases, 
+Summer Sale Campaign, and Black Friday Deals, among others."
+```
+
+**Expected behavior**:
+```
+Answer: "Here are your 10 active campaigns:
+1. Holiday Sale - Purchases
+2. Summer Sale Campaign
+3. Black Friday Deals
+4. App Install Campaign
+5. Mobile Game Installs
+6. Lead Gen - B2B
+7. Newsletter Signup Campaign
+8. Brand Awareness
+9. Product Launch Teaser
+10. Website Traffic Push"
+```
+
+**Root cause**: Answer builder for entities queries uses LLM which summarizes instead of listing.
+
+**Fix needed**: Update `SIMPLE_ANSWER_PROMPT` to explicitly format entities as numbered list when `query_type: "entities"`.
+
+---
+
+### Issue 2: Wrong Answer Structure for "Which X" Queries (Test 14)
+**Priority**: HIGH | **Effort**: LOW | **Tests Affected**: 14
+
+**Problem**: Answers don't lead with the answer, start with workspace context instead.
+
+**Current behavior**:
+```
+Question: "Which ad has the highest CTR?"
+Answer: "Last week, your highest CTR was 2.4%, which is right on par with the 
+workspace average. However, the top performer was the 'Video Ad - Evening 
+Audience - Lead Gen - B2B' with an impressive 4.3%..."
+```
+
+**Expected behavior** (intent-first):
+```
+Answer: "The Video Ad - Evening Audience - Lead Gen - B2B had the highest CTR 
+at 4.3% last week—that's your top performer! For context, your overall CTR 
+was 2.4%, right at the workspace average."
+```
+
+**Root cause**: Answer builder extracts workspace summary first, then mentions top performer as "However..."
+
+**Fix needed**: For breakdown queries with `top_n=1`, answer should:
+1. Lead with the top performer (intent-first)
+2. Add workspace context as secondary info
+
+---
+
+### Issue 3: Metric Value Filtering Not Supported (Test 15) ⚠️ DSL LIMITATION
+**Priority**: HIGH | **Effort**: HIGH | **Tests Affected**: 15
+
+**Problem**: Cannot filter by metric value (e.g., "campaigns with ROAS above 4").
+
+**Current behavior**:
+```
+Question: "Show me campaigns with ROAS above 4"
+DSL: { "query_type": "entities", ... }  // Just lists campaigns!
+Answer: "You have 10 campaigns, including..."
+```
+
+**Expected behavior**:
+```
+DSL: { 
+  "query_type": "metrics", 
+  "metric": "roas",
+  "breakdown": "campaign",
+  "metric_filter": {"roas": {"min": 4.0}}  // NEW field needed!
+}
+Answer: "3 campaigns have ROAS above 4:
+- Summer Sale Campaign: 13.29×
+- Holiday Sale - Purchases: 8.42×
+- Black Friday Deals: 5.67×"
+```
+
+**Root cause**: DSL has no support for metric value filters! 
+- `thresholds` only supports min_spend, min_clicks, min_conversions (input measures)
+- Cannot filter by computed metric values (ROAS, CPC, CTR, etc.)
+
+**Fix needed** (Complex - 2 days):
+1. Add `metric_filters` to DSL schema
+2. Update executor to compute metric first, then filter
+3. Add few-shot examples for "X above/below Y" patterns
+4. Handle in answer builder
+
+**Decision**: Phase 6 (Week 4+) - This is an architectural enhancement
+
+---
+
+### Issue 4: Vague Comparisons Default to Wrong Metric (Test 20)
+**Priority**: MEDIUM | **Effort**: LOW | **Tests Affected**: 20
+
+**Problem**: When user asks "How does this week compare to last week?" without specifying metric, LLM picks arbitrary metric (CPA).
+
+**Current behavior**:
+```
+Question: "How does this week compare to last week?"
+DSL: { "metric": "cpa", ... }  // Why CPA?!
+Answer: "This week, your CPA is $5.47, which is a slight improvement..."
+```
+
+**Expected behavior**:
+```
+DSL: { "metric": "revenue", ... }  // Default to revenue or profit!
+Answer: "This week, you generated $278K in revenue, up 5% from last week..."
+```
+
+**Root cause**: No guidance in prompts on which metric to use for vague comparisons.
+
+**Fix needed**: Add rule to system prompt:
+```
+VAGUE COMPARISON QUESTIONS:
+If user asks "how does X compare" or "compare this week vs last week" without 
+specifying a metric, DEFAULT to:
+1. revenue (most important business metric)
+2. profit (if profit is commonly used in workspace)
+3. spend (for budget-focused questions)
+
+DO NOT default to cost metrics (CPA, CPC) unless explicitly mentioned.
+```
+
+---
+
+### Issue 5: Metric Value Thresholds Only Support Base Measures ⚠️ LIMITATION
+**Priority**: LOW | **Effort**: LOW | **Tests Affected**: None yet, but will occur
+
+**Problem**: `thresholds` only supports base measures (spend, clicks, conversions), not derived metrics (ROAS, CPC, CTR).
+
+**Current support**:
+```json
+{
+  "thresholds": {
+    "min_spend": 50.0,        // ✅ Works
+    "min_clicks": 100,         // ✅ Works
+    "min_conversions": 5       // ✅ Works
+  }
+}
+```
+
+**Not supported** (but users will ask for):
+```json
+{
+  "thresholds": {
+    "min_roas": 2.0,  // ❌ Doesn't exist
+    "max_cpc": 0.50,  // ❌ Doesn't exist
+    "min_ctr": 0.02   // ❌ Doesn't exist
+  }
+}
+```
+
+**Fix needed**: Same as Issue 3 - requires `metric_filters` support (Phase 6)
+
+---
+
+### Issue 6: Named Entity Filtering Not Supported (Test 18)
+**Priority**: HIGH | **Effort**: MEDIUM | **Tests Affected**: 18
+
+**Problem**: Cannot filter by campaign/adset/ad name.
+
+**Current behavior**:
+```
+Question: "give me a breakdown of holiday campaign performance"
+Result: ERROR or lists all campaigns
+```
+
+**Expected behavior**:
+```
+Answer: "The Holiday Sale - Purchases campaign generated $X revenue last week 
+with a ROAS of Y..."
+```
+
+**Root cause**: DSL only supports `entity_ids` (UUIDs), not `entity_name`.
+
+**Fix needed**: See `NAMED_ENTITY_FILTERING_PLAN.md` for full implementation plan (Week 3-4)
+
+---
+
+### Issue 7: Time-of-Day Analysis Not Supported (Test 39) ⚠️ DATA LIMITATION
+**Priority**: LOW | **Effort**: HIGH | **Tests Affected**: 39
+
+**Problem**: Questions about hourly patterns can't be answered (data granularity limitation).
+
+**Example**:
+```
+Question: "What time on average do I get the best CPC?"
+Current: Returns daily average CPC (ignores time-of-day aspect)
+Expected: "Your best CPC is typically between 2-4pm" OR "We don't have hourly data"
+```
+
+**Root cause**: MetricFact stores data at daily granularity only (no hour dimension).
+
+**Fix needed**: Requires data collection changes (Phase 7+)
+
+---
+
+## 🏆 What's Working Exceptionally Well (Tests 1-40)
 
 ### 1. ✅ Timeframe Detection & Tense (Phase 2 - COMPLETE)
 **Status**: Working perfectly across all 46 tests
@@ -233,15 +443,168 @@
 
 ---
 
-## 🎯 Revised Roadmap - Next 2 Incremental Phases
+## 🎯 Revised Roadmap - Next 3 Phases (Weeks 3-5)
 
-### Phase 4: Better Language for Inverse Metrics (1-2 days)
+Based on fresh data analysis and user feedback, here's the prioritized fix plan:
+
+### Phase 5: Answer Quality Improvements (Week 3 - Day 1-2, 6 hours)
+**Goal**: Fix answer structure and formatting issues (Tests 13, 14, 20)
+
+**What to Fix**:
+1. **Entities lists** (Test 13): Return formatted numbered lists, not summaries
+2. **Intent-first answers** (Test 14): Lead with the answer for "which X" queries
+3. **Vague comparison defaults** (Test 20): Default to revenue/profit, not CPA
+
+---
+
+#### Fix 1.1: Entities List Formatting (2 hours)
+**Files**: `backend/app/answer/answer_builder.py`, `backend/app/nlp/prompts.py`
+
+**Problem**: "List all active campaigns" returns "You have 10 campaigns, including..."  
+**Expected**: Numbered list of all campaigns
+
+**Implementation**:
+```python
+# In _extract_entities_facts()
+if dsl.query_type == QueryType.ENTITIES:
+    entity_list = result.get("entities", [])
+    facts = {
+        "query_type": "entities",
+        "entity_count": len(entity_list),
+        "entity_names": [e["name"] for e in entity_list],
+        "level": dsl.filters.level if dsl.filters else "entities"
+    }
+```
+
+**Update SIMPLE_ANSWER_PROMPT**:
+```
+For entities queries (query_type="entities"):
+- Format as numbered list if asking to "list" or "show"
+- Example: "Here are your 10 active campaigns:
+  1. Holiday Sale
+  2. Summer Sale
+  ..."
+```
+
+---
+
+#### Fix 1.2: Intent-First Answer Structure (2 hours)
+**Files**: `backend/app/answer/context_extractor.py`, `backend/app/nlp/prompts.py`
+
+**Problem**: "Which ad had highest CTR?" starts with workspace summary  
+**Expected**: Lead with the answer
+
+**Implementation**:
+1. Detect "which X" queries: `breakdown != null and top_n == 1`
+2. Mark as `intent_first_query = True` in facts
+3. Update all three prompts with:
+```
+For "which X had highest/lowest Y" queries (top_n=1):
+STRUCTURE:
+1. Lead with the answer: "X had the highest/lowest Y at VALUE"
+2. Add performance judgment: "—your top/worst performer"
+3. Add context last: "For reference, your overall Y was Z"
+
+GOOD: "Summer Sale had the highest ROAS at 13.29× last week—crushing it! 
+       For context, your overall ROAS was 6.14×"
+
+BAD: "Your ROAS was 6.14× last week. However, Summer Sale was your top 
+      performer at 13.29×"  // Don't use "However" structure!
+```
+
+---
+
+#### Fix 1.3: Default Metric for Vague Comparisons (1 hour)
+**Files**: `backend/app/nlp/prompts.py` (system prompt)
+
+**Problem**: "How does this week compare to last week?" defaults to CPA  
+**Expected**: Default to revenue
+
+**Implementation**: Add to system prompt:
+```
+VAGUE COMPARISON QUESTIONS (CRITICAL):
+If user asks "how does X compare" or "compare this week vs last week" WITHOUT 
+specifying a metric, use this priority order:
+
+1. revenue (DEFAULT - most important business metric)
+2. profit (if user commonly asks about profit)
+3. spend (only if user explicitly mentions budget)
+
+NEVER default to cost efficiency metrics (CPA, CPC, CPM) unless explicitly mentioned.
+
+Examples:
+- "How does this week compare to last week?" → metric: "revenue"
+- "Compare this month vs last month" → metric: "revenue"
+- "How are we doing vs last period?" → metric: "revenue"
+```
+
+**Tests Fixed**: 13, 14, 20
+
+---
+
+### Phase 6: Named Entity Filtering (Week 3-4, 9 hours)
+**Goal**: Enable filtering by campaign/adset/ad name (Test 18)
+
+**Full Plan**: See `NAMED_ENTITY_FILTERING_PLAN.md`
+
+**Summary**:
+- Add `entity_name` filter to DSL schema
+- Update executor with `.ilike()` name matching
+- Add 4 few-shot examples for name-based queries
+- Update canonicalization to preserve entity names
+
+**Tests Fixed**: 18
+
+---
+
+### Phase 7: Metric Value Filtering (Week 5+, 16 hours) ⚠️ COMPLEX
+**Goal**: Support "campaigns with ROAS above 4" queries (Test 15)
+
+**Why Complex**: Requires architectural changes to DSL
+
+**Current Limitation**:
+- `thresholds` only filters by input measures (spend, clicks, conversions)
+- Cannot filter by computed metrics (ROAS, CPC, CTR)
+
+**Solution Approach**:
+1. Add `metric_filters` field to DSL:
+   ```json
+   {
+     "metric": "roas",
+     "breakdown": "campaign",
+     "metric_filters": {
+       "min": 4.0,    // Only campaigns with ROAS >= 4.0
+       "max": null
+     }
+   }
+   ```
+
+2. Update executor to:
+   - Compute metric for all entities
+   - Filter results where metric meets criteria
+   - Return only matching entities
+
+3. Add few-shot examples:
+   ```json
+   {
+     "question": "Show me campaigns with ROAS above 4",
+     "dsl": {
+       "metric": "roas",
+       "breakdown": "campaign",
+       "metric_filters": {"min": 4.0}
+     }
+   }
+   ```
+
+**Tests Fixed**: 15
+
+**Decision**: Phase 7 (Week 5+) due to complexity
+
+---
+
+### OLD Phase 4: Better Language for Inverse Metrics (1-2 days)
+**Status**: ✅ COMPLETE (Phase 4.5)  
 **Goal**: Fix confusing language when asking for "lowest" on metrics where lower is better
-
-**The Problem**:
-- User asks "lowest CPC" (wants best performer, since lower CPC is better)
-- System returns correct value but says "top performer had higher value" (confusing!)
-- Affects: CPC, CPA, CPL, CPI, CPM (inverse metrics where lower = better)
 
 **The Fix**:
 
@@ -438,17 +801,20 @@ Add to `app/nlp/prompts.py`:
 
 ---
 
-## 🏁 Priority Matrix (Updated)
+## 🏁 Priority Matrix (Updated - Post Fresh Data Analysis)
 
 | Phase | Priority | Effort | Impact | Tests Fixed | Status |
 |-------|----------|--------|--------|-------------|--------|
-| Phase 1 (Intent & Natural Language) | P0 | Medium | High | All 46 | ✅ DONE |
-| Phase 2 (Timeframe Detection) | P0 | Medium | Critical | All 46 | ✅ DONE |
-| Phase 3 (Missing Data Handling) | P0 | Medium | Critical | 11, 39, 40 | ✅ DONE |
-| **Phase 4 (Inverse Metrics Language)** | P1 | Low | Medium | 32, 34, 36, 43 | 🔴 NEXT (Week 1) |
-| **Phase 5 (Performance Breakdown)** | P1 | Low | Medium | 18 | 🟡 Week 2 |
-| Phase 6 (What-If Scenarios) | P2 | High | Low | 45 | ⚪ Future |
-| Phase 7 (Time-of-Day Analysis) | P3 | High | Low | 44 | ⚪ Needs Data |
+| Phase 1 (Intent & Natural Language) | P0 | Medium | High | All | ✅ DONE |
+| Phase 2 (Timeframe Detection) | P0 | Medium | Critical | All | ✅ DONE |
+| Phase 3 (Missing Data Handling) | P0 | Medium | Critical | 11, 35 | ✅ DONE |
+| Phase 4 (Inverse Metrics Language) | P1 | Low | Medium | 26, 29, 30, 38 | ✅ DONE |
+| Phase 4.5 (Sort Order Support) | P1 | Low | High | 26, 29, 30, 38 | ✅ DONE |
+| **Phase 5 (Answer Quality)** | P1 | Low | High | 13, 14, 20 | 🔴 NEXT (Week 3) |
+| **Phase 6 (Named Entity Filtering)** | P1 | Medium | High | 18 | 🟡 Week 3-4 |
+| Phase 7 (Metric Value Filtering) | P2 | High | Medium | 15 | ⚪ Week 5+ |
+| Phase 8 (What-If Scenarios) | P3 | High | Low | 40 | ⚪ Future |
+| Phase 9 (Time-of-Day Analysis) | P3 | High | Low | 39 | ⚪ Needs Data |
 
 ---
 
@@ -473,37 +839,96 @@ Add to `app/nlp/prompts.py`:
 
 ---
 
-## 🚀 Next Action
+## 🚀 Next Actions (Week 3)
 
-**Immediate**: Start Phase 4 - Fix inverse metrics language (3 hours)
+### Immediate Priority: Phase 5 - Answer Quality (6 hours)
 
-**Steps**:
-1. Add `INVERSE_METRICS` set to `app/metrics/registry.py`
-2. Update `app/answer/intent_classifier.py` to detect "best" vs "worst" intent
-3. Update `app/answer/answer_builder.py` to use correct performer language
-4. Update all three prompts in `app/nlp/prompts.py` with inverse metric guidance
-5. Test with questions 32, 34, 36, 43
-6. Run full 46-test suite to verify no regressions
+**Day 1 Morning (2 hours)**: Fix entities list formatting
+1. Update `_extract_entities_facts()` in `answer_builder.py`
+2. Add numbered list formatting to `SIMPLE_ANSWER_PROMPT`
+3. Test: "List all active campaigns" should return numbered list
 
-**Timeline**: Complete by end of Week 1
+**Day 1 Afternoon (2 hours)**: Fix intent-first answer structure
+1. Add detection for `top_n=1` queries in `context_extractor.py`
+2. Update all three prompts with "lead with answer" guidance
+3. Test: "Which ad had highest CTR?" should lead with the ad name
+
+**Day 2 Morning (1 hour)**: Fix vague comparison defaults
+1. Add "VAGUE COMPARISON QUESTIONS" rule to system prompt
+2. Test: "How does this week compare to last week?" should use revenue
+
+**Day 2 Afternoon (1 hour)**: Validation & Testing
+1. Run full 40-test suite
+2. Verify Tests 13, 14, 20 now pass
+3. Check for regressions
 
 ---
 
-## 📝 Notes on Test Coverage
+### Week 3-4: Phase 6 - Named Entity Filtering (9 hours)
 
-The 46-question test suite covers:
+See `NAMED_ENTITY_FILTERING_PLAN.md` for detailed implementation plan.
+
+**Summary**:
+- Day 1: DSL schema + executor changes (4 hours)
+- Day 2: NLP translation + canonicalization (3 hours)
+- Day 3: Testing & validation (2 hours)
+
+---
+
+## 📝 Test Coverage Summary
+
+The 40-question test suite covers:
 - ✅ All 24 metrics (base + derived)
 - ✅ All hierarchy levels (campaign, adset, ad)
 - ✅ All query types (metrics, entities, providers)
 - ✅ Timeframe variations (today, yesterday, this week, last week, last month)
-- ✅ Platform filters (Google, Meta, Other)
+- ✅ Platform filters (Google, Meta, TikTok, Other)
 - ✅ Status filters (active campaigns)
 - ✅ Comparisons and analytical questions
+- ✅ Sort order (lowest/highest)
 - ✅ Edge cases (empty questions, what-if scenarios)
 
-This is a **comprehensive** test suite that provides high confidence in production readiness.
+**Fresh data** (Oct 8, 2025):
+- 12 campaigns across 4 providers
+- 35 adsets, 105 ads
+- 3,150 metric facts (30 days)
+- Rich, multi-platform test environment
 
 ---
 
-**Status**: System is **87% production-ready** for core use cases. Phases 4-5 will bring it to **98%+** in 2 weeks with minimal effort.
+## 📊 Current State Summary
+
+### What's Complete ✅
+- ✅ **Phases 1-4.5 DONE**: Intent classification, timeframe detection, missing data handling, sort order, inverse metrics language
+- ✅ **Core functionality**: All basic queries working (82% success rate)
+- ✅ **Natural language**: Conversational, context-aware answers
+- ✅ **Multi-platform**: Google, Meta, TikTok, Other all supported
+
+### What Needs Work 🔧
+- 🔴 **Answer quality** (Tests 13, 14, 20): Formatting and structure issues
+- 🟡 **Named entity filtering** (Test 18): Cannot query by campaign name
+- 🟡 **Metric value filtering** (Test 15): Cannot filter "ROAS above 4"
+- ⚪ **Time-of-day** (Test 39): Data granularity limitation
+- ⚪ **What-if scenarios** (Test 40): Out of scope
+
+### Success Rate Projection
+- **Current**: 82% (33/40 tests)
+- **After Phase 5**: 87% (35/40 tests) - +3 tests fixed
+- **After Phase 6**: 90% (36/40 tests) - +1 test fixed
+- **After Phase 7**: 93% (37/40 tests) - +1 test fixed
+- **Remaining**: 3 tests are limitations (time-of-day, what-if, data constraints)
+
+---
+
+**Status**: System is **82% production-ready** with clear path to **90%+** in Weeks 3-4 through incremental improvements.
+
+---
+
+## 📚 Reference Documents
+
+- **Named Entity Filtering Plan**: `/backend/docs/NAMED_ENTITY_FILTERING_PLAN.md` (NEW)
+- **QA System Architecture**: `/backend/docs/QA_SYSTEM_ARCHITECTURE.md`
+- **Phase 4.5 Implementation**: `/backend/PHASE_4_5_SORT_ORDER_IMPLEMENTATION.md`
+- **Phase 4.5 Final Fixes**: `/backend/PHASE_4_5_FINAL_FIXES.md`
+- **Build Log**: `/docs/ADNAVI_BUILD_LOG.md`
 
