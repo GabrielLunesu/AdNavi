@@ -4,14 +4,29 @@ import { usePathname } from "next/navigation";
 import { Home, BarChart3, Bot, Receipt, Megaphone, Settings } from "lucide-react";
 import { useEffect, useState } from "react";
 import { currentUser, logout } from "../../../../lib/auth";
+import { fetchWorkspaceInfo } from "../../../../lib/api";
 
 export default function Sidebar() {
   const pathname = usePathname();
   const [user, setUser] = useState(null);
+  const [workspace, setWorkspace] = useState(null);
   
   useEffect(() => {
     let mounted = true;
-    currentUser().then((u) => mounted && setUser(u));
+    
+    // Fetch current user
+    currentUser().then((u) => {
+      if (!mounted) return;
+      setUser(u);
+      
+      // Fetch workspace info if user has workspace_id
+      if (u?.workspace_id) {
+        fetchWorkspaceInfo(u.workspace_id)
+          .then((ws) => mounted && setWorkspace(ws))
+          .catch((err) => console.error("Failed to fetch workspace info:", err));
+      }
+    });
+    
     return () => {
       mounted = false;
     };
@@ -56,19 +71,37 @@ export default function Sidebar() {
         })}
       </nav>
       
-      {/* Bottom Section - Workspace */}
-      <div className="mt-6 pt-6 border-t border-neutral-200/60">
-        <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/40 border border-neutral-200/60">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-400 to-cyan-600 flex items-center justify-center text-white text-xs font-semibold">
-            {user?.email?.charAt(0)?.toUpperCase() || "A"}
+      {/* Bottom Section - User & Workspace */}
+      <div className="mt-6 pt-6 border-t border-neutral-200/60 space-y-3">
+        {/* Workspace Widget */}
+        {workspace && (
+          <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/40 border border-neutral-200/60">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-400 to-cyan-600 flex items-center justify-center text-white text-xs font-semibold">
+              {workspace.name?.charAt(0)?.toUpperCase() || "W"}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-neutral-900 truncate">{workspace.name || "Workspace"}</p>
+              <p className="text-xs text-neutral-500 truncate">Pro Plan</p>
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-neutral-900 truncate">Workspace</p>
-            <p className="text-xs text-neutral-500 truncate">Pro Plan</p>
-          </div>
-        </div>
+        )}
+
+        {/* User Widget */}
         {user && (
-          <form action={async () => { await logout(); location.href = "/"; }} className="mt-3">
+          <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/40 border border-neutral-200/60">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-neutral-400 to-neutral-600 flex items-center justify-center text-white text-xs font-semibold">
+              {user.email?.charAt(0)?.toUpperCase() || "U"}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-neutral-900 truncate">{user.email?.split('@')[0] || "User"}</p>
+              <p className="text-xs text-neutral-500 truncate">{user.email}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Logout Button */}
+        {user && (
+          <form action={async () => { await logout(); location.href = "/"; }}>
             <button
               type="submit"
               className="w-full rounded-2xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 px-4 py-2 text-sm font-medium transition-colors"
