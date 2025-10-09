@@ -10,7 +10,7 @@ from sqlalchemy import desc
 from .. import schemas
 from ..database import get_db
 from ..deps import get_current_user
-from ..models import User, Workspace, Fetch, ComputeRun
+from ..models import User, Workspace, Fetch, ComputeRun, MetricFact, Entity, LevelEnum
 
 
 router = APIRouter(
@@ -240,3 +240,123 @@ def get_workspace_info(
         name=ws.name,
         last_sync=last_sync
     )
+
+
+@router.get(
+    "/{workspace_id}/providers",
+    summary="Get available providers",
+    description="""
+    Get distinct ad platforms that have metric data in this workspace.
+    
+    Returns a list of providers (google, meta, tiktok, other) that have
+    at least one MetricFact record in the workspace.
+    
+    Used for dynamic provider filter buttons in Analytics page.
+    """
+)
+def get_workspace_providers(
+    workspace_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get distinct providers with data in this workspace."""
+    # Convert string ID to UUID
+    try:
+        workspace_uuid = UUID(workspace_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid workspace ID format"
+        )
+    
+    # Check user has access to this workspace
+    if current_user.workspace_id != workspace_uuid:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied to this workspace"
+        )
+    
+    # Query distinct providers that have metric facts
+    providers = (
+        db.query(MetricFact.provider)
+        .join(Entity, Entity.id == MetricFact.entity_id)
+        .filter(Entity.workspace_id == workspace_uuid)
+        .distinct()
+        .all()
+    )
+    
+    # Extract provider values (they're enum objects)
+    provider_list = [p[0].value for p in providers if p[0]]
+    
+    return {"providers": provider_list}
+
+
+@router.get(
+    "/{workspace_id}/campaigns",
+    summary="Get workspace campaigns",
+    description="""
+    Get campaigns in this workspace for dropdown filtering.
+    
+    Query params:
+    - provider: Filter campaigns by provider (optional)
+    - entity_status: Filter by status (default: active)
+    
+    Used for campaign dropdown in Analytics page chart section.
+    """
+)
+def get_workspace_campaigns(
+    workspace_id: str,
+    provider: str = None,
+    entity_status: str = "active",
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get campaigns for dropdown filtering."""
+    # Convert string ID to UUID
+    try:
+        workspace_uuid = UUID(workspace_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid workspace ID format"
+        )
+    
+    # Check user has access to this workspace
+    if current_user.workspace_id != workspace_uuid:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied to this workspace"
+        )
+    
+    # Build query for campaigns
+    query = (
+        db.query(Entity)
+        .filter(Entity.workspace_id == workspace_uuid)
+        .filter(Entity.level == LevelEnum.campaign)
+    )
+    
+    # Filter by entity status if provided
+    if entity_status:
+        query = query.filter(Entity.status == entity_status)
+    
+    # Filter by provider if provided
+    if provider:
+        # Get campaigns that have facts from this provider
+        query = (
+            query.join(MetricFact, MetricFact.entity_id == Entity.id)
+            .filter(MetricFact.provider == provider)
+        )
+    
+    # Execute query and get distinct campaigns
+    campaigns = query.distinct().all()
+    
+    return {
+        "campaigns": [
+            {
+                "id": str(c.id),
+                "name": c.name,
+                "status": c.status  # Already a string, not an enum
+            }
+            for c in campaigns
+        ]
+    }

@@ -140,3 +140,43 @@ export async function createQaLog(workspaceId, { question_text, answer_text, dsl
   }
   return res.json();
 }
+
+// Fetch available providers (ad platforms) in workspace.
+// WHY: Dynamic provider filter buttons in Analytics page.
+// Returns: { providers: ["google", "meta", "tiktok", "other"] }
+export async function fetchWorkspaceProviders({ workspaceId }) {
+  const res = await fetch(`${BASE}/workspaces/${workspaceId}/providers`, {
+    method: "GET",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" }
+  });
+  if (!res.ok) {
+    const msg = await res.text();
+    throw new Error(`Failed to fetch providers: ${res.status} ${msg}`);
+  }
+  return res.json();
+}
+
+// Fetch campaigns for dropdown filtering.
+// WHY: Chart grouping by campaign requires campaign list.
+// Returns: { campaigns: [{ id, name, status }, ...] }
+export async function fetchWorkspaceCampaigns({ 
+  workspaceId, 
+  provider = null, 
+  status = 'active' 
+}) {
+  const params = new URLSearchParams();
+  if (provider) params.set('provider', provider);
+  if (status) params.set('entity_status', status);
+  
+  const res = await fetch(`${BASE}/workspaces/${workspaceId}/campaigns?${params.toString()}`, {
+    method: "GET",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" }
+  });
+  if (!res.ok) {
+    const msg = await res.text();
+    throw new Error(`Failed to fetch campaigns: ${res.status} ${msg}`);
+  }
+  return res.json();
+}
