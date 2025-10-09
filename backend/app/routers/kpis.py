@@ -124,7 +124,7 @@ def get_workspace_kpis(
     # Daily sparkline by date (optional)
     spark_by_day: dict[str, dict] = {}
     if req.sparkline:
-        day_rows = (
+        sparkline_query = (
             db.query(
                 MF.event_date.label("d"),
                 func.coalesce(func.sum(MF.spend), 0).label("spend"),
@@ -136,12 +136,25 @@ def get_workspace_kpis(
             .join(E, E.id == MF.entity_id)
             .filter(E.workspace_id == workspace_id)
             .filter(MF.event_date.between(start, end))
+        )
+        # Apply the same filters as the main query
+        if provider:
+            sparkline_query = sparkline_query.filter(MF.provider == provider)
+        if level:
+            sparkline_query = sparkline_query.filter(MF.level == level)
+        if only_active:
+            sparkline_query = sparkline_query.filter(E.status == "active")
+        
+        day_rows = (
+            sparkline_query
             .group_by(MF.event_date)
             .order_by(MF.event_date)
             .all()
         )
         for r in day_rows:
-            spark_by_day[str(r.d)] = {
+            # Convert datetime to date string (YYYY-MM-DD format only)
+            date_key = r.d.strftime('%Y-%m-%d') if hasattr(r.d, 'strftime') else str(r.d)
+            spark_by_day[date_key] = {
                 "spend": r.spend, "revenue": r.revenue, "clicks": r.clicks,
                 "impressions": r.impressions, "conversions": r.conversions
             }
@@ -160,7 +173,8 @@ def get_workspace_kpis(
             spark = []
             cur = start
             while cur <= end:
-                d = str(cur)
+                # Ensure date format matches the dictionary keys (YYYY-MM-DD)
+                d = cur.strftime('%Y-%m-%d') if hasattr(cur, 'strftime') else str(cur)
                 pieces = spark_by_day.get(d, {})
                 spark_val = _derived(key, pieces) if key in ("roas","cpa") else float(pieces.get(key, 0) or 0)
                 spark.append(SparkPoint(date=d, value=spark_val))

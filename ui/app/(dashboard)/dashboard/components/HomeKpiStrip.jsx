@@ -21,6 +21,10 @@ export default function HomeKpiStrip({ workspaceId, metrics }) {
   const [selectedRange, setSelectedRange] = useState('30d');
   const [rangeDays, setRangeDays] = useState(30);
   const [rangeOffset, setRangeOffset] = useState(0);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [fadeKey, setFadeKey] = useState(0);
 
   const timeRanges = [
     { id: 'yesterday', label: 'Yesterday', days: 1, offset: 1 },
@@ -30,9 +34,29 @@ export default function HomeKpiStrip({ workspaceId, metrics }) {
   ];
 
   const handleRangeClick = (range) => {
-    setSelectedRange(range.id);
-    setRangeDays(range.days);
-    setRangeOffset(range.offset);
+    if (range.id === 'custom') {
+      setShowDatePicker(true);
+      setSelectedRange(range.id);
+    } else {
+      setShowDatePicker(false);
+      setSelectedRange(range.id);
+      setRangeDays(range.days);
+      setRangeOffset(range.offset);
+      setFadeKey(prev => prev + 1); // Trigger fade animation
+    }
+  };
+
+  const handleCustomDateApply = () => {
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      const diffTime = Math.abs(end - start);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      setRangeDays(diffDays + 1); // +1 to include both start and end dates
+      setRangeOffset(0);
+      setShowDatePicker(false);
+      setFadeKey(prev => prev + 1); // Trigger fade animation
+    }
   };
 
   useEffect(() => {
@@ -40,7 +64,7 @@ export default function HomeKpiStrip({ workspaceId, metrics }) {
     setLoading(true);
     fetchWorkspaceKpis({ workspaceId, metrics, lastNDays: rangeDays, dayOffset: rangeOffset })
       .then((data) => { 
-        if (mounted) { 
+        if (mounted) {
           setItems(data); 
           setErr(null); 
         } 
@@ -75,6 +99,47 @@ export default function HomeKpiStrip({ workspaceId, metrics }) {
         </div>
       </div>
 
+      {/* Custom Date Picker */}
+      {showDatePicker && (
+        <div className="mb-6 glass-card rounded-3xl p-6 border border-neutral-200/60 shadow-lg">
+          <h3 className="text-sm font-semibold text-neutral-900 mb-4">Select Custom Date Range</h3>
+          <div className="flex items-end gap-4">
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-neutral-600 mb-2">Start Date</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full px-4 py-2 rounded-2xl border border-neutral-200 text-sm focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-neutral-600 mb-2">End Date</label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                min={startDate}
+                className="w-full px-4 py-2 rounded-2xl border border-neutral-200 text-sm focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20"
+              />
+            </div>
+            <button
+              onClick={handleCustomDateApply}
+              disabled={!startDate || !endDate}
+              className="px-6 py-2 rounded-2xl bg-cyan-500 text-white text-sm font-medium hover:bg-cyan-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Apply
+            </button>
+            <button
+              onClick={() => setShowDatePicker(false)}
+              className="px-6 py-2 rounded-2xl bg-neutral-100 text-neutral-700 text-sm font-medium hover:bg-neutral-200 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* KPI Cards Grid */}
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -92,7 +157,7 @@ export default function HomeKpiStrip({ workspaceId, metrics }) {
           <div className="text-red-600 text-sm">Failed to load KPIs: {err}</div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div key={fadeKey} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-up">
           {items.map(k => {
             // Format value based on metric type
             let displayValue = k.value;
@@ -116,7 +181,7 @@ export default function HomeKpiStrip({ workspaceId, metrics }) {
                 key={k.key}
                 label={LABELS[k.key] ?? k.key.toUpperCase()}
                 value={displayValue}
-                deltaPct={k.delta_pct ? k.delta_pct * 100 : 0}
+                // deltaPct={k.delta_pct ? k.delta_pct * 100 : 0}  // TODO: Backend endpoint needed
                 sparklineData={sparklineData}
               />
             );
