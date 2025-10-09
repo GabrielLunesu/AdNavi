@@ -2,7 +2,7 @@
 // All functions return plain JSON and throw on non-2xx.
 // WHY: centralizing fetch keeps pages dumb and testable.
 
-const BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
+const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export async function fetchWorkspaceKpis({
   workspaceId,
