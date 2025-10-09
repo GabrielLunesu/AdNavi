@@ -1,31 +1,24 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
-/* Global CSS variables for colors and fonts.
-   We default to a dark theme for the dashboard look. */
+/* Global CSS variables - Light theme with cyan accents */
 :root {
-  --background: #0a0a0a; /* dark background by default */
-  --foreground: #e5e7eb; /* slate-200 like text */
+  --background: #ffffff;
+  --foreground: #0B0B0B;
+  --cyan-primary: #06B6D4;
+  --cyan-light: #22D3EE;
 }
 
-/* Map variables into Tailwind theme tokens. */
+/* Map variables into Tailwind theme tokens */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-/* Optional: allow OS light mode if preferred. */
-@media (prefers-color-scheme: light) {
-  :root {
-    --background: #ffffff;
-    --foreground: #171717;
-  }
 }
 
 /* Base element styles */
 html, body {
   height: 100%;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 body {
@@ -33,22 +26,62 @@ body {
   color: var(--foreground);
 }
 
-/* Simple utility surfaces for cards/panels (used across components). */
-.card-surface {
-  background: color-mix(in oklab, var(--background) 94%, white 6%);
-  border: 1px solid color-mix(in oklab, var(--foreground) 12%, black 88%);
+/* Glass morphism effects */
+.glass-card {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 
-.shadow-soft {
-  box-shadow: 0 4px 16px rgba(0,0,0,0.24);
+.glass-sidebar {
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
 }
 
-/* Hide scrollbars utility (used for horizontal chips row) */
+/* Animations */
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.15; }
+  50% { opacity: 0.25; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px) scale(1); }
+  50% { transform: translateY(-20px) scale(1.05); }
+}
+
+.aura-glow {
+  animation: glow-pulse 4s ease-in-out infinite;
+}
+
+.float-orb {
+  animation: float 8s ease-in-out infinite;
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, #0B0B0B 0%, #06B6D4 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Card hover effect */
+.card-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(6, 182, 212, 0.15), 0 0 0 1px rgba(6, 182, 212, 0.1);
+}
+
+/* Hide scrollbars utility */
 .no-scrollbar {
-  -ms-overflow-style: none; /* IE and Edge */
-  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 .no-scrollbar::-webkit-scrollbar {
-  display: none; /* Chrome, Safari, Opera */
+  display: none;
 }
 
