@@ -72,18 +72,30 @@ METRIC_SYNONYMS = {
 
 # Performance-related phrase patterns (NEW in Phase 5 - UPDATED with regex)
 # Maps vague "performance" questions to clearer metric-based questions
+# Phase 5 Update: Improved patterns to preserve entity names for name filtering
 # Uses regex patterns to handle variations like "breakdown of holiday campaign performance"
 PERFORMANCE_PATTERNS = [
-    # Match "breakdown of ... performance" → "revenue breakdown for ..."
-    # This makes it clearer that we want metrics data, not just entity listing
-    (r'breakdown of (.+?) performance\b', r'revenue breakdown for \1'),
-    # Match "... performance breakdown" → "revenue breakdown for ..."
-    (r'(.+?) performance breakdown\b', r'revenue breakdown for \1'),
-    # Match "how are ... performing" → "show me ... metrics"
+    # Match "breakdown of ... campaign performance" → "show me ... campaign metrics"
+    # Phase 5: Preserves entity name for entity_name filter
+    # Example: "breakdown of holiday campaign performance" → "show me holiday campaign metrics"
+    (r'breakdown of (.+?) campaign performance\b', r'show me \1 campaign metrics'),
+    (r'breakdown of (.+?) adset performance\b', r'show me \1 adset metrics'),
+    (r'breakdown of (.+?) ad performance\b', r'show me \1 ad metrics'),
+    (r'breakdown of (.+?) performance\b', r'show me \1 metrics'),
+    
+    # Match "... performance breakdown" → "show me ... metrics"
+    (r'(.+?) campaign performance breakdown\b', r'show me \1 campaign metrics'),
+    (r'(.+?) performance breakdown\b', r'show me \1 metrics'),
+    
+    # Match "how is/are ... performing" → "show me ... metrics"
+    # Preserves entity names: "how is holiday sale performing" → "show me holiday sale metrics"
+    (r'how is (.+?) campaign performing\b', r'show me \1 campaign metrics'),
+    (r'how is (.+?) adset performing\b', r'show me \1 adset metrics'),
     (r'how (?:are|is) (.+?) performing\b', r'show me \1 metrics'),
-    # Standalone patterns (no entity in between)
+    
+    # Standalone patterns (no entity name to preserve)
     (r'\bperformance breakdown\b', 'revenue breakdown'),
-    (r'\bcampaign performance\b', 'campaign revenue'),
+    (r'\bcampaign performance\b', 'campaign metrics'),
     (r'\bshow performance\b', 'show metrics'),
     (r'\bperformance metrics\b', 'metrics'),
 ]

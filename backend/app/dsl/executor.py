@@ -190,6 +190,14 @@ def execute_plan(
         if query.filters.entity_ids:
             q_entities = q_entities.filter(E.id.in_(query.filters.entity_ids))
         
+        # NEW: Named entity filtering (case-insensitive partial match)
+        # WHY: Enables natural queries like "show me Holiday Sale campaign"
+        # HOW: Uses ILIKE for case-insensitive matching with wildcards
+        # Example: "holiday" matches "Holiday Sale - Purchases"
+        if query.filters.entity_name:
+            pattern = f"%{query.filters.entity_name}%"
+            q_entities = q_entities.filter(E.name.ilike(pattern))
+        
         # Limit results by top_n
         rows = q_entities.limit(query.top_n).all()
         
@@ -274,6 +282,13 @@ def _execute_metrics_plan(
     if plan.filters.get("entity_ids"):
         base_query = base_query.filter(MF.entity_id.in_(plan.filters["entity_ids"]))
     
+    # NEW: Named entity filtering (case-insensitive partial match)
+    # WHY: Enables queries like "revenue for Holiday Sale campaign"
+    # HOW: Uses ILIKE for case-insensitive matching with wildcards
+    if plan.filters.get("entity_name"):
+        pattern = f"%{plan.filters['entity_name']}%"
+        base_query = base_query.filter(E.name.ilike(pattern))
+    
     # Execute summary query
     totals_now = base_query.one()._asdict()
     
@@ -320,6 +335,9 @@ def _execute_metrics_plan(
             prev_query = prev_query.filter(MF.level == plan.filters["level"])
         if plan.filters.get("status"):
             prev_query = prev_query.filter(E.status == plan.filters["status"])
+        if plan.filters.get("entity_name"):
+            pattern = f"%{plan.filters['entity_name']}%"
+            prev_query = prev_query.filter(E.name.ilike(pattern))
         if plan.filters.get("entity_ids"):
             prev_query = prev_query.filter(MF.entity_id.in_(plan.filters["entity_ids"]))
         
@@ -363,6 +381,9 @@ def _execute_metrics_plan(
             series_query = series_query.filter(MF.provider == plan.filters["provider"])
         if plan.filters.get("level"):
             series_query = series_query.filter(MF.level == plan.filters["level"])
+        if plan.filters.get("entity_name"):
+            pattern = f"%{plan.filters['entity_name']}%"
+            series_query = series_query.filter(E.name.ilike(pattern))
         if plan.filters.get("status"):
             series_query = series_query.filter(E.status == plan.filters["status"])
         if plan.filters.get("entity_ids"):
@@ -489,13 +510,21 @@ def _execute_metrics_plan(
                 .group_by(E.name)
             )
         
-        # Apply filters (provider/status/entity_ids)
+        # Apply filters (provider/status/entity_ids/entity_name)
         if plan.filters.get("provider"):
             breakdown_query = breakdown_query.filter(MF.provider == plan.filters["provider"])
         if plan.filters.get("status"):
             breakdown_query = breakdown_query.filter(E.status == plan.filters["status"])
         if plan.filters.get("entity_ids"):
             breakdown_query = breakdown_query.filter(MF.entity_id.in_(plan.filters["entity_ids"]))
+        
+        # NEW: Named entity filtering in breakdowns
+        # WHY: Enables "breakdown of Holiday Sale campaign performance"
+        # HOW: Filter by entity name before grouping/aggregation
+        # Works for campaign/adset/ad breakdowns (uses Entity join)
+        if plan.filters.get("entity_name"):
+            pattern = f"%{plan.filters['entity_name']}%"
+            breakdown_query = breakdown_query.filter(E.name.ilike(pattern))
         
         # Apply thresholds as HAVING constraints (only for breakdowns)
         # WHY: Filters out insignificant entities (e.g., campaigns with $1 spend showing 10× ROAS)

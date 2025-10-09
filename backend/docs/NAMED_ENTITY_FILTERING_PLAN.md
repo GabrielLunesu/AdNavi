@@ -1,9 +1,80 @@
 # Named Entity Filtering - Implementation Plan
 
 **Created**: 2025-10-08  
+**Updated**: 2025-10-08  
 **Priority**: HIGH (Week 3-4)  
 **Effort**: MEDIUM (2-3 days)  
-**Status**: Planning
+**Status**: ✅ DAY 1 COMPLETE - Core Implementation Done!
+
+---
+
+## 🎉 Implementation Progress
+
+### ✅ Completed (Day 1 - Oct 8, 2025)
+
+**Core Implementation**:
+- ✅ Added `entity_name` field to `Filters` model in `schema.py`
+- ✅ Updated executor with `.ilike()` name filtering logic in 4 places:
+  - Entities queries
+  - Metrics base query  
+  - Previous period query
+  - Timeseries query
+  - Breakdown queries
+- ✅ Added 4 few-shot examples to `prompts.py`
+- ✅ Updated system prompt with entity_name guidance
+- ✅ Updated canonicalization patterns to preserve entity names
+- ✅ Created 9 unit tests (all passing!)
+
+**Test Results**: 9/9 unit tests passed ✅
+- ✅ Exact match: "Holiday Sale - Purchases"
+- ✅ Partial match: "Sale" → finds both Sale campaigns
+- ✅ Case-insensitive: "HOLIDAY" = "holiday"
+- ✅ Metrics query with name filter
+- ✅ Breakdown with name filter
+- ✅ No match handling
+- ✅ Combined with status filter
+- ✅ Lowercase matching
+- ✅ Single word matching
+
+**Files Modified**:
+1. `/backend/app/dsl/schema.py` - Added entity_name field
+2. `/backend/app/dsl/executor.py` - Added .ilike() filtering (4 locations)
+3. `/backend/app/nlp/prompts.py` - Added 4 examples + system prompt rules
+4. `/backend/app/dsl/canonicalize.py` - Improved entity name preservation
+5. `/backend/app/tests/test_named_entity_filtering.py` - NEW: 9 comprehensive tests
+
+---
+
+### 🔄 In Progress
+
+- Running full QA test suite to verify Test 18 passes
+
+---
+
+### 📋 Pending
+
+- Update answer builder for entity-specific language (optional enhancement)
+- Document in QA_SYSTEM_ARCHITECTURE.md
+- Update ADNAVI_BUILD_LOG.md
+
+---
+
+### 🔮 Future Enhancements (Multi-Entity Comparison)
+
+**User Requirement**: "Compare the CPC of last 7 days from X campaign to Y campaign"
+
+This requires:
+1. **Multiple entity_name filters** - Currently supports single name, need to support multiple
+2. **Comparison mode** - Compare entity A vs entity B for the same metric
+3. **Answer formatting** - Side-by-side comparison in natural language
+
+**Implementation Approach** (Week 4+):
+- Add `entity_names: List[str]` field (plural) for multi-entity queries
+- Update executor to handle multiple name patterns
+- Add comparison-specific answer formatting
+- Few-shot examples for "compare X to Y" patterns
+
+**Effort**: 1-2 days
 
 ---
 

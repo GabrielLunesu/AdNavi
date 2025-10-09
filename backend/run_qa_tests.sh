@@ -1,11 +1,11 @@
 #!/bin/bash
 # Simple QA Test Runner
 
-WORKSPACE_ID="a8fef057-4b82-49d7-8049-4257fd9d272b"
+WORKSPACE_ID="9d75665c-cd01-40f1-82df-a52d56b6d749"
 API_URL="http://localhost:8000/qa/?workspace_id=$WORKSPACE_ID"
 COOKIE_FILE="../cookies.txt"
 TEST_RESULTS_DIR="test-results"
-OUTPUT_FILE="$TEST_RESULTS_DIR/qa_test_results-phase-5-4.md"
+OUTPUT_FILE="$TEST_RESULTS_DIR/qa_test_results-phase-5-5.md"
 
 # Create test-results directory if it doesn't exist
 mkdir -p "$TEST_RESULTS_DIR"
@@ -64,6 +64,7 @@ QUESTIONS=(
     "Rank platforms by cost per conversion"
     "give me a breakdown of holiday campaign performance"
     "what is my average order value?"
+    "give me a list of the top 5 adsets last week by revenue"
    
     
     # Comparisons

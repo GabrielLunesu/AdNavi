@@ -118,10 +118,19 @@ class Filters(BaseModel):
     - level: Filter by entity hierarchy level (account, campaign, adset, ad)
     - entity_ids: Filter by specific entity UUIDs
     - status: Filter by entity status (active, paused)
+    - entity_name: Filter by entity name (NEW - case-insensitive partial match)
     
     Examples:
         {"provider": "google", "status": "active"}
         {"level": "campaign", "entity_ids": ["uuid1", "uuid2"]}
+        {"entity_name": "Holiday Sale"}  # NEW - matches "Holiday Sale - Purchases"
+        {"level": "campaign", "entity_name": "Sale"}  # Matches all campaigns with "Sale"
+    
+    Named Entity Filtering (NEW):
+    - Case-insensitive: "HOLIDAY" = "holiday" = "Holiday"
+    - Partial match: "Sale" matches "Holiday Sale - Purchases", "Summer Sale Campaign"
+    - SQL-safe: Uses ILIKE (no injection risk)
+    - Enables natural queries: "How is Holiday Sale campaign performing?"
     """
     provider: Optional[str] = Field(
         default=None,
@@ -138,6 +147,10 @@ class Filters(BaseModel):
     status: Optional[Literal["active", "paused"]] = Field(
         default=None,
         description="Entity status filter"
+    )
+    entity_name: Optional[str] = Field(
+        default=None,
+        description="Filter by entity name (case-insensitive partial match). Example: 'holiday' matches 'Holiday Sale - Purchases'"
     )
 
 

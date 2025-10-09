@@ -469,6 +469,71 @@ FEW_SHOT_EXAMPLES = [
             "filters": {}
         }
     },
+    
+    # NEW Phase 5: Named entity filtering examples
+    # WHY: Enable natural queries for specific campaigns/adsets by name
+    # HOW: Use entity_name filter with partial, case-insensitive matching
+    {
+        "question": "Give me a breakdown of Holiday Sale campaign performance",
+        "dsl": {
+            "query_type": "metrics",
+            "metric": "revenue",  # Default metric for "performance"
+            "time_range": {"last_n_days": 7},
+            "compare_to_previous": False,
+            "group_by": "campaign",  # Need group_by for breakdown
+            "breakdown": "campaign",  # Show breakdown even for single campaign
+            "top_n": 5,
+            "sort_order": "desc",
+            "filters": {
+                "entity_name": "Holiday Sale"  # NEW: Matches "Holiday Sale - Purchases"
+            }
+        }
+    },
+    {
+        "question": "How is the Summer Sale campaign performing?",
+        "dsl": {
+            "query_type": "metrics",
+            "metric": "roas",  # ROAS as primary performance indicator
+            "time_range": {"last_n_days": 7},
+            "compare_to_previous": False,
+            "group_by": "none",
+            "breakdown": None,
+            "top_n": 5,
+            "sort_order": "desc",
+            "filters": {
+                "level": "campaign",
+                "entity_name": "Summer Sale"  # NEW: Case-insensitive partial match
+            }
+        }
+    },
+    {
+        "question": "Show me all lead gen campaigns",
+        "dsl": {
+            "query_type": "entities",
+            "filters": {
+                "level": "campaign",
+                "entity_name": "lead gen"  # Partial match - finds "Lead Gen - B2B", etc.
+            },
+            "top_n": 10
+        }
+    },
+    {
+        "question": "What's the CPA for Morning Audience adsets?",
+        "dsl": {
+            "query_type": "metrics",
+            "metric": "cpa",
+            "time_range": {"last_n_days": 7},
+            "compare_to_previous": False,
+            "group_by": "none",
+            "breakdown": None,
+            "top_n": 5,
+            "sort_order": "desc",
+            "filters": {
+                "level": "adset",
+                "entity_name": "Morning Audience"  # NEW: Filter by adset name pattern
+            }
+        }
+    },
 ]
 
 # Follow-up examples (demonstrating context usage)
@@ -654,6 +719,19 @@ FILTERS (optional, only if mentioned):
 - level: "account" | "campaign" | "adset" | "ad"  (use for entities queries)
 - status: "active" | "paused"
 - entity_ids: ["uuid1", "uuid2", ...]
+- entity_name: string (NEW - filter by entity name, case-insensitive partial match)
+
+ENTITY NAME FILTERING (NEW Phase 5):
+Use when user mentions specific campaign/adset/ad names:
+- Extract the key identifying words (ignore "campaign", "adset", "ad" keywords)
+- Matching is case-insensitive and partial
+- Examples:
+  - "Holiday Sale campaign" → entity_name: "Holiday Sale"
+  - "lead gen campaigns" → entity_name: "lead gen"
+  - "Morning Audience adsets" → entity_name: "Morning Audience"
+  - "Summer Sale" → entity_name: "Summer Sale"
+- Don't include level keywords in entity_name (they go in level filter)
+- Combine with level filter for precision: {"level": "campaign", "entity_name": "Holiday"}
 
 BREAKDOWN DIMENSIONS:
 - "provider": Group by platform (google, meta, tiktok)
@@ -698,7 +776,13 @@ JSON SCHEMA:
   "breakdown": "provider" | "campaign" | "adset" | "ad" | null (default: null),
   "top_n": number (default: 5, range: 1-50),
   "sort_order": "asc" | "desc" (default: "desc"),
-  "filters": object (default: {}),
+  "filters": {
+    "provider": string | null,
+    "level": string | null,
+    "status": string | null,
+    "entity_ids": array | null,
+    "entity_name": string | null  // NEW: Case-insensitive partial match
+  },
   "thresholds": object (optional, default: null)
 }
 
