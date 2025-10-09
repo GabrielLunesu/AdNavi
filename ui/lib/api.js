@@ -4,6 +4,12 @@
 
 const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
+// Log API configuration for debugging
+if (typeof window !== 'undefined') {
+  console.log('API Base URL:', BASE);
+  console.log('Current protocol:', window.location.protocol);
+}
+
 export async function fetchWorkspaceKpis({
   workspaceId,
   metrics = ["spend","revenue","conversions","roas"],

@@ -4,9 +4,10 @@ services:
       context: ./ui
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+        NEXT_PUBLIC_API_URL: https://t8zgrthold5r2-backend--8000.prod1a.defang.dev
     environment:
       - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=https://t8zgrthold5r2-backend--8000.prod1a.defang.dev
     ports:
       - mode: ingress
         target: 3000
@@ -15,11 +16,11 @@ services:
         reservations:
           memory: 512M
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      test: ["CMD", "wget", "-f", "http://localhost:3000/"]
       interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 90s
+      timeout: 30s
+      retries: 10
+      start_period: 180s
 
   backend:
     build:

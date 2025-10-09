@@ -5,7 +5,11 @@ import os
 from typing import Any, Dict
 
 from jose import jwt, JWTError
-from passlib.hash import bcrypt
+from passlib.context import CryptContext
+
+# Create a crypt context with bcrypt, handling the 72-byte limit
+# Use explicit rounds to avoid wrap bug detection issues
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__rounds=12)
 
 
 ALGORITHM = "HS256"
@@ -29,12 +33,24 @@ if not JWT_SECRET:
 
 def get_password_hash(password: str) -> str:
     """Hash a plaintext password using bcrypt."""
-    return bcrypt.hash(password)
+    # Ensure password is not too long for bcrypt (max 72 bytes)
+    if isinstance(password, str):
+        password_bytes = password.encode('utf-8')
+        if len(password_bytes) > 72:
+            password_bytes = password_bytes[:72]
+            password = password_bytes.decode('utf-8', errors='ignore')
+    return pwd_context.hash(password)
 
 
 def verify_password(password: str, password_hash: str) -> bool:
     """Verify a plaintext password against a bcrypt hash."""
-    return bcrypt.verify(password, password_hash)
+    # Ensure password is not too long for bcrypt (max 72 bytes)
+    if isinstance(password, str):
+        password_bytes = password.encode('utf-8')
+        if len(password_bytes) > 72:
+            password_bytes = password_bytes[:72]
+            password = password_bytes.decode('utf-8', errors='ignore')
+    return pwd_context.verify(password, password_hash)
 
 
 def create_access_token(subject: str, expires_minutes: int | None = None) -> str:

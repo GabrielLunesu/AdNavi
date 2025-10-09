@@ -1,6 +1,6 @@
 # AdNavi Backend (FastAPI + PostgreSQL + SQLAlchemy + Alembic)
 
-This service provides email/password authentication using JWT stored in an HTTP-only cookie, backed by PostgreSQL. It is designed to work with the AdNavi Next.js frontend at `http://localhost:3000`.
+This service provides email/password authentication using JWT stored in an HTTP-only cookie, backed by PostgreSQL. It is designed to work with the AdNavi Next.js frontend.
 
 ## Prerequisites
 - Python 3.11+
@@ -30,6 +30,26 @@ DATABASE_URL=postgresql+psycopg2://adnavi:adnavi@localhost:5432/adnavi
 # CORS / Cookies
 BACKEND_CORS_ORIGINS=http://localhost:3000
 COOKIE_DOMAIN=localhost
+
+# OpenAI API Key (required for AI/QA features)
+OPENAI_API_KEY=your_openai_api_key_here
+
+# Admin Panel Secret
+ADMIN_SECRET_KEY=supersecretkey-change-this-in-production
+```
+
+### Production Environment Variables
+
+For production deployment on Defang, ensure these are set:
+
+```
+DATABASE_URL=your_production_database_url
+JWT_SECRET=your_secure_jwt_secret
+JWT_EXPIRES_MINUTES=10080
+ADMIN_SECRET_KEY=your_secure_admin_key
+BACKEND_CORS_ORIGINS=https://your-frontend-domain.defang.dev
+COOKIE_DOMAIN=.defang.dev
+OPENAI_API_KEY=your_openai_api_key
 ```
 
 ## Start DB
