@@ -11,8 +11,6 @@ import UseCasesList from "./components/UseCasesList";
 export default function DashboardPage() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [rangeDays, setRangeDays] = useState(30);
-  const [rangeOffset, setRangeOffset] = useState(0);
   
   useEffect(() => {
     let mounted = true;
@@ -53,16 +51,14 @@ export default function DashboardPage() {
 
   return (
     <div>
-      {/* Hero Section with quick actions and time range */}
+      {/* Hero Section with chat input */}
       <AssistantSection workspaceId={user.workspace_id} />
 
-      {/* KPI Cards Grid */}
+      {/* KPI Cards Grid with time range controls */}
       <div className="mb-12">
         <HomeKpiStrip 
           workspaceId={user.workspace_id} 
           metrics={dashboardMetrics}
-          lastNDays={rangeDays}
-          dayOffset={rangeOffset}
         />
       </div>
 
