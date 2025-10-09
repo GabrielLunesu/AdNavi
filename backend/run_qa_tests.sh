@@ -1,11 +1,11 @@
 #!/bin/bash
 # Simple QA Test Runner
 
-WORKSPACE_ID="9d75665c-cd01-40f1-82df-a52d56b6d749"
+WORKSPACE_ID="f6ddb2c3-a92d-4b3b-afde-e1606171c73b"
 API_URL="http://localhost:8000/qa/?workspace_id=$WORKSPACE_ID"
 COOKIE_FILE="../cookies.txt"
 TEST_RESULTS_DIR="test-results"
-OUTPUT_FILE="$TEST_RESULTS_DIR/qa_test_results-phase-5-6.md"
+OUTPUT_FILE="$TEST_RESULTS_DIR/qa_test_results-phase-5-7.md"
 
 # Create test-results directory if it doesn't exist
 mkdir -p "$TEST_RESULTS_DIR"
@@ -36,7 +36,7 @@ cat > $OUTPUT_FILE << EOF
 
 **Test Run**: $(date)
 **Workspace**: Defang Labs ($WORKSPACE_ID)
-**System Version**: Phase 3 (v2.1.3)
+**System Version**: Phase 5 (v2.1.3)
 
 ---
 
@@ -45,10 +45,10 @@ EOF
 # Test questions array (add more here!)
 QUESTIONS=(
     # Basic Metrics
-    "What's my CPC today?"
-    "How much did I spend yesterday?"
+    "What's my CPC this month?"
+    "How much did I spend this month?"
     "What's my ROAS this week?"
-    "How much revenue did I generate today?"
+    "How much revenue did I generate yesterday?"
     "What's my conversion rate?"
     "How many clicks did I get last week?"
     "How much profit did I make last week?"
@@ -65,6 +65,12 @@ QUESTIONS=(
     "give me a breakdown of holiday campaign performance"
     "what is my average order value?"
     "give me a list of the top 5 adsets last week by revenue"
+    "What was the revenue for the Holiday Sale campaign last week?"
+    "wich day had the lowest cpc on holiday sale campaign?"
+    "roas last month for holiday sale campaign?"
+    "wich had highest cpc, holiday campaign or app install campaign?"
+    "wich google campaigns are live?"
+
    
     
     # Comparisons

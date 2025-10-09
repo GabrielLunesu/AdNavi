@@ -361,8 +361,12 @@ def seed():
         
         db.flush()  # Get ad IDs
         
-        # 6. Generate 30 days of MetricFact data for each ad
-        print("📊 Generating metric facts (goal-aware)...")
+        # 6. Generate 30 days of MetricFact data for ALL LEVELS (campaign, adset, ad)
+        # WHY: In production, each level has its own aggregated facts from the platform API
+        # Campaign facts = weighted average of all child adsets
+        # AdSet facts = weighted average of all child ads
+        # Ad facts = granular per-creative performance
+        print("📊 Generating metric facts at ALL levels (campaign, adset, ad)...")
         today = datetime.utcnow().date()
         
         # Build a lookup for campaign configs by campaign ID for faster access
@@ -370,6 +374,86 @@ def seed():
         for campaign, config in zip(campaigns, campaign_configs):
             campaign_config_map[campaign.id] = config
         
+        # 6.1: Generate CAMPAIGN-level facts (NEW!)
+        print("  📊 Generating campaign-level facts...")
+        for campaign in campaigns:
+            config = campaign_config_map[campaign.id]
+            goal = campaign.goal.value
+            provider = config["provider"].value
+            
+            for day_offset in range(30):
+                event_date = today - timedelta(days=day_offset)
+                event_datetime = datetime.combine(event_date, datetime.min.time())
+                
+                # Generate campaign-level metrics (weighted aggregate)
+                metrics = generate_random_metrics(goal, provider)
+                
+                fact = models.MetricFact(
+                    id=uuid.uuid4(),
+                    entity_id=campaign.id,  # Campaign entity!
+                    provider=config["provider"],
+                    level=models.LevelEnum.campaign,  # Campaign level!
+                    event_at=event_datetime,
+                    event_date=event_datetime,
+                    spend=metrics['spend'],
+                    impressions=metrics['impressions'],
+                    clicks=metrics['clicks'],
+                    conversions=metrics['conversions'],
+                    revenue=metrics['revenue'],
+                    leads=metrics['leads'],
+                    installs=metrics['installs'],
+                    purchases=metrics['purchases'],
+                    visitors=metrics['visitors'],
+                    profit=metrics['profit'],
+                    currency="EUR",
+                    natural_key=f"{campaign.id}-{event_date}",
+                    ingested_at=datetime.utcnow(),
+                    import_id=import_record.id
+                )
+                db.add(fact)
+        
+        # 6.2: Generate ADSET-level facts (NEW!)
+        print("  📊 Generating adset-level facts...")
+        for adset in adsets:
+            # Find parent campaign
+            campaign = next(c for c in campaigns if c.id == adset.parent_id)
+            config = campaign_config_map[campaign.id]
+            goal = campaign.goal.value
+            provider = config["provider"].value
+            
+            for day_offset in range(30):
+                event_date = today - timedelta(days=day_offset)
+                event_datetime = datetime.combine(event_date, datetime.min.time())
+                
+                # Generate adset-level metrics
+                metrics = generate_random_metrics(goal, provider)
+                
+                fact = models.MetricFact(
+                    id=uuid.uuid4(),
+                    entity_id=adset.id,  # AdSet entity!
+                    provider=config["provider"],
+                    level=models.LevelEnum.adset,  # AdSet level!
+                    event_at=event_datetime,
+                    event_date=event_datetime,
+                    spend=metrics['spend'],
+                    impressions=metrics['impressions'],
+                    clicks=metrics['clicks'],
+                    conversions=metrics['conversions'],
+                    revenue=metrics['revenue'],
+                    leads=metrics['leads'],
+                    installs=metrics['installs'],
+                    purchases=metrics['purchases'],
+                    visitors=metrics['visitors'],
+                    profit=metrics['profit'],
+                    currency="EUR",
+                    natural_key=f"{adset.id}-{event_date}",
+                    ingested_at=datetime.utcnow(),
+                    import_id=import_record.id
+                )
+                db.add(fact)
+        
+        # 6.3: Generate AD-level facts (EXISTING - keep as is)
+        print("  📊 Generating ad-level facts...")
         for ad in ads:
             # Find ad's campaign to get goal and provider
             adset = next(a for a in adsets if a.id == ad.parent_id)
@@ -466,10 +550,15 @@ def seed():
         
         print(f"\n📊 METRIC FACTS:")
         print(f"   Days of data: 30")
-        print(f"   Total metric facts: {len(ads) * 30:,}")
+        total_facts = (len(campaigns) * 30) + (len(adsets) * 30) + (len(ads) * 30)
+        print(f"   Total metric facts: {total_facts:,}")
+        print(f"   - Campaign-level facts: {len(campaigns) * 30:,}")
+        print(f"   - AdSet-level facts: {len(adsets) * 30:,}")
+        print(f"   - Ad-level facts: {len(ads) * 30:,}")
         print(f"   Providers: Google, Meta, TikTok, Other (multi-platform)")
         print(f"   Base measures: spend, revenue, clicks, impressions, conversions,")
         print(f"                  leads, installs, purchases, visitors, profit")
+        print(f"   ✨ NEW: Multi-level facts match production API structure!")
         
         print(f"\n💰 P&L SNAPSHOTS:")
         print(f"   Total snapshots: {pnl_count}")
