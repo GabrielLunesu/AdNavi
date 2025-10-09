@@ -398,7 +398,16 @@ class PnlListResponse(BaseModel):
 # --- KPI request/response schemas ---
 # We keep this small & stable so both UI and (later) AI can rely on it.
 
-MetricKey = Literal["spend","revenue","clicks","impressions","conversions","roas","cpa"]
+MetricKey = Literal[
+    # Base measures
+    "spend","revenue","clicks","impressions","conversions","leads","installs","purchases","visitors","profit",
+    # Derived metrics - Cost/Efficiency
+    "cpc","cpm","cpa","cpl","cpi","cpp",
+    # Derived metrics - Value
+    "roas","poas","arpv","aov",
+    # Derived metrics - Engagement
+    "ctr","cvr"
+]
 
 class TimeRange(BaseModel):
     """

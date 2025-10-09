@@ -19,6 +19,7 @@ from sqlalchemy import func
 from app.database import get_db
 from app import models
 from app.schemas import KpiRequest, KpiValue, TimeRange, SparkPoint
+from app.metrics.registry import compute_metric, get_required_bases, is_base_measure
 
 router = APIRouter(prefix="/workspaces", tags=["kpis"])
 
@@ -33,23 +34,18 @@ def _daterange(tr: TimeRange) -> tuple[date, date]:
 
 def _derived(metric_key: str, totals: dict) -> Optional[float]:
     """
-    Compute derived metrics (ROAS, CPA) from base parts.
-    totals is a dict-like with spend, revenue, conversions.
-    We protect against divide-by-zero to avoid crashes and misleading infinities.
+    Compute ANY metric (base or derived) using the metrics registry.
+    
+    This now supports all 22 metrics (10 base + 12 derived) via the centralized
+    compute_metric function from app.metrics.registry.
+    
+    WHY: Single source of truth for metric formulas, divide-by-zero guards included.
     """
     if totals is None:
         return None
-    if metric_key == "roas":
-        s = float(totals.get("spend") or 0)
-        r = float(totals.get("revenue") or 0)
-        return (r / s) if s > 0 else None
-    if metric_key == "cpa":
-        s = float(totals.get("spend") or 0)
-        c = float(totals.get("conversions") or 0)
-        return (s / c) if c > 0 else None
-    # base metrics just echo the sum
-    v = totals.get(metric_key)
-    return float(v) if v is not None else None
+    
+    # Use the metrics registry to compute the metric
+    return compute_metric(metric_key, totals)
 
 @router.post("/{workspace_id}/kpis", response_model=List[KpiValue])
 def get_workspace_kpis(
@@ -74,6 +70,7 @@ def get_workspace_kpis(
     start, end = _daterange(req.time_range)
 
     # Base aggregate for current period
+    # Aggregate ALL base measures so derived metrics can be computed
     base = (
         db.query(
             func.coalesce(func.sum(MF.spend), 0).label("spend"),
@@ -81,6 +78,11 @@ def get_workspace_kpis(
             func.coalesce(func.sum(MF.clicks), 0).label("clicks"),
             func.coalesce(func.sum(MF.impressions), 0).label("impressions"),
             func.coalesce(func.sum(MF.conversions), 0).label("conversions"),
+            func.coalesce(func.sum(MF.leads), 0).label("leads"),
+            func.coalesce(func.sum(MF.installs), 0).label("installs"),
+            func.coalesce(func.sum(MF.purchases), 0).label("purchases"),
+            func.coalesce(func.sum(MF.visitors), 0).label("visitors"),
+            func.coalesce(func.sum(MF.profit), 0).label("profit"),
         )
         .join(E, E.id == MF.entity_id)
         .filter(E.workspace_id == workspace_id)
@@ -108,6 +110,11 @@ def get_workspace_kpis(
                 func.coalesce(func.sum(MF.clicks), 0).label("clicks"),
                 func.coalesce(func.sum(MF.impressions), 0).label("impressions"),
                 func.coalesce(func.sum(MF.conversions), 0).label("conversions"),
+                func.coalesce(func.sum(MF.leads), 0).label("leads"),
+                func.coalesce(func.sum(MF.installs), 0).label("installs"),
+                func.coalesce(func.sum(MF.purchases), 0).label("purchases"),
+                func.coalesce(func.sum(MF.visitors), 0).label("visitors"),
+                func.coalesce(func.sum(MF.profit), 0).label("profit"),
             )
             .join(E, E.id == MF.entity_id)
             .filter(E.workspace_id == workspace_id)
@@ -132,6 +139,11 @@ def get_workspace_kpis(
                 func.coalesce(func.sum(MF.clicks), 0).label("clicks"),
                 func.coalesce(func.sum(MF.impressions), 0).label("impressions"),
                 func.coalesce(func.sum(MF.conversions), 0).label("conversions"),
+                func.coalesce(func.sum(MF.leads), 0).label("leads"),
+                func.coalesce(func.sum(MF.installs), 0).label("installs"),
+                func.coalesce(func.sum(MF.purchases), 0).label("purchases"),
+                func.coalesce(func.sum(MF.visitors), 0).label("visitors"),
+                func.coalesce(func.sum(MF.profit), 0).label("profit"),
             )
             .join(E, E.id == MF.entity_id)
             .filter(E.workspace_id == workspace_id)
@@ -156,7 +168,9 @@ def get_workspace_kpis(
             date_key = r.d.strftime('%Y-%m-%d') if hasattr(r.d, 'strftime') else str(r.d)
             spark_by_day[date_key] = {
                 "spend": r.spend, "revenue": r.revenue, "clicks": r.clicks,
-                "impressions": r.impressions, "conversions": r.conversions
+                "impressions": r.impressions, "conversions": r.conversions,
+                "leads": r.leads, "installs": r.installs, "purchases": r.purchases,
+                "visitors": r.visitors, "profit": r.profit
             }
 
     # Build per-metric cards
@@ -176,7 +190,8 @@ def get_workspace_kpis(
                 # Ensure date format matches the dictionary keys (YYYY-MM-DD)
                 d = cur.strftime('%Y-%m-%d') if hasattr(cur, 'strftime') else str(cur)
                 pieces = spark_by_day.get(d, {})
-                spark_val = _derived(key, pieces) if key in ("roas","cpa") else float(pieces.get(key, 0) or 0)
+                # Always use _derived() to handle both base and derived metrics correctly
+                spark_val = _derived(key, pieces)
                 spark.append(SparkPoint(date=d, value=spark_val))
                 cur += timedelta(days=1)
 
