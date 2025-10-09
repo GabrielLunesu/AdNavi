@@ -34,7 +34,7 @@ function MiniSparkline({ data, isNegative }) {
   }).join(' ');
 
   return (
-    <svg className="w-24 h-12" viewBox="0 0 100 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg className="w-30 h-12" viewBox="0 0 100 50" fill="none" xmlns="http://www.w3.org/2000/svg">
       <polyline
         points={points}
         stroke={color}
@@ -52,7 +52,7 @@ export default function KPICard({ label, value, deltaPct = 0, sparklineData = []
   // const isNegative = deltaPct < 0;  // TODO: Backend endpoint for delta calculation needed
   
   return (
-    <div className="glass-card rounded-3xl p-6 border border-neutral-200/60 shadow-lg card-hover relative overflow-hidden">
+    <div className="glass-card rounded-3xl p-4 border border-neutral-200/60 shadow-lg card-hover relative overflow-hidden">
       <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-400 to-cyan-600"></div>
       <p className="text-xs font-medium text-neutral-500 mb-2 uppercase tracking-wide">{label}</p>
       <p className="text-3xl font-semibold text-neutral-900 mb-3">{value}</p>
@@ -64,7 +64,7 @@ export default function KPICard({ label, value, deltaPct = 0, sparklineData = []
       </div> */}
       
       {/* Sparkline takes full width */}
-      <div className="flex items-center justify-end">
+      <div className="flex w-full items-center justify-end">
         <MiniSparkline data={sparklineData} isNegative={false} />
       </div>
     </div>
