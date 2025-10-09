@@ -453,6 +453,35 @@ html {
   animation: pulse-glow-btn 3s ease-in-out infinite;
 }
 
+/* Copilot message animations */
+@keyframes message-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ai-budge {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+}
+
+.message-enter {
+  animation: message-fade-in 0.4s ease-out forwards;
+}
+
+.ai-message-enter {
+  animation: message-fade-in 0.4s ease-out forwards, ai-budge 0.6s ease-in-out 0.4s;
+}
+
 /* Hide scrollbars utility */
 .no-scrollbar {
   -ms-overflow-style: none;

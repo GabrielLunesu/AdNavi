@@ -1,4 +1,5 @@
 import { Sparkles } from "lucide-react";
+import { useRef, useEffect } from "react";
 
 function MetricBadge({ children }) {
   return (
@@ -43,30 +44,48 @@ function UserMessage({ text }) {
 }
 
 export default function ConversationThread({ messages = [], isLoading }) {
-  const sampleAIMessage = `Your spend dropped by <span class="metric-badge px-2 py-0.5 rounded-lg font-medium text-cyan-600">4.2%</span>, but revenue increased by 
-    <span class="metric-badge px-2 py-0.5 rounded-lg font-medium text-cyan-600">8.7%</span>, improving your ROAS to 
-    <span class="metric-badge px-2 py-0.5 rounded-lg font-medium text-cyan-600">4.32x</span>.<br/><br/>
-    The best performer was <span class="font-medium text-cyan-600">Meta LAL 2%</span>, generating 
-    <span class="metric-badge px-2 py-0.5 rounded-lg font-medium text-cyan-600">612 conversions</span> at a CPC of 
-    <span class="metric-badge px-2 py-0.5 rounded-lg font-medium text-cyan-600">$0.64</span>.`;
+  const messagesEndRef = useRef(null);
 
-  const sampleMessages = [
-    { type: 'ai', text: sampleAIMessage },
-    { type: 'user', text: 'Show me my conversions vs last week' },
-  ];
-
-  const displayMessages = messages.length > 0 ? messages : sampleMessages;
+  // Auto-scroll to bottom when new message arrives
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages.length, isLoading]);
 
   return (
-    <div className="space-y-4 mb-8">
-      {displayMessages.map((msg, idx) => (
-        msg.type === 'ai' ? (
-          <AIMessage key={idx} text={msg.text} />
-        ) : (
-          <UserMessage key={idx} text={msg.text} />
-        )
-      ))}
-      {isLoading && <AIMessage isTyping={true} />}
+    <div className="mb-8">
+      {/* Scrollable viewport for messages */}
+      <div className="max-h-[600px] overflow-y-auto pr-2 space-y-4 no-scrollbar">
+        {/* Empty state when no messages */}
+        {messages.length === 0 && !isLoading && (
+          <div className="text-center py-12">
+            <p className="text-neutral-400 text-lg">Start a conversation by asking a question below</p>
+          </div>
+        )}
+        
+        {/* Render actual messages with animations */}
+        {messages.map((msg, idx) => (
+          <div
+            key={msg.timestamp || `${msg.type}-${idx}`}
+            className={msg.type === 'ai' ? 'ai-message-enter' : 'message-enter'}
+          >
+            {msg.type === 'ai' ? (
+              <AIMessage text={msg.text} />
+            ) : (
+              <UserMessage text={msg.text} />
+            )}
+          </div>
+        ))}
+        
+        {/* Typing indicator during loading */}
+        {isLoading && (
+          <div className="message-enter">
+            <AIMessage isTyping={true} />
+          </div>
+        )}
+        
+        {/* Invisible div for auto-scroll target */}
+        <div ref={messagesEndRef} />
+      </div>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
-import { Mic, ArrowRight, DollarSign, TrendingUp, Activity } from "lucide-react";
+import { ArrowRight, DollarSign, TrendingUp, Activity } from "lucide-react";
+// import { Mic } from "lucide-react"; // Commented out for now
 
 const suggestedQuestions = [
   { icon: DollarSign, text: "How much revenue today?" },
@@ -49,9 +50,10 @@ export default function ChatConsole({ onSubmit, disabled }) {
           <div className="glass-console rounded-full border border-neutral-200/60 shadow-2xl px-6 py-4 flex items-center gap-4 relative overflow-hidden">
             <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-cyan-400 to-transparent opacity-40 pulse-glow"></div>
             
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-400 to-cyan-600 flex items-center justify-center flex-shrink-0 pulse-dot">
+            {/* Mic icon commented out for now */}
+            {/* <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-400 to-cyan-600 flex items-center justify-center flex-shrink-0 pulse-dot">
               <Mic className="w-5 h-5 text-white" strokeWidth={1.5} />
-            </div>
+            </div> */}
             
             <input 
               type="text"

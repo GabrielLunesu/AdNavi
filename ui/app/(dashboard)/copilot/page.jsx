@@ -45,19 +45,36 @@ export default function CopilotPage() {
   }, [question, resolvedWs]);
 
   const handleSubmit = (q) => {
-    if (!resolvedWs || !q.trim()) return;
+    if (!resolvedWs || !q.trim() || loading) return;
     
-    // Add user message
-    setMessages((prev) => [...prev, { type: 'user', text: q }]);
+    // Add user message immediately with timestamp (optimistic UI)
+    const userMessage = {
+      type: 'user',
+      text: q,
+      timestamp: Date.now()
+    };
+    setMessages((prev) => [...prev, userMessage]);
     setLoading(true);
 
     fetchQA({ workspaceId: resolvedWs, question: q })
       .then((res) => {
-        // Add AI response
-        setMessages((prev) => [...prev, { type: 'ai', text: res.answer }]);
+        // Add AI response with timestamp
+        const aiMessage = {
+          type: 'ai',
+          text: res.answer,
+          timestamp: Date.now()
+        };
+        setMessages((prev) => [...prev, aiMessage]);
       })
       .catch((e) => {
-        setMessages((prev) => [...prev, { type: 'ai', text: `Error: ${e.message}` }]);
+        // Show error as AI message for better UX
+        const errorMessage = {
+          type: 'ai',
+          text: `I encountered an error: ${e.message}. Please try again.`,
+          timestamp: Date.now(),
+          isError: true
+        };
+        setMessages((prev) => [...prev, errorMessage]);
       })
       .finally(() => setLoading(false));
   };
@@ -68,10 +85,10 @@ export default function CopilotPage() {
       <SnapshotHeader />
 
       {/* Insight Stack */}
-      <InsightCards />
+      {/* <InsightCards /> */}
 
       {/* Real-time Fact Widgets */}
-      <FactWidgets />
+      {/* <FactWidgets /> */}
 
       {/* Conversation History */}
       <ConversationThread messages={messages} isLoading={loading} />
