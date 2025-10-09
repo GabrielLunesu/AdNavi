@@ -4,9 +4,9 @@ import { ArrowRight, DollarSign, TrendingUp, Activity } from "lucide-react";
 // import { Mic } from "lucide-react"; // Commented out for now
 
 const suggestedQuestions = [
-  { icon: DollarSign, text: "How much revenue today?" },
+  { icon: DollarSign, text: "How much revenue last week?" },
   { icon: TrendingUp, text: "Show my conversions vs last week" },
-  { icon: Activity, text: "What's my break-even ROAS?" },
+  { icon: Activity, text: "What's my ROAS on Google last month?" },
 ];
 
 export default function ChatConsole({ onSubmit, disabled }) {
