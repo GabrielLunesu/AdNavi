@@ -99,17 +99,17 @@ export default function Sidebar() {
           </div>
         )}
 
-        {/* Logout Button */}
-        {user && (
-          <form action={async () => { await logout(); location.href = "/"; }}>
-            <button
-              type="submit"
-              className="w-full rounded-2xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 px-4 py-2 text-sm font-medium transition-colors"
-            >
-              Logout
-            </button>
-          </form>
-        )}
+                {/* Logout Button */}
+                {user && (
+                  <form action={async () => { await logout(); location.href = "/login"; }}>
+                    <button
+                      type="submit"
+                      className="w-full rounded-2xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 px-4 py-2 text-sm font-medium transition-colors"
+                    >
+                      Logout
+                    </button>
+                  </form>
+                )}
       </div>
     </aside>
   );
