@@ -5,7 +5,7 @@ WORKSPACE_ID="9d75665c-cd01-40f1-82df-a52d56b6d749"
 API_URL="http://localhost:8000/qa/?workspace_id=$WORKSPACE_ID"
 COOKIE_FILE="../cookies.txt"
 TEST_RESULTS_DIR="test-results"
-OUTPUT_FILE="$TEST_RESULTS_DIR/qa_test_results-phase-5-5.md"
+OUTPUT_FILE="$TEST_RESULTS_DIR/qa_test_results-phase-5-6.md"
 
 # Create test-results directory if it doesn't exist
 mkdir -p "$TEST_RESULTS_DIR"
@@ -98,6 +98,16 @@ QUESTIONS=(
     "What time on average do i get the best cpc?"
     "how much revenue would i have last week if my cpc was 0.20?"
     ""
+    
+    # NEW Phase 5: Named Entity Filtering Tests
+    "How is the Summer Sale campaign performing?"
+    "Show me all lead gen campaigns"
+    "What's the CPA for Morning Audience adsets?"
+    "What's the revenue for Black Friday campaign?"
+    "Give me ROAS for App Install campaigns"
+    "Show me Weekend Audience adsets"
+    "What's the CTR for Evening Audience adsets?"
+    "How much did Holiday Sale campaign spend last week?"
 
 )
 

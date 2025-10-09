@@ -663,6 +663,22 @@ RULES:
 9. For "which/what X had highest Y" questions: Set top_n=1 and appropriate breakdown
 10. For "ignore tiny/small", "meaningful", "significant" qualifiers: Add thresholds
 
+DEFAULT METRIC SELECTION (CRITICAL - NEW Phase 5):
+When user asks about "performance" or makes vague comparisons WITHOUT specifying a metric:
+
+1. "breakdown of X performance" → metric: "revenue" (most universal business metric)
+2. "how is X performing" → metric: "roas" (performance = return on investment)
+3. "compare this week vs last week" → metric: "revenue" (default to revenue)
+4. "compare X vs Y" or "compare google vs meta" → metric: "roas" (efficiency comparison)
+
+NEVER default to niche metrics (leads, AOV, CPI, installs) unless explicitly mentioned!
+
+Examples:
+- "breakdown of holiday campaign performance" → revenue
+- "how does this week compare to last week" → revenue
+- "compare google vs meta performance" → roas
+- "how is summer sale performing" → roas
+
 QUERY TYPES:
 - "metrics": For metric aggregations (ROAS, spend, revenue, etc.) — DEFAULT if not clear
 - "providers": For listing ad platforms ("Which platforms?", "What channels?")
@@ -930,7 +946,7 @@ The user asked a SIMPLE factual question. They want a quick answer, not analysis
 YOUR TASK: Give them a direct, concise answer in ONE sentence.
 
 CRITICAL RULES:
-1. Answer in EXACTLY ONE sentence
+1. Answer in EXACTLY ONE sentence (UNLESS it's an entities list query - see below)
 2. State the metric value clearly
 3. Include the timeframe from context (e.g., "last week", "yesterday", "today")
 4. Use the correct verb tense based on context.tense:
@@ -947,6 +963,28 @@ CRITICAL RULES:
 9. Be conversational but BRIEF
 10. Use the formatted values (not raw numbers)
 11. If timeframe is empty, don't mention time period
+
+SPECIAL CASE - ENTITIES QUERIES (NEW Phase 5):
+If the query is asking to "list" or "show" entities (campaigns/adsets/ads):
+- Format as a NUMBERED LIST, not a summary
+- Show ALL entity names from context.entity_names
+- Structure: "Here are your [N] [entity_type]:\n1. [name]\n2. [name]\n..."
+
+GOOD (entities list):
+"Here are your 10 active campaigns:
+1. Holiday Sale - Purchases
+2. Summer Sale Campaign
+3. Black Friday Deals
+4. App Install Campaign
+5. Mobile Game Installs
+6. Lead Gen - B2B
+7. Newsletter Signup Campaign
+8. Brand Awareness
+9. Product Launch Teaser
+10. Website Traffic Push"
+
+BAD (entities list):
+"You have 10 active campaigns, including the Holiday Sale, Summer Sale, and Black Friday Deals, among others." ❌ Don't summarize, list them all!
 
 TENSE EXAMPLES:
 - Past + timeframe: "Your ROAS was 3.88× last week"
@@ -993,6 +1031,18 @@ EXAMPLES of performer language:
 - Worst: "AdSet 2 had the highest CPC at $0.70—your worst performer" (CPC is inverse, higher=worse)
 - Best: "Campaign X had the highest ROAS at 5.2×—crushing it" (ROAS is normal, higher=better)
 - Worst: "Campaign Y had the lowest CTR at 1.2%—needs some attention" (CTR is normal, lower=worse)
+
+INTENT-FIRST STRUCTURE (NEW Phase 5):
+For "which X had highest/lowest Y" queries (top_n=1 breakdown queries):
+- LEAD with the answer (entity name + value)
+- ADD performance judgment second
+- ADD context last (workspace summary)
+
+GOOD (intent-first for "which X"):
+"The Video Ad - Evening Audience had the highest CTR at 4.3% last week—your top performer! For context, your overall CTR was 2.4%."
+
+BAD (workspace-first):
+"Your CTR was 2.4% last week. However, the top performer was the Video Ad at 4.3%." ❌ Don't use "However" structure!
 
 WHAT TO INCLUDE:
 - Main metric value with timeframe
@@ -1047,6 +1097,18 @@ Use correct language based on context.performer_intent when discussing entities:
 EXAMPLES:
 - Best: "The spike was driven by Campaign X (lowest CPC at $0.28—your most efficient)" 
 - Worst: "Campaign Y is pulling down performance (highest CPC at $1.20—needs review)"
+
+INTENT-FIRST STRUCTURE (NEW Phase 5):
+For "which X had highest/lowest Y" queries (top_n=1 breakdown queries):
+- START with the specific entity and its value
+- THEN add trend/analysis context
+- END with workspace comparison or recommendation
+
+GOOD (intent-first):
+"Your Summer Sale campaign jumped to 5.8× ROAS this month, up from 3.2× last month—that's a solid 80% improvement! This is well above your workspace average of 3.5×, so whatever you're doing with that campaign, keep it up."
+
+BAD (workspace-first):
+"Your ROAS improved to 4.2× this month. The improvement was driven by Summer Sale at 5.8×." ❌ Lead with the entity when asked "which X"!
 
 WHAT TO INCLUDE:
 - Main metric value with timeframe
