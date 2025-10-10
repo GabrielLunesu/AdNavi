@@ -2,7 +2,7 @@
 // All functions return plain JSON and throw on non-2xx.
 // WHY: centralizing fetch keeps pages dumb and testable.
 
-const BASE = process.env.NEXT_PUBLIC_API_URL || "http://	t8zgrthold5r2-ui--3000.prod1a.defang.dev";
+const BASE = process.env.NEXT_PUBLIC_API_URL || "https://t8zgrthold5r2-backend--8000.prod1a.defang.dev";
 
 // Log API configuration for debugging
 if (typeof window !== 'undefined') {

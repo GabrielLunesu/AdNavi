@@ -345,9 +345,11 @@ def create_app() -> FastAPI:
         secret_key=settings.ADMIN_SECRET_KEY
     )
     
+    # Parse CORS origins - can be comma-separated list or single origin
+    cors_origins = [origin.strip() for origin in settings.BACKEND_CORS_ORIGINS.split(",")]
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[settings.BACKEND_CORS_ORIGINS],
+        allow_origins=cors_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

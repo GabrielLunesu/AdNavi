@@ -174,12 +174,14 @@ def login_user(payload: schemas.UserLogin, response: Response, db: Session = Dep
     settings = get_settings()
     max_age = 7 * 24 * 3600
 
+    # Use secure=True for production (HTTPS), False for local dev
+    is_production = settings.COOKIE_DOMAIN != "localhost"
     response.set_cookie(
         key="access_token",
         value=cookie_value,
         httponly=True,
         samesite="lax",
-        secure=False,
+        secure=is_production,
         max_age=max_age,
         domain=settings.COOKIE_DOMAIN,
         path="/",
@@ -257,14 +259,16 @@ def get_me(user: User = Depends(get_current_user)):
 )
 def logout_user(response: Response):
     """Clear the access token cookie."""
+    settings = get_settings()
+    is_production = settings.COOKIE_DOMAIN != "localhost"
     response.set_cookie(
         key="access_token",
         value="",
         max_age=0,
         httponly=True,
         samesite="lax",
-        secure=False,
-        domain=get_settings().COOKIE_DOMAIN,
+        secure=is_production,
+        domain=settings.COOKIE_DOMAIN,
         path="/",
     )
     return schemas.SuccessResponse(detail="logged out")
