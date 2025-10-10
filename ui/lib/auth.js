@@ -1,7 +1,7 @@
 // Simple client for backend auth endpoints.
 // All requests include credentials so HTTP-only cookies are sent.
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://t8zgrthold5r2-ui--3000.prod1a.defang.dev";
 
 export async function register(email, password) {
   const res = await fetch(`${BASE_URL}/auth/register`, {

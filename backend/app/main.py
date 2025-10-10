@@ -327,7 +327,7 @@ def create_app() -> FastAPI:
                 "description": "Development server"
             },
             {
-                "url": "https://api.adnavi.com",
+                "url": "https://t8zgrthold5r2-backend--8000.prod1a.defang.dev/",
                 "description": "Production server"
             }
         ]
