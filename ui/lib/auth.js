@@ -1,7 +1,9 @@
 // Simple client for backend auth endpoints.
 // All requests include credentials so HTTP-only cookies are sent.
 
-const BASE_URL = "http://localhost:8000";
+import { getApiBase } from './config';
+
+const BASE_URL = getApiBase(); 
 
 export async function register(email, password) {
   const res = await fetch(`${BASE_URL}/auth/register`, {

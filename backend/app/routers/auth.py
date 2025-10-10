@@ -174,16 +174,24 @@ def login_user(payload: schemas.UserLogin, response: Response, db: Session = Dep
     settings = get_settings()
     max_age = 7 * 24 * 3600
 
-    response.set_cookie(
-        key="access_token",
-        value=cookie_value,
-        httponly=True,
-        samesite="lax",
-        secure=False,
-        max_age=max_age,
-        domain=settings.COOKIE_DOMAIN,
-        path="/",
-    )
+    # Cookie settings that work for both local dev and production
+    # For local: domain=None, secure=False
+    # For production: domain=None (same-site), secure=True for HTTPS
+    cookie_kwargs = {
+        "key": "access_token",
+        "value": cookie_value,
+        "httponly": True,
+        "samesite": "none",  # Changed to 'none' for cross-site cookies
+        "secure": True,  # Required when samesite='none'
+        "max_age": max_age,
+        "path": "/",
+    }
+    
+    # Only set domain if explicitly configured (None for most cases)
+    if settings.COOKIE_DOMAIN:
+        cookie_kwargs["domain"] = settings.COOKIE_DOMAIN
+    
+    response.set_cookie(**cookie_kwargs)
 
     return schemas.LoginResponse(user=schemas.UserOut.model_validate(user))
 
@@ -257,16 +265,22 @@ def get_me(user: User = Depends(get_current_user)):
 )
 def logout_user(response: Response):
     """Clear the access token cookie."""
-    response.set_cookie(
-        key="access_token",
-        value="",
-        max_age=0,
-        httponly=True,
-        samesite="lax",
-        secure=False,
-        domain=get_settings().COOKIE_DOMAIN,
-        path="/",
-    )
+    settings = get_settings()
+    
+    cookie_kwargs = {
+        "key": "access_token",
+        "value": "",
+        "max_age": 0,
+        "httponly": True,
+        "samesite": "none",
+        "secure": True,
+        "path": "/",
+    }
+    
+    if settings.COOKIE_DOMAIN:
+        cookie_kwargs["domain"] = settings.COOKIE_DOMAIN
+    
+    response.set_cookie(**cookie_kwargs)
     return schemas.SuccessResponse(detail="logged out")
 
 

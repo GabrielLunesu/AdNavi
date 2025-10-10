@@ -75,15 +75,24 @@ def ask_question(
     - DSL: app/dsl/schema.py
     - Logging: app/telemetry/logging.py
     """
-    service = QAService(db)
-    
     try:
+        # Initialize service (can fail if OPENAI_API_KEY not set)
+        service = QAService(db)
+        
+        # Execute the QA pipeline
         result = service.answer(
             question=req.question,
             workspace_id=workspace_id,
             user_id=str(current_user.id)
         )
         return result
+        
+    except ValueError as e:
+        # Configuration error (e.g., OPENAI_API_KEY not set)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Service configuration error: {str(e)}"
+        )
         
     except TranslationError as e:
         # LLM failed to translate or returned invalid JSON
@@ -100,8 +109,11 @@ def ask_question(
         )
         
     except Exception as e:
-        # Catch-all for unexpected errors
+        # Catch-all for unexpected errors (with logging for debugging)
+        import traceback
+        print(f"QA Error: {str(e)}")
+        print(traceback.format_exc())
         raise HTTPException(
-            status_code=400,
-            detail=f"Query execution failed: {str(e)}"
+            status_code=500,
+            detail=f"Internal server error: {str(e)}"
         )

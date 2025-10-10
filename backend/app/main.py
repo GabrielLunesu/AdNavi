@@ -327,7 +327,7 @@ def create_app() -> FastAPI:
                 "description": "Development server"
             },
             {
-                "url": "https://api.adnavi.com",
+                "url": "https://t8zgrthold5r2-backend--8000.prod1.defang.dev",
                 "description": "Production server"
             }
         ]
@@ -345,9 +345,13 @@ def create_app() -> FastAPI:
         secret_key=settings.ADMIN_SECRET_KEY
     )
     
+    ALLOWED_ORIGINS = [
+    "https://t8zgrthold5r2-frontend--3000.prod1.defang.dev",
+]
+    
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[settings.BACKEND_CORS_ORIGINS],
+        allow_origins=ALLOWED_ORIGINS,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

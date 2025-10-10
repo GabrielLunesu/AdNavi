@@ -16,8 +16,10 @@ from .security import decode_token
 class Settings(BaseSettings):
     """Application settings loaded from environment or .env."""
 
-    BACKEND_CORS_ORIGINS: str = "http://localhost:3000"
-    COOKIE_DOMAIN: str = "localhost"
+    BACKEND_CORS_ORIGINS: str = "https://t8zgrthold5r2-frontend--3000.prod1.defang.dev"
+    # Cookie domain must NOT include protocol (https://)
+    # Set to None for same-origin cookies (works for both localhost and production)
+    COOKIE_DOMAIN: Optional[str] = None
     ADMIN_SECRET_KEY: str = "supersecretkey-change-this-in-production"
     OPENAI_API_KEY: str | None = None
 
