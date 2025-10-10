@@ -44,7 +44,5 @@ EXPOSE 3000
 
 USER nextjs
 
-# Use standalone server
-CMD ["node", "server.js"]
-
-
+# Use standalone server with hostname binding
+CMD ["node", "server.js", "-H", "0.0.0.0"]
