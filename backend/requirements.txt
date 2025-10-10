@@ -9,7 +9,7 @@ passlib[bcrypt]==1.7.4
 bcrypt==4.0.1
 alembic==1.13.2
 python-dotenv==1.0.1
-openai==1.51.0
+openai==1.54.4
 sqladmin==0.18.0
 wtforms==3.1.1
 itsdangerous==2.2.0
