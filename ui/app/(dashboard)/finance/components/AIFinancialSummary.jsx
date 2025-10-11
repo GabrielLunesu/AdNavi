@@ -25,7 +25,7 @@ export default function AIFinancialSummary() {
           </p>
         </div>
         
-        <div className="flex flex-wrap gap-3">
+        {/* <div className="flex flex-wrap gap-3">
           {suggestedQuestions.map((q, idx) => {
             const Icon = q.icon;
             return (
@@ -35,7 +35,7 @@ export default function AIFinancialSummary() {
               </button>
             );
           })}
-        </div>
+        </div> */}
       </div>
     </div>
   );

@@ -34,7 +34,7 @@ export default function FinancePage() {
       <ChartsSection />
 
       {/* Alert / Notification Panel */}
-      <AlertsPanel />
+      {/* <AlertsPanel />  still have to implement alerts and notifications */}
 
       {/* Financial AI Summary (Copilot Integration) */}
       <AIFinancialSummary />
