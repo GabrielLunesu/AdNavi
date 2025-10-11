@@ -53,7 +53,7 @@ export default function FinancialSummaryCards({ summary, showComparison }) {
             <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-cyan-400 rounded-full blur-[80px] opacity-20 pulse-glow-aura" style={{ animationDelay: `${idx * 2}s` }}></div>
             <div className="relative z-10">
               <p className="text-sm font-medium text-neutral-500 mb-3">{card.data.label}</p>
-              <p className={`text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight mb-3 truncate ${card.valueColor || 'text-black'}`} title={card.data.value}>
+              <p className={`text-3xl sm:text-3xl lg:text-3xl font-bold tracking-tight mb-3 truncate ${card.valueColor || 'text-black'}`} title={card.data.value}>
                 {card.data.value}
               </p>
               {hasDelta && (
