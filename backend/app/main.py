@@ -347,6 +347,7 @@ def create_app() -> FastAPI:
     
     ALLOWED_ORIGINS = [
     "https://t8zgrthold5r2-frontend--3000.prod1.defang.dev",
+    "http://localhost:3000",
 ]
     
     app.add_middleware(

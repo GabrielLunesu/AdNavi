@@ -10,7 +10,7 @@
  */
 export function getApiBase() {
   // Check if we have the env var set during build
-  const envBase = process.env.NEXT_PUBLIC_API_BASE || 'https://t8zgrthold5r2-backend--8000.prod1.defang.dev';
+  const envBase = process.env.NEXT_PUBLIC_API_BASE;
   
   // If we have it and it's not empty, use it
   if (envBase && envBase.trim() !== '') {
