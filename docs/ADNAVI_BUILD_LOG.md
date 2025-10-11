@@ -168,6 +168,10 @@ _Last updated: 2025-10-05T12:00:00Z_
 - Auth endpoints: `/auth/register`, `/auth/login`, `/auth/me`, `/auth/logout`
 - Workspace endpoints: `/workspaces/{id}/info` (sidebar summary)
 - KPI endpoints: `/workspaces/{id}/kpis` (dashboard metrics)
+- Finance endpoints: `/workspaces/{id}/finance/pnl` (P&L statement), `/workspaces/{id}/finance/costs` (manual costs CRUD), `/workspaces/{id}/finance/insight` (AI insights)
+  - Data source: MetricFact (real-time ad spend) + ManualCost (user costs)
+  - Manual costs: one_off (single date) or range (pro-rated across dates) allocation
+  - P&L aggregation: Ad spend by provider + manual costs by category
 - QA endpoint: `/qa` (natural language → DSL → execution → hybrid answer)
   - Pipeline: Question → Canonicalize → LLM Translation → Validate → Plan → Execute → Answer Builder (LLM) → Response
   - Answer generation: Hybrid approach (deterministic facts + LLM rephrasing for natural tone)
@@ -184,6 +188,11 @@ _Last updated: 2025-10-05T12:00:00Z_
 - KPI cards render real data from MetricFact table with time range filtering
 - Time range selector functional: Today, Yesterday, Last 7 days, Last 30 days
 - Dashboard sections fetch real data; other pages still use mock data
+- Finance page fetches real P&L data via financeApiClient + pnlAdapter pattern
+  - Strict SoC: Zero business logic in components (adapter handles all formatting)
+  - Period selector: Current month + last 3 months
+  - Compare toggle: Shows period-over-period deltas
+  - AI insights: Generates financial breakdown via QA system
 - Charts use Recharts for sparklines and visualizations
 
 ---
@@ -202,6 +211,68 @@ _Last updated: 2025-10-05T12:00:00Z_
 ---
 
 ## 11) Changelog
+| - 2025-10-11T20:30:00Z — **FEATURE**: Finance & P&L Backend Integration ✅ — Real-time P&L from MetricFact + manual costs with strict SoC.
+  - **Overview**: Connected Finance page to backend with zero business logic in UI; all calculations server-side
+  - **Data source**: MetricFact (real-time ad spend) + ManualCost (user costs) for complete P&L view
+  - **Pnl table**: Kept for future EOD locking but not used in Finance page initially (optimization opportunity)
+  - **Architecture**: Thin API client → Adapter → UI components (strict separation of concerns)
+  - **Files created (backend)**:
+    - `backend/app/models.py`: Added `ManualCost` model with allocation support (one_off, range)
+    - `backend/alembic/versions/5b531bb7e3a8_add_manual_costs.py`: Migration for manual_costs table
+    - `backend/app/schemas.py`: Finance DTOs (PnLSummary, PnLRow, PnLComparison, ManualCostCreate/Update/Out, FinancialInsightRequest/Response)
+    - `backend/app/services/cost_allocation.py`: Pro-rating logic for date-based cost allocation
+    - `backend/app/routers/finance.py`: Complete Finance REST API (P&L aggregation, manual costs CRUD, QA insight)
+    - `backend/app/tests/test_cost_allocation.py`: 7 unit tests for allocation rules (one-off, range, overlap, leap year)
+    - `backend/app/tests/test_finance_endpoints.py`: Integration test placeholders for endpoints
+  - **Files modified (backend)**:
+    - `backend/app/seed_mock.py`: Added 4 manual cost examples (2 one-off: HubSpot, Trade Show; 2 range: Agency retainer, Analytics stack)
+    - `backend/app/main.py`: Registered finance_router
+  - **Files created (frontend)**:
+    - `ui/lib/financeApiClient.js`: Thin API client (getPnLStatement, createManualCost, listManualCosts, updateManualCost, deleteManualCost, getFinancialInsight)
+    - `ui/lib/pnlAdapter.js`: View model adapter with formatters (formatCurrency, formatPercentage, formatRatio) and helpers (getPeriodDatesForMonth)
+  - **Files modified (frontend)**:
+    - `ui/app/(dashboard)/finance/page.jsx`: Connected to real API with auth, loading/error states, period selection
+    - `ui/app/(dashboard)/finance/components/FinancialSummaryCards.jsx`: Displays view model from adapter (no formatting)
+    - `ui/app/(dashboard)/finance/components/PLTable.jsx`: Displays P&L rows with ad/manual indicators
+    - `ui/app/(dashboard)/finance/components/AIFinancialSummary.jsx`: QA integration with generate button
+    - `ui/app/(dashboard)/finance/components/TopBar.jsx`: Period selector with {year, month} objects
+    - `ui/app/(dashboard)/finance/components/ChartsSection.jsx`: Simplified to use composition prop
+  - **Features**:
+    - ✅ Monthly P&L aggregation (ad spend by provider + manual costs by category)
+    - ✅ Manual cost allocation: one_off (single date) or range (pro-rated daily across dates)
+    - ✅ Previous period comparison (compare toggle computes deltas: revenue_delta_pct, spend_delta_pct, profit_delta_pct, roas_delta)
+    - ✅ AI financial insight via QA system ("Give me a financial breakdown of {Month YYYY}")
+    - ✅ Workspace-scoped at SQL level (security, no cross-tenant leaks)
+    - ✅ Future-proof: Contracts support daily granularity via timeseries field (not implemented in UI yet)
+  - **Design principles**:
+    - **Strict SoC**: Backend computes all metrics/totals, frontend only displays
+    - **Thin client**: financeApiClient has zero business logic, just HTTP calls
+    - **Adapter layer**: pnlAdapter handles all formatting/mapping, components receive ready-to-display data
+    - **WHAT/WHY/REFERENCES comments**: Every file cross-references related modules
+  - **Allocation rules (server-side enforcement)**:
+    - **one_off**: Include full amount if allocation_date falls within [period_start, period_end)
+    - **range**: Pro-rate amount as (overlapping_days / total_days) × amount_dollar
+    - **Monthly view**: Includes only portion of costs overlapping requested month
+    - **Daily view (future)**: Same allocation rules apply per-day
+  - **Testing**:
+    - ✅ Unit tests: 7/7 passing for cost allocation (one-off inside/outside, range full/partial/none, multi-month, leap year)
+    - ⏳ Integration tests: Placeholders created for P&L aggregation, CRUD, workspace isolation
+    - ⏳ Contract tests: View model adapters with representative payloads (TODO)
+  - **API Endpoints**:
+    - `GET /workspaces/{id}/finance/pnl?granularity=month&period_start=YYYY-MM-DD&period_end=YYYY-MM-DD&compare=bool`: P&L statement
+    - `POST /workspaces/{id}/finance/costs`: Create manual cost
+    - `GET /workspaces/{id}/finance/costs`: List manual costs
+    - `PUT /workspaces/{id}/finance/costs/{cost_id}`: Update manual cost
+    - `DELETE /workspaces/{id}/finance/costs/{cost_id}`: Delete manual cost
+    - `POST /workspaces/{id}/finance/insight`: Get AI financial insight
+  - **Known limitations**:
+    - Planned/budgeted amounts not implemented (planned_dollar always null in PnLRow)
+    - Daily granularity supported by contract but not implemented in UI (timeseries field exists)
+    - Manual cost UI for adding/editing costs not built (CRUD via API/admin only)
+    - Revenue tracking only from ad platforms (no manual revenue entries yet)
+  - **Migration**: Run `alembic upgrade head` on Railway database (creates manual_costs table)
+  - **Seed data**: Run `python -m app.seed_mock` for test data (adds 4 manual costs)
+  - **Cost impact**: No additional API costs (uses existing MetricFact aggregation pattern)
 | - 2025-10-08T17:10:00Z — **IMPLEMENTATION**: Phase 4.5 - Sort Order & Performance Breakdown Fixes ✅ — Dynamic ordering for lowest/highest queries + GPT-4-turbo upgrade.
   - **Overview**: Fixed critical issues with "lowest/highest" queries returning wrong entities and performance breakdown query errors.
   - **Success Rate Improvement**: 4 out of 5 target tests fixed (80% success rate on edge cases)

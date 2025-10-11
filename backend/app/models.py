@@ -98,6 +98,7 @@ class Workspace(Base):
     entities = relationship("Entity", back_populates="workspace")  # All entities (campaigns, ads, etc)
     compute_runs = relationship("ComputeRun", back_populates="workspace")  # All compute runs
     queries = relationship("QaQueryLog", back_populates="workspace")  # All queries made in workspace
+    manual_costs = relationship("ManualCost", back_populates="workspace")  # All manual costs (non-ad costs)
     
     # This is used to display the model in the admin interface.
     def __str__(self):
@@ -422,6 +423,51 @@ class Pnl(Base):
     def __str__(self):
         date_str = self.event_date.strftime('%Y-%m-%d') if self.event_date else 'N/A'
         return f"{self.kind.value} P&L - {date_str} - ${self.spend}"
+
+
+class ManualCost(Base):
+    """Manual costs entered by users (non-ad costs like SaaS, agency fees).
+    
+    WHAT: Stores user-entered costs with flexible date allocation
+    WHY: Finance P&L needs to combine ad spend (from MetricFact) with operational costs
+    REFERENCES: 
+      - app/routers/finance.py: CRUD endpoints
+      - app/schemas.py: ManualCostCreate, ManualCostOut
+      - app/services/cost_allocation.py: Pro-rating logic
+    
+    Allocation types:
+      - one_off: Single date cost (marketing event, one-time purchase)
+      - range: Spread cost across date range (monthly subscription pro-rated daily)
+    """
+    __tablename__ = "manual_costs"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    
+    # Display
+    label = Column(String, nullable=False)  # "HubSpot", "Consultant Fee"
+    category = Column(String, nullable=False)  # "Tools / SaaS", "Agency Fees", "Miscellaneous"
+    notes = Column(String, nullable=True)
+    
+    # Amount (always in USD - in future when we support multiple currencies, convert to USD before saving)
+    amount_dollar = Column(Numeric(12, 2), nullable=False)  # Total cost amount in USD
+    
+    # Allocation (determines which dates to include cost)
+    allocation_type = Column(String, nullable=False)  # "one_off" or "range"
+    allocation_date = Column(DateTime, nullable=True)  # For one_off: the single date
+    allocation_start = Column(DateTime, nullable=True)  # For range: inclusive start
+    allocation_end = Column(DateTime, nullable=True)  # For range: exclusive end
+    
+    # Workspace scoping
+    workspace_id = Column(UUID(as_uuid=True), ForeignKey("workspaces.id"), nullable=False)
+    workspace = relationship("Workspace", back_populates="manual_costs")
+    
+    # Audit
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_by_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    
+    def __str__(self):
+        return f"{self.label} ({self.category}): ${self.amount_dollar}"
 
 
 class QaQueryLog(Base):

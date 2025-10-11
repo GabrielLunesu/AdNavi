@@ -1,5 +1,7 @@
 """Pydantic schemas for request/response payloads."""
 
+from __future__ import annotations
+
 from datetime import datetime, date
 from uuid import UUID
 from typing import Optional, List, Literal, Union
@@ -567,5 +569,99 @@ class QaLogCreate(BaseModel):
     question_text: str
     answer_text: str
     dsl_json: dict | None = None
+
+
+# ============================================================================
+# FINANCE & P&L SCHEMAS
+# ============================================================================
+
+# Simple schemas
+class CompositionSlice(BaseModel):
+    """Pie chart slice."""
+    label: str
+    value: float
+
+class FinancialInsightRequest(BaseModel):
+    """Request for AI financial insight."""
+    month: str
+    year: int
+
+class FinancialInsightResponse(BaseModel):
+    """AI-generated financial insight."""
+    message: str
+
+# Test 2: Add PnL summary schemas
+class PnLComparison(BaseModel):
+    """Comparison metrics vs previous period."""
+    revenue_delta_pct: Optional[float] = None
+    spend_delta_pct: Optional[float] = None
+    profit_delta_pct: Optional[float] = None
+    roas_delta: Optional[float] = None
+
+class PnLSummary(BaseModel):
+    """Top-level P&L summary."""
+    total_revenue: float
+    total_spend: float
+    gross_profit: float
+    net_roas: float
+    compare: Optional[PnLComparison] = None
+
+# Test 3: Add PnLRow
+class PnLRow(BaseModel):
+    """Single row in P&L statement."""
+    id: str
+    category: str
+    actual_dollar: float
+    planned_dollar: Optional[float] = None
+    variance_pct: Optional[float] = None
+    notes: Optional[str] = None
+    source: Literal["ads", "manual"]
+
+# Test 4: Add PnLStatementResponse
+class PnLStatementResponse(BaseModel):
+    """Complete P&L statement response."""
+    summary: PnLSummary
+    rows: List[PnLRow]
+    composition: List[CompositionSlice]
+    timeseries: Optional[List[dict]] = None
+
+# Manual Cost schemas
+class ManualCostAllocation(BaseModel):
+    """Allocation strategy for manual costs."""
+    type: Literal["one_off", "range"]
+    date: Optional[date] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+
+class ManualCostCreate(BaseModel):
+    """Create a manual cost entry."""
+    label: str
+    category: str
+    amount_dollar: float
+    allocation: ManualCostAllocation
+    notes: Optional[str] = None
+
+class ManualCostUpdate(BaseModel):
+    """Update a manual cost entry."""
+    label: Optional[str] = None
+    category: Optional[str] = None
+    amount_dollar: Optional[float] = None
+    allocation: Optional[ManualCostAllocation] = None
+    notes: Optional[str] = None
+
+# Test 7: Add ManualCostOut (likely culprit)
+class ManualCostOut(BaseModel):
+    """Manual cost output."""
+    id: UUID
+    label: str
+    category: str
+    amount_dollar: float
+    allocation: ManualCostAllocation
+    notes: Optional[str]
+    workspace_id: UUID
+    created_at: datetime
+    updated_at: datetime
+    
+    model_config = {"from_attributes": True}
 
 

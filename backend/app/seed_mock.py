@@ -499,7 +499,69 @@ def seed():
         # Commit MetricFacts before running compute
         db.commit()
         
-        # 7. Use compute_service to generate P&L snapshots
+        # 7. Create manual costs for testing
+        # WHY: Finance page needs manual cost examples for realistic testing
+        print("💰 Creating manual costs...")
+        
+        # One-off costs
+        hubspot_cost = models.ManualCost(
+            id=uuid.uuid4(),
+            label="HubSpot Marketing Hub",
+            category="Tools / SaaS",
+            amount_dollar=299.00,
+            allocation_type="one_off",
+            allocation_date=datetime.utcnow() - timedelta(days=15),
+            notes="Monthly subscription payment",
+            workspace_id=workspace.id,
+            created_by_user_id=owner_id
+        )
+        
+        event_cost = models.ManualCost(
+            id=uuid.uuid4(),
+            label="Trade Show Booth",
+            category="Events",
+            amount_dollar=2500.00,
+            allocation_type="one_off",
+            allocation_date=datetime.utcnow() - timedelta(days=10),
+            notes="SaaS Conference 2025",
+            workspace_id=workspace.id,
+            created_by_user_id=owner_id
+        )
+        
+        # Range costs (pro-rated)
+        agency_cost = models.ManualCost(
+            id=uuid.uuid4(),
+            label="Creative Agency Retainer",
+            category="Agency Fees",
+            amount_dollar=3000.00,
+            allocation_type="range",
+            allocation_start=datetime.utcnow() - timedelta(days=60),
+            allocation_end=datetime.utcnow() + timedelta(days=30),
+            notes="Q4 2025 retainer (3 months)",
+            workspace_id=workspace.id,
+            created_by_user_id=owner_id
+        )
+        
+        tools_cost = models.ManualCost(
+            id=uuid.uuid4(),
+            label="Analytics Stack",
+            category="Tools / SaaS",
+            amount_dollar=1200.00,
+            allocation_type="range",
+            allocation_start=datetime.utcnow() - timedelta(days=30),
+            allocation_end=datetime.utcnow() + timedelta(days=335),  # 1 year
+            notes="Annual Mixpanel + Segment subscription",
+            workspace_id=workspace.id,
+            created_by_user_id=owner_id
+        )
+        
+        db.add_all([hubspot_cost, event_cost, agency_cost, tools_cost])
+        db.commit()
+        
+        manual_cost_count = 4
+        print(f"✅ Created {manual_cost_count} manual costs")
+        
+        # 8. Use compute_service to generate P&L snapshots
         # Derived Metrics v1: Uses metrics/registry for ALL derived metrics
         print("💰 Running compute service to generate P&L snapshots...")
         try:
@@ -564,6 +626,12 @@ def seed():
         print(f"   Total snapshots: {pnl_count}")
         print(f"   Derived metrics (12): CPC, CPM, CPA, CPL, CPI, CPP,")
         print(f"                         ROAS, POAS, ARPV, AOV, CTR, CVR")
+        
+        print(f"\n💵 MANUAL COSTS:")
+        print(f"   Total manual costs: {manual_cost_count}")
+        print(f"   - One-off: 2 (HubSpot, Trade Show)")
+        print(f"   - Range: 2 (Agency retainer, Analytics stack)")
+        print(f"   Categories: Tools/SaaS, Agency Fees, Events")
         
         print(f"\n📝 LOGIN CREDENTIALS:")
         print(f"   Owner: owner@defanglabs.com / password123")

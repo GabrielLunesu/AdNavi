@@ -7,6 +7,25 @@ config:
 
 ## Changelog
 
+### 2025-10-11 - Finance & P&L Integration
+- **Added ManualCost model**: Stores user-entered operational costs (non-ad spend)
+- **Fields**: 
+  - label, category, notes (string)
+  - amount_dollar (decimal, 12,2) - stored in USD
+  - allocation_type (string): "one_off" or "range"
+  - allocation_date (datetime, nullable): For one_off costs
+  - allocation_start, allocation_end (datetime, nullable): For range costs
+  - workspace_id (FK to workspaces)
+  - created_by_user_id (FK to users, nullable)
+  - created_at, updated_at (datetime)
+- **Purpose**: Combine ad spend (MetricFact) with manual costs for complete P&L view
+- **WHY**: Finance page needs full cost picture, not just ad platform costs
+- **Allocation rules**: 
+  - one_off = single date, included if date falls within query period
+  - range = pro-rated daily across date range, only overlapping days included
+- **Workspace scoping**: All costs belong to one workspace (tenant isolation)
+- **Migration**: `backend/alembic/versions/5b531bb7e3a8_add_manual_costs.py`
+
 ### 2025-10-05 - Derived Metrics v1
 - **Added Goal enum** (7 values): awareness, traffic, leads, app_installs, purchases, conversions, other
 - **Entity**: Added `goal` field (nullable) to track campaign objective
@@ -173,6 +192,21 @@ class Pnl {
   +decimal cvr?
   +datetime computedAt
 }
+class ManualCost {
+  +uuid id
+  +string label
+  +string category
+  +decimal amount_dollar
+  +string allocation_type
+  +datetime allocation_date?
+  +datetime allocation_start?
+  +datetime allocation_end?
+  +uuid workspace_id
+  +datetime created_at
+  +datetime updated_at
+  +uuid created_by_user_id?
+  +string notes?
+}
 class QaQueryLog {
   +uuid id
   +uuid workspaceId
@@ -185,6 +219,7 @@ class QaQueryLog {
 Workspace "1" -- "0..*" User : has users
 Workspace "1" -- "0..*" Connection : has connections
 Workspace "1" -- "1" ComputeRun : runs compute
+Workspace "1" -- "0..*" ManualCost : has manual costs
 User "1" -- "1" Role : role
 User "1" -- "0..*" Connection : asked by
 User "1" -- "0..*" QaQueryLog : logs queries
