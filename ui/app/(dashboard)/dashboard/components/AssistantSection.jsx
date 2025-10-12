@@ -9,9 +9,9 @@ export default function AssistantSection({ workspaceId }) {
   const router = useRouter();
 
   const quickActions = [
-    { icon: TrendingUp, text: "Show me what's working" },
-    { icon: Lightbulb, text: "Suggest my next campaign" },
-    { icon: Target, text: "Improve my budget efficiency" },
+    { icon: TrendingUp, text: "What was my ROAS last week?" },
+    { icon: Lightbulb, text: "Wich campaign had lowest cpc last month?" },
+    { icon: Target, text: "Which adset had highest ctr last week?" },
   ];
 
   const handleSubmit = (e) => {
@@ -41,7 +41,7 @@ export default function AssistantSection({ workspaceId }) {
     <div className={`mb-12 ${isTransitioning ? 'chat-exit' : ''}`}>
       {/* Header */}
       <div className="mb-8">
-        <h2 className="text-5xl font-semibold tracking-tight gradient-text text-center">
+        <h2 className="text-5xl font-semibold tracking-tight p-6 gradient-text text-center">
           Hi there. What can I help you achieve today?
         </h2>
       </div>
