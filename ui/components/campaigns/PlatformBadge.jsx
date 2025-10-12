@@ -1,12 +1,20 @@
 export default function PlatformBadge({ platform }) {
-  const map = {
-    'Meta Ads': { bg:'bg-sky-500/15', color:'text-sky-300', text:'M' },
-    'Google Ads': { bg:'bg-amber-500/15', color:'text-amber-300', text:'G' },
-    'TikTok Ads': { bg:'bg-fuchsia-500/15', color:'text-fuchsia-300', text:'T' },
-    'LinkedIn Ads': { bg:'bg-blue-500/15', color:'text-blue-300', text:'L' },
+  const config = {
+    meta: { color: 'bg-blue-500', letter: 'M', label: 'Meta' },
+    google: { color: 'bg-red-500', letter: 'G', label: 'Google' },
+    tiktok: { color: 'bg-black', letter: 'T', label: 'TikTok' },
   };
-  const s = map[platform] || { bg:'bg-white/10', color:'text-slate-300', text:platform?.[0] || '?' };
+
+  // Normalize platform name to lowercase key
+  const normalizedPlatform = platform?.toLowerCase().replace(/\s+ads?$/i, '').trim();
+  const badge = config[normalizedPlatform] || { color: 'bg-slate-400', letter: platform?.[0]?.toUpperCase() || '?', label: platform };
+
   return (
-    <span className={`inline-flex items-center justify-center w-6 h-6 rounded-md ${s.bg} ${s.color} text-xs`}>{s.text}</span>
+    <span 
+      className={`inline-flex items-center justify-center w-8 h-8 rounded-full ${badge.color} text-white text-xs font-semibold shadow-sm`}
+      title={badge.label}
+    >
+      {badge.letter}
+    </span>
   );
 }

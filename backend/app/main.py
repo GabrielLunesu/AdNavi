@@ -22,6 +22,8 @@ from .routers import pnl as pnl_router
 from .routers import kpis as kpis_router
 from .routers import qa as qa_router
 from .routers import qa_log as qa_log_router
+from .routers import finance as finance_router
+from .routers import entity_performance as entity_performance_router
 from . import schemas
 
 # Import models so Alembic can discover metadata
@@ -347,6 +349,7 @@ def create_app() -> FastAPI:
     
     ALLOWED_ORIGINS = [
     "https://t8zgrthold5r2-frontend--3000.prod1.defang.dev",
+    "http://localhost:3000",
 ]
     
     app.add_middleware(
@@ -364,6 +367,8 @@ def create_app() -> FastAPI:
     app.include_router(entities_router.router)
     app.include_router(metrics_router.router)
     app.include_router(pnl_router.router)
+    app.include_router(finance_router.router)
+    app.include_router(entity_performance_router.router)
     app.include_router(kpis_router.router)
     app.include_router(qa_router.router)
     app.include_router(qa_log_router.router)

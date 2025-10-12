@@ -1,166 +1,142 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+// import { useAuth } from "../../../lib/auth"; // TODO: Implement auth hook
+import { campaignsApiClient, campaignsAdapter } from "../../../lib";
 import TopToolbar from "./components/TopToolbar";
 import CampaignTableHeader from "./components/CampaignTableHeader";
 import CampaignRow from "./components/CampaignRow";
-import ActiveRulesPanel from "./components/ActiveRulesPanel";
-
-// Mock campaign data - replace with real API data
-const mockCampaigns = [
-  {
-    id: 1,
-    name: 'Summer Sale 2024',
-    created: 'Mar 15, 2024',
-    platform: 'Meta',
-    revenue: 4280,
-    spend: 991,
-    roas: 4.32,
-    conversions: 612,
-    cpc: 0.64,
-    ctr: 3.2,
-    status: 'Active',
-    sparklineData: [3.8, 3.9, 4.1, 4.0, 4.2, 4.3, 4.32],
-    detailChartData: {
-      labels: ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7', 'Day 8', 'Day 9', 'Day 10', 'Day 11', 'Day 12', 'Day 13', 'Day 14'],
-      data: [3.8, 3.9, 4.1, 4.0, 4.2, 4.3, 4.1, 4.4, 4.5, 4.2, 4.3, 4.4, 4.3, 4.32]
-    },
-    adSets: [
-      { name: 'LAL 2% — US', status: 'Active', spend: 389, roas: 4.8, sparklineData: [3.2, 3.5, 3.8, 3.6, 4.0, 4.2, 4.8] },
-      { name: 'Interest — Fashion', status: 'Active', spend: 412, roas: 4.1, sparklineData: [3.1, 3.4, 3.7, 3.5, 3.9, 4.0, 4.1] },
-      { name: 'Retargeting — 30d', status: 'Active', spend: 190, roas: 3.9, sparklineData: [3.0, 3.2, 3.5, 3.4, 3.7, 3.8, 3.9] },
-    ]
-  },
-  {
-    id: 2,
-    name: 'Spring Collection Launch',
-    created: 'Apr 2, 2024',
-    platform: 'Google',
-    revenue: 3847,
-    spend: 986,
-    roas: 3.90,
-    conversions: 528,
-    cpc: 0.78,
-    ctr: 2.8,
-    status: 'Active',
-    sparklineData: [3.5, 3.6, 3.7, 3.8, 3.9, 3.85, 3.90],
-    detailChartData: {
-      labels: ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7', 'Day 8', 'Day 9', 'Day 10', 'Day 11', 'Day 12', 'Day 13', 'Day 14'],
-      data: [3.5, 3.6, 3.7, 3.75, 3.8, 3.85, 3.82, 3.88, 3.92, 3.87, 3.90, 3.88, 3.89, 3.90]
-    },
-    adSets: []
-  },
-  {
-    id: 3,
-    name: 'Brand Awareness — TikTok',
-    created: 'Apr 10, 2024',
-    platform: 'TikTok',
-    revenue: 2946,
-    spend: 921,
-    roas: 3.20,
-    conversions: 441,
-    cpc: 0.89,
-    ctr: 2.4,
-    status: 'Active',
-    sparklineData: [2.8, 2.9, 3.0, 3.1, 3.15, 3.18, 3.20],
-    detailChartData: {
-      labels: ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7', 'Day 8', 'Day 9', 'Day 10', 'Day 11', 'Day 12', 'Day 13', 'Day 14'],
-      data: [2.8, 2.9, 3.0, 3.05, 3.1, 3.12, 3.15, 3.14, 3.17, 3.18, 3.19, 3.18, 3.19, 3.20]
-    },
-    adSets: []
-  },
-  {
-    id: 4,
-    name: 'Q2 Retargeting',
-    created: 'Mar 28, 2024',
-    platform: 'Meta',
-    revenue: 2184,
-    spend: 568,
-    roas: 3.84,
-    conversions: 312,
-    cpc: 0.71,
-    ctr: 2.9,
-    status: 'Paused',
-    sparklineData: [3.4, 3.5, 3.6, 3.7, 3.75, 3.80, 3.84],
-    detailChartData: {
-      labels: ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7', 'Day 8', 'Day 9', 'Day 10', 'Day 11', 'Day 12', 'Day 13', 'Day 14'],
-      data: [3.4, 3.5, 3.55, 3.6, 3.65, 3.7, 3.72, 3.75, 3.78, 3.80, 3.82, 3.83, 3.84, 3.84]
-    },
-    adSets: []
-  },
-  {
-    id: 5,
-    name: 'Holiday Pre-Launch',
-    created: 'Apr 5, 2024',
-    platform: 'Google',
-    revenue: 1923,
-    spend: 614,
-    roas: 3.13,
-    conversions: 276,
-    cpc: 0.92,
-    ctr: 2.2,
-    status: 'Active',
-    sparklineData: [2.9, 3.0, 3.05, 3.08, 3.10, 3.12, 3.13],
-    detailChartData: {
-      labels: ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7', 'Day 8', 'Day 9', 'Day 10', 'Day 11', 'Day 12', 'Day 13', 'Day 14'],
-      data: [2.9, 2.95, 3.0, 3.02, 3.05, 3.07, 3.08, 3.09, 3.10, 3.11, 3.12, 3.12, 3.13, 3.13]
-    },
-    adSets: []
-  }
-];
+// import ActiveRulesPanel from "./components/ActiveRulesPanel"; // Not part of this task
+import Card from "../../../components/Card";
+import { useRouter } from "next/navigation";
 
 export default function CampaignsPage() {
-  const [campaigns] = useState(mockCampaigns);
+  // For now, hardcode the workspace_id from login response
+  // TODO: Implement proper auth context with useAuth hook
+  const workspaceId = "1e72698a-1f6c-4abb-9b99-48dba86508ce";
+  const router = useRouter();
 
-  const handlePlatformChange = (platform) => {
-    console.log('Platform filter:', platform);
-    // TODO: Filter campaigns by platform
+  const [campaignsData, setCampaignsData] = useState({
+    meta: { title: "Campaigns", subtitle: "Loading...", level: "campaign", lastUpdatedAt: null },
+    pagination: { total: 0, page: 1, pageSize: 8 },
+    rows: [],
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const [filters, setFilters] = useState({
+    platform: null,
+    status: "active",
+    timeframe: "7d",
+    sortBy: "roas",
+    sortDir: "desc",
+    page: 1,
+    pageSize: 8,
+  });
+
+  const fetchCampaigns = async () => {
+    if (!workspaceId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const apiResponse = await campaignsApiClient.fetchEntityPerformance({
+        workspaceId,
+        entityLevel: "campaign",
+        platform: filters.platform === "all" ? null : filters.platform,
+        status: filters.status === "all" ? null : filters.status,
+        timeframe: filters.timeframe,
+        sortBy: filters.sortBy,
+        sortDir: filters.sortDir,
+        page: filters.page,
+        pageSize: filters.pageSize,
+      });
+      const adaptedData = campaignsAdapter.adaptEntityPerformance(apiResponse);
+      setCampaignsData(adaptedData);
+    } catch (err) {
+      console.error("Failed to fetch campaigns:", err);
+      setError("Failed to load campaigns. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleStatusChange = (status) => {
-    console.log('Status filter:', status);
-    // TODO: Filter campaigns by status
+  useEffect(() => {
+    fetchCampaigns();
+  }, [workspaceId, filters]);
+
+  const handlePlatformChange = (platform) => setFilters((prev) => ({ ...prev, platform, page: 1 }));
+  const handleStatusChange = (status) => setFilters((prev) => ({ ...prev, status, page: 1 }));
+  const handleSortChange = (sortBy, sortDir) => setFilters((prev) => ({ ...prev, sortBy, sortDir, page: 1 }));
+  const handleTimeRangeChange = (timeframe) => setFilters((prev) => ({ ...prev, timeframe, page: 1 }));
+  const handlePageChange = (newPage) => setFilters((prev) => ({ ...prev, page: newPage }));
+
+  const handleCampaignClick = (campaignId) => {
+    router.push(`/campaigns/${campaignId}`);
   };
 
-  const handleSortChange = (sort) => {
-    console.log('Sort by:', sort);
-    // TODO: Sort campaigns
-  };
-
-  const handleTimeRangeChange = (timeRange) => {
-    console.log('Time range:', timeRange);
-    // TODO: Fetch data for time range
-  };
+  const { rows, meta, pagination } = campaignsData;
 
   return (
     <div>
-      {/* Floating Control Toolbar */}
       <TopToolbar
+        meta={meta}
+        filters={filters}
         onPlatformChange={handlePlatformChange}
         onStatusChange={handleStatusChange}
         onSortChange={handleSortChange}
         onTimeRangeChange={handleTimeRangeChange}
       />
 
-      {/* Campaign Table */}
       <div className="space-y-0">
-        {/* Table Header */}
         <CampaignTableHeader />
 
-        {/* Table Body */}
         <div className="space-y-2 pb-2">
-          {campaigns.map((campaign, index) => (
-            <CampaignRow
-              key={campaign.id}
-              campaign={campaign}
-              index={index}
-              isLast={index === campaigns.length - 1}
-            />
+          {loading && (
+            <Card className="rounded-2xl p-8 text-center text-neutral-500">Loading campaigns...</Card>
+          )}
+          {error && (
+            <Card className="rounded-2xl p-8 text-center text-red-500">
+              {error}
+              <button onClick={fetchCampaigns} className="ml-2 text-cyan-400 hover:underline">Retry</button>
+            </Card>
+          )}
+          {!loading && !error && rows.length === 0 && (
+            <Card className="rounded-2xl p-8 text-center text-neutral-500">
+              No campaigns found for the selected filters and date range.
+            </Card>
+          )}
+          {!loading && !error && rows.map((row) => (
+            <CampaignRow key={row.id} row={row} onClick={() => handleCampaignClick(row.id)} />
           ))}
         </div>
+
+        {/* Pagination */}
+        {!loading && !error && rows.length > 0 && (
+          <div className="flex items-center justify-between px-3 py-2 text-xs text-slate-400">
+            <span>
+              Showing {Math.min((pagination.page - 1) * pagination.pageSize + 1, pagination.total)} -{" "}
+              {Math.min(pagination.page * pagination.pageSize, pagination.total)} of {pagination.total} campaigns
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handlePageChange(pagination.page - 1)}
+                disabled={pagination.page === 1}
+                className="px-2 py-1 rounded-full border border-white/10 hover:border-slate-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Prev
+              </button>
+              <button
+                onClick={() => handlePageChange(pagination.page + 1)}
+                disabled={pagination.page * pagination.pageSize >= pagination.total}
+                className="px-2 py-1 rounded-full border border-white/10 hover:border-slate-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Rules Section */}
-      <ActiveRulesPanel />
+      {/* <ActiveRulesPanel /> Not part of this task */}
     </div>
   );
 }

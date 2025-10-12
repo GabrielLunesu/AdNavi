@@ -168,6 +168,10 @@ _Last updated: 2025-10-05T12:00:00Z_
 - Auth endpoints: `/auth/register`, `/auth/login`, `/auth/me`, `/auth/logout`
 - Workspace endpoints: `/workspaces/{id}/info` (sidebar summary)
 - KPI endpoints: `/workspaces/{id}/kpis` (dashboard metrics)
+- Finance endpoints: `/workspaces/{id}/finance/pnl` (P&L statement), `/workspaces/{id}/finance/costs` (manual costs CRUD), `/workspaces/{id}/finance/insight` (AI insights)
+  - Data source: MetricFact (real-time ad spend) + ManualCost (user costs)
+  - Manual costs: one_off (single date) or range (pro-rated across dates) allocation
+  - P&L aggregation: Ad spend by provider + manual costs by category
 - QA endpoint: `/qa` (natural language → DSL → execution → hybrid answer)
   - Pipeline: Question → Canonicalize → LLM Translation → Validate → Plan → Execute → Answer Builder (LLM) → Response
   - Answer generation: Hybrid approach (deterministic facts + LLM rephrasing for natural tone)
@@ -184,6 +188,11 @@ _Last updated: 2025-10-05T12:00:00Z_
 - KPI cards render real data from MetricFact table with time range filtering
 - Time range selector functional: Today, Yesterday, Last 7 days, Last 30 days
 - Dashboard sections fetch real data; other pages still use mock data
+- Finance page fetches real P&L data via financeApiClient + pnlAdapter pattern
+  - Strict SoC: Zero business logic in components (adapter handles all formatting)
+  - Period selector: Current month + last 3 months
+  - Compare toggle: Shows period-over-period deltas
+  - AI insights: Generates financial breakdown via QA system
 - Charts use Recharts for sparklines and visualizations
 
 ---
@@ -202,6 +211,149 @@ _Last updated: 2025-10-05T12:00:00Z_
 ---
 
 ## 11) Changelog
+| - 2025-10-12T14:00:00Z — **FEATURE**: Campaigns UI Integration ✅ — Connected Campaigns page to backend with three-level drill-down, live metrics, and strict SoC.
+  - **Overview**: Full integration of Campaigns list and detail pages with backend API, supporting drill-down from campaigns → ad sets → ads.
+  - **Data source**: MetricFact (real-time metrics) + Entity (hierarchy) with recursive CTEs for metric rollup from leaf nodes to ancestors.
+  - **Architecture**: Thin API client → Adapter → UI components (strict separation of concerns, zero business logic in UI).
+  - **Files created (backend)**:
+    - `backend/app/routers/entity_performance.py`: Unified API for campaign/ad set/ad performance listings with metrics, trend data, and hierarchy support
+    - `backend/app/tests/test_entity_performance.py`: Comprehensive integration tests (auth, pagination, filters, sorting, drill-down, empty states)
+    - `backend/docs/CAMPAIGNS_INTEGRATION.md`: Complete architecture and implementation documentation
+  - **Files modified (backend)**:
+    - `backend/app/schemas.py`: Added EntityPerformanceMeta, EntityTrendPoint, EntityPerformanceRow, EntityPerformanceResponse schemas for data contract
+    - `backend/app/main.py`: Registered entity_performance_router
+  - **Files created (frontend)**:
+    - `ui/lib/campaignsApiClient.js`: Thin API client (fetchEntityPerformance with caching, invalidateEntityPerformanceCache)
+    - `ui/lib/campaignsAdapter.js`: View model adapter with formatters (currency, ratio, percentage, relative time, trend gap filling)
+    - `ui/lib/index.js`: Central export point for API clients and adapters
+    - `ui/components/StatusPill.jsx`: Reusable status badge component (active/paused)
+    - `ui/app/(dashboard)/campaigns/[id]/[adsetId]/page.jsx`: Ad set detail page with ads listing (third level drill-down)
+  - **Files modified (frontend)**:
+    - `ui/app/(dashboard)/campaigns/page.jsx`: Connected to live API with filters, sorting, pagination, loading/error/empty states
+    - `ui/app/(dashboard)/campaigns/[id]/page.jsx`: Connected to live API for ad sets drill-down
+    - `ui/app/(dashboard)/campaigns/components/CampaignRow.jsx`: Updated to display live data with click navigation
+    - `ui/app/(dashboard)/campaigns/components/TopToolbar.jsx`: Refactored as presentational component with filter/sort callbacks
+    - `ui/components/campaigns/DetailHeader.jsx`: Displays campaign/ad set name with breadcrumbs
+    - `ui/components/campaigns/EntityTable.jsx`: Generic table for ad sets/ads with loading/error states
+    - `ui/components/campaigns/EntityRow.jsx`: Table row with conditional "View" button for drill-down
+    - `ui/components/campaigns/PlatformBadge.jsx`: Platform icon badge (Meta/Google/TikTok/LinkedIn)
+    - `ui/lib/api.js`: Removed deprecated fetchWorkspaceCampaigns
+  - **Features**:
+    - ✅ Three-level drill-down: Campaigns → Ad Sets → Ads with identical layout at each level
+    - ✅ Live metrics: Revenue, Spend, ROAS, Conversions, CPC, CTR from MetricFact aggregation
+    - ✅ Hierarchy-aware rollup: Recursive CTEs roll up metrics from leaf (ad) to ancestors (campaign/ad set)
+    - ✅ Trend sparklines: Small timeseries (7d/30d) with gap filling for chart continuity
+    - ✅ Last updated: MetricFact.ingested_at formatted as relative time ("2h ago")
+    - ✅ Filters: Platform (all/meta/google/tiktok), Status (all/active/paused), Timeframe (7d/30d/custom)
+    - ✅ Sorting: ROAS (default), Revenue, Spend, Conversions, CPC, CTR (server-side with aggregate expressions)
+    - ✅ Pagination: 8 rows per page with total count and prev/next navigation
+    - ✅ Breadcrumbs: "Campaigns › {Campaign Name}" on detail pages
+    - ✅ Loading/error/empty states: Skeletons, retry buttons, empty state messages
+  - **Design principles**:
+    - **Strict SoC**: Backend aggregates all metrics, frontend only displays formatted values
+    - **Thin client**: campaignsApiClient has zero business logic, just HTTP calls with caching
+    - **Adapter layer**: campaignsAdapter handles all formatting/mapping, components receive ready-to-display data
+    - **WHAT/WHY/REFERENCES comments**: Every new file cross-references related modules
+    - **Dumb components**: UI components receive props, no data fetching or business logic
+  - **Hierarchy rollup (backend)**:
+    - **Campaign level**: Uses `campaign_ancestor_cte` to aggregate metrics from all child ads to campaign level
+    - **Ad set level**: Uses `adset_ancestor_cte` to aggregate metrics from all child ads to ad set level
+    - **Ad level**: Direct `MetricFact` query (leaf nodes, no hierarchy needed)
+    - All queries filter by workspace_id, date range, and optional parent_id for drill-down
+  - **Sorting implementation**:
+    - Server-side sorting using aggregate expressions (e.g., `func.sum(MetricFact.revenue)`) in ORDER BY clause
+    - PostgreSQL compliance: Aggregate expressions used directly to satisfy GROUP BY requirements
+    - Derived metrics (ROAS, CPC, CTR) computed as SQL expressions with nullsafe division
+  - **Adapter formatting**:
+    - Currency: $1,234.56 (or $1.2K for large values)
+    - Ratios: 2.45× (ROAS)
+    - Percentages: 4.2% (CTR)
+    - Relative time: "2h ago", "3d ago" (last updated)
+    - Trend gap filling: Missing days filled with 0 for revenue, null for ROAS
+  - **Caching strategy**:
+    - Cache key: JSON.stringify({ level, parentId, params })
+    - Invalidation: Manual via `invalidateEntityPerformanceCache()`
+    - Stored in Map (in-memory, per-session)
+  - **Testing**:
+    - ✅ Backend: 9 integration tests (auth, pagination, filters, sorting, drill-down, empty states, invalid input)
+    - ⏳ Frontend: Adapter unit tests TODO (formatters, trend mapping, view model contract)
+    - ⏳ Frontend: Component interaction tests TODO (filter changes, navigation, sorting)
+  - **API Endpoints**:
+    - `GET /entity-performance/list?entity_level={level}&timeframe={7d|30d|custom}&platform={meta|google|tiktok}&status={active|paused|all}&sort_by={roas|revenue|spend|conversions|cpc|ctr}&sort_dir={asc|desc}&page={int}&page_size={int}`: List campaigns/ad sets/ads
+    - `GET /entity-performance/{entity_id}/children?timeframe={7d|30d|custom}&...`: List child entities (ad sets for campaign, ads for ad set)
+  - **Known limitations**:
+    - Auth context: Workspace ID temporarily hardcoded (proper auth hook TODO)
+    - Custom date range: UI selector exists but backend integration TODO
+    - Active Rules: Not implemented (out of scope for this task)
+    - Frontend tests: Adapter and component tests TODO (infrastructure in place)
+  - **Benefits**:
+    - Natural drill-down: Click campaign → see ad sets; click ad set → see ads
+    - Consistent experience: Same layout, filters, and metrics at every level
+    - Real-time data: Metrics update as MetricFact data is ingested
+    - Performance: Server-side aggregation and sorting for fast queries
+    - Maintainability: Clear SoC makes frontend simple and backend testable
+| - 2025-10-11T20:30:00Z — **FEATURE**: Finance & P&L Backend Integration ✅ — Real-time P&L from MetricFact + manual costs with strict SoC.
+  - **Overview**: Connected Finance page to backend with zero business logic in UI; all calculations server-side
+  - **Data source**: MetricFact (real-time ad spend) + ManualCost (user costs) for complete P&L view
+  - **Pnl table**: Kept for future EOD locking but not used in Finance page initially (optimization opportunity)
+  - **Architecture**: Thin API client → Adapter → UI components (strict separation of concerns)
+  - **Files created (backend)**:
+    - `backend/app/models.py`: Added `ManualCost` model with allocation support (one_off, range)
+    - `backend/alembic/versions/5b531bb7e3a8_add_manual_costs.py`: Migration for manual_costs table
+    - `backend/app/schemas.py`: Finance DTOs (PnLSummary, PnLRow, PnLComparison, ManualCostCreate/Update/Out, FinancialInsightRequest/Response)
+    - `backend/app/services/cost_allocation.py`: Pro-rating logic for date-based cost allocation
+    - `backend/app/routers/finance.py`: Complete Finance REST API (P&L aggregation, manual costs CRUD, QA insight)
+    - `backend/app/tests/test_cost_allocation.py`: 7 unit tests for allocation rules (one-off, range, overlap, leap year)
+    - `backend/app/tests/test_finance_endpoints.py`: Integration test placeholders for endpoints
+  - **Files modified (backend)**:
+    - `backend/app/seed_mock.py`: Added 4 manual cost examples (2 one-off: HubSpot, Trade Show; 2 range: Agency retainer, Analytics stack)
+    - `backend/app/main.py`: Registered finance_router
+  - **Files created (frontend)**:
+    - `ui/lib/financeApiClient.js`: Thin API client (getPnLStatement, createManualCost, listManualCosts, updateManualCost, deleteManualCost, getFinancialInsight)
+    - `ui/lib/pnlAdapter.js`: View model adapter with formatters (formatCurrency, formatPercentage, formatRatio) and helpers (getPeriodDatesForMonth)
+  - **Files modified (frontend)**:
+    - `ui/app/(dashboard)/finance/page.jsx`: Connected to real API with auth, loading/error states, period selection
+    - `ui/app/(dashboard)/finance/components/FinancialSummaryCards.jsx`: Displays view model from adapter (no formatting)
+    - `ui/app/(dashboard)/finance/components/PLTable.jsx`: Displays P&L rows with ad/manual indicators
+    - `ui/app/(dashboard)/finance/components/AIFinancialSummary.jsx`: QA integration with generate button
+    - `ui/app/(dashboard)/finance/components/TopBar.jsx`: Period selector with {year, month} objects
+    - `ui/app/(dashboard)/finance/components/ChartsSection.jsx`: Simplified to use composition prop
+  - **Features**:
+    - ✅ Monthly P&L aggregation (ad spend by provider + manual costs by category)
+    - ✅ Manual cost allocation: one_off (single date) or range (pro-rated daily across dates)
+    - ✅ Previous period comparison (compare toggle computes deltas: revenue_delta_pct, spend_delta_pct, profit_delta_pct, roas_delta)
+    - ✅ AI financial insight via QA system ("Give me a financial breakdown of {Month YYYY}")
+    - ✅ Workspace-scoped at SQL level (security, no cross-tenant leaks)
+    - ✅ Future-proof: Contracts support daily granularity via timeseries field (not implemented in UI yet)
+  - **Design principles**:
+    - **Strict SoC**: Backend computes all metrics/totals, frontend only displays
+    - **Thin client**: financeApiClient has zero business logic, just HTTP calls
+    - **Adapter layer**: pnlAdapter handles all formatting/mapping, components receive ready-to-display data
+    - **WHAT/WHY/REFERENCES comments**: Every file cross-references related modules
+  - **Allocation rules (server-side enforcement)**:
+    - **one_off**: Include full amount if allocation_date falls within [period_start, period_end)
+    - **range**: Pro-rate amount as (overlapping_days / total_days) × amount_dollar
+    - **Monthly view**: Includes only portion of costs overlapping requested month
+    - **Daily view (future)**: Same allocation rules apply per-day
+  - **Testing**:
+    - ✅ Unit tests: 7/7 passing for cost allocation (one-off inside/outside, range full/partial/none, multi-month, leap year)
+    - ⏳ Integration tests: Placeholders created for P&L aggregation, CRUD, workspace isolation
+    - ⏳ Contract tests: View model adapters with representative payloads (TODO)
+  - **API Endpoints**:
+    - `GET /workspaces/{id}/finance/pnl?granularity=month&period_start=YYYY-MM-DD&period_end=YYYY-MM-DD&compare=bool`: P&L statement
+    - `POST /workspaces/{id}/finance/costs`: Create manual cost
+    - `GET /workspaces/{id}/finance/costs`: List manual costs
+    - `PUT /workspaces/{id}/finance/costs/{cost_id}`: Update manual cost
+    - `DELETE /workspaces/{id}/finance/costs/{cost_id}`: Delete manual cost
+    - `POST /workspaces/{id}/finance/insight`: Get AI financial insight
+  - **Known limitations**:
+    - Planned/budgeted amounts not implemented (planned_dollar always null in PnLRow)
+    - Daily granularity supported by contract but not implemented in UI (timeseries field exists)
+    - Manual cost UI for adding/editing costs not built (CRUD via API/admin only)
+    - Revenue tracking only from ad platforms (no manual revenue entries yet)
+  - **Migration**: Run `alembic upgrade head` on Railway database (creates manual_costs table)
+  - **Seed data**: Run `python -m app.seed_mock` for test data (adds 4 manual costs)
+  - **Cost impact**: No additional API costs (uses existing MetricFact aggregation pattern)
 | - 2025-10-08T17:10:00Z — **IMPLEMENTATION**: Phase 4.5 - Sort Order & Performance Breakdown Fixes ✅ — Dynamic ordering for lowest/highest queries + GPT-4-turbo upgrade.
   - **Overview**: Fixed critical issues with "lowest/highest" queries returning wrong entities and performance breakdown query errors.
   - **Success Rate Improvement**: 4 out of 5 target tests fixed (80% success rate on edge cases)

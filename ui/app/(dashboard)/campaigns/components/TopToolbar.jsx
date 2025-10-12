@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { ChevronDown, ArrowDownUp, Download, SlidersHorizontal } from "lucide-react";
 
-export default function TopToolbar({ onPlatformChange, onStatusChange, onSortChange, onTimeRangeChange }) {
+export default function TopToolbar({ meta, onPlatformChange, onStatusChange, onSortChange, onTimeRangeChange, loading }) {
   const [selectedPlatform, setSelectedPlatform] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [selectedSort, setSelectedSort] = useState('roas');
@@ -33,7 +33,11 @@ export default function TopToolbar({ onPlatformChange, onStatusChange, onSortCha
         
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-4xl font-semibold tracking-tight text-neutral-900 mb-2">Campaigns</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-4xl font-semibold tracking-tight text-neutral-900 mb-2">{meta?.title || 'Campaigns'}</h1>
+              {loading ? <span className="text-xs text-cyan-400">Loading…</span> : null}
+            </div>
+            <p className="text-xs text-neutral-500">{meta?.subtitle || 'Last updated —'}</p>
             <div className="h-0.5 w-20 bg-gradient-to-r from-cyan-400 to-transparent"></div>
           </div>
           
@@ -115,12 +119,12 @@ export default function TopToolbar({ onPlatformChange, onStatusChange, onSortCha
             </div>
             
             {/* Export & Customize */}
-            <button className="w-10 h-10 rounded-full bg-white/60 border border-neutral-200/60 hover:border-cyan-400/40 hover:bg-white transition-all flex items-center justify-center">
+            {/* <button className="w-10 h-10 rounded-full bg-white/60 border border-neutral-200/60 hover:border-cyan-400/40 hover:bg-white transition-all flex items-center justify-center">
               <Download className="w-4 h-4 text-neutral-600" strokeWidth={1.5} />
             </button>
             <button className="w-10 h-10 rounded-full bg-white/60 border border-neutral-200/60 hover:border-cyan-400/40 hover:bg-white transition-all flex items-center justify-center">
               <SlidersHorizontal className="w-4 h-4 text-neutral-600" strokeWidth={1.5} />
-            </button>
+            </button> */}
           </div>
         </div>
       </div>

@@ -1,19 +1,62 @@
+/**
+ * Finance Page Top Bar
+ * 
+ * WHAT: Period selector and comparison toggle
+ * WHY: Controls which data is displayed in Finance page
+ * REFERENCES: app/(dashboard)/finance/page.jsx
+ */
+
 "use client";
-import { Download } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { Download, ChevronDown } from "lucide-react";
 
-export default function TopBar({ onPeriodChange, compareEnabled, onCompareToggle }) {
-  const [selectedPeriod, setSelectedPeriod] = useState('this-month');
+export default function TopBar({ selectedPeriod, onPeriodChange, compareEnabled, onCompareToggle }) {
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+  
+  // Handle click outside to close dropdown
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    }
+    
+    if (isDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isDropdownOpen]);
+  
+  // Generate all period options
+  const periods = [];
+  const now = new Date();
+  const monthNames = ["January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"];
+  
+  // Generate last 12 months
+  for (let i = 0; i < 12; i++) {
+    const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    periods.push({
+      year: date.getFullYear(),
+      month: date.getMonth() + 1,
+      label: i === 0 ? 'This Month' : i === 1 ? 'Last Month' : `${monthNames[date.getMonth()]} ${date.getFullYear()}`,
+      isMain: i <= 1 // First two are main options
+    });
+  }
 
-  const periods = [
-    { id: 'this-month', label: 'This Month' },
-    { id: 'last-month', label: 'Last Month' },
-    { id: 'custom', label: 'Custom' },
-  ];
-
-  const handlePeriodClick = (id) => {
-    setSelectedPeriod(id);
-    onPeriodChange?.(id);
+  const handlePeriodClick = (period) => {
+    onPeriodChange?.({ year: period.year, month: period.month });
+    setIsDropdownOpen(false);
+  };
+  
+  const isSelected = (period) => {
+    return selectedPeriod.year === period.year && selectedPeriod.month === period.month;
+  };
+  
+  const getCurrentLabel = () => {
+    const current = periods.find(p => isSelected(p));
+    return current?.label || 'Select Period';
   };
 
   return (
@@ -30,20 +73,56 @@ export default function TopBar({ onPeriodChange, compareEnabled, onCompareToggle
           
           <div className="flex items-center gap-3">
             {/* Period Selector */}
-            <div className="flex items-center gap-2 px-1 py-1 rounded-full bg-white/60 border border-black/5">
-              {periods.map((period) => (
+            <div className="flex items-center gap-2">
+              {/* Main buttons - This Month, Last Month */}
+              <div className="flex items-center gap-2 px-1 py-1 rounded-full bg-white/60 border border-black/5">
+                {periods.filter(p => p.isMain).map((period, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => handlePeriodClick(period)}
+                    className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
+                      isSelected(period)
+                        ? 'bg-white text-cyan-600 border border-cyan-400/40 shadow-sm'
+                        : 'text-neutral-600 hover:bg-white'
+                    }`}
+                  >
+                    {period.label}
+                  </button>
+                ))}
+              </div>
+              
+              {/* Dropdown for other months, highest z-index */}
+              <div className="relative z-50" ref={dropdownRef}>
                 <button
-                  key={period.id}
-                  onClick={() => handlePeriodClick(period.id)}
-                  className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
-                    selectedPeriod === period.id
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2 ${
+                    periods.some(p => !p.isMain && isSelected(p))
                       ? 'bg-white text-cyan-600 border border-cyan-400/40 shadow-sm'
-                      : 'text-neutral-600 hover:bg-white'
+                      : 'bg-white/60 text-neutral-600 hover:bg-white border border-black/5'
                   }`}
                 >
-                  {period.label}
+                  {periods.some(p => !p.isMain && isSelected(p)) ? getCurrentLabel() : 'Other months'}
+                  <ChevronDown className={`w-4 h-4 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
                 </button>
-              ))}
+                
+                {isDropdownOpen && (
+                  <div className="absolute top-full mt-2 right-0 w-64 glass-card rounded-2xl border border-black/5 shadow-xl p-2 max-h-80 overflow-y-auto">
+                    {periods.filter(p => !p.isMain).map((period, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => handlePeriodClick(period)}
+                        className={`w-full text-left px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                          isSelected(period)
+                            ? 'bg-cyan-50 text-cyan-600'
+                            : 'text-neutral-600 hover:bg-neutral-50'
+                        }`}
+                      >
+                        {period.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
             
             {/* Export Button */}
@@ -74,4 +153,3 @@ export default function TopBar({ onPeriodChange, compareEnabled, onCompareToggle
     </div>
   );
 }
-
