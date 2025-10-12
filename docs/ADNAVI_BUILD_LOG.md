@@ -211,6 +211,87 @@ _Last updated: 2025-10-05T12:00:00Z_
 ---
 
 ## 11) Changelog
+| - 2025-10-12T14:00:00Z — **FEATURE**: Campaigns UI Integration ✅ — Connected Campaigns page to backend with three-level drill-down, live metrics, and strict SoC.
+  - **Overview**: Full integration of Campaigns list and detail pages with backend API, supporting drill-down from campaigns → ad sets → ads.
+  - **Data source**: MetricFact (real-time metrics) + Entity (hierarchy) with recursive CTEs for metric rollup from leaf nodes to ancestors.
+  - **Architecture**: Thin API client → Adapter → UI components (strict separation of concerns, zero business logic in UI).
+  - **Files created (backend)**:
+    - `backend/app/routers/entity_performance.py`: Unified API for campaign/ad set/ad performance listings with metrics, trend data, and hierarchy support
+    - `backend/app/tests/test_entity_performance.py`: Comprehensive integration tests (auth, pagination, filters, sorting, drill-down, empty states)
+    - `backend/docs/CAMPAIGNS_INTEGRATION.md`: Complete architecture and implementation documentation
+  - **Files modified (backend)**:
+    - `backend/app/schemas.py`: Added EntityPerformanceMeta, EntityTrendPoint, EntityPerformanceRow, EntityPerformanceResponse schemas for data contract
+    - `backend/app/main.py`: Registered entity_performance_router
+  - **Files created (frontend)**:
+    - `ui/lib/campaignsApiClient.js`: Thin API client (fetchEntityPerformance with caching, invalidateEntityPerformanceCache)
+    - `ui/lib/campaignsAdapter.js`: View model adapter with formatters (currency, ratio, percentage, relative time, trend gap filling)
+    - `ui/lib/index.js`: Central export point for API clients and adapters
+    - `ui/components/StatusPill.jsx`: Reusable status badge component (active/paused)
+    - `ui/app/(dashboard)/campaigns/[id]/[adsetId]/page.jsx`: Ad set detail page with ads listing (third level drill-down)
+  - **Files modified (frontend)**:
+    - `ui/app/(dashboard)/campaigns/page.jsx`: Connected to live API with filters, sorting, pagination, loading/error/empty states
+    - `ui/app/(dashboard)/campaigns/[id]/page.jsx`: Connected to live API for ad sets drill-down
+    - `ui/app/(dashboard)/campaigns/components/CampaignRow.jsx`: Updated to display live data with click navigation
+    - `ui/app/(dashboard)/campaigns/components/TopToolbar.jsx`: Refactored as presentational component with filter/sort callbacks
+    - `ui/components/campaigns/DetailHeader.jsx`: Displays campaign/ad set name with breadcrumbs
+    - `ui/components/campaigns/EntityTable.jsx`: Generic table for ad sets/ads with loading/error states
+    - `ui/components/campaigns/EntityRow.jsx`: Table row with conditional "View" button for drill-down
+    - `ui/components/campaigns/PlatformBadge.jsx`: Platform icon badge (Meta/Google/TikTok/LinkedIn)
+    - `ui/lib/api.js`: Removed deprecated fetchWorkspaceCampaigns
+  - **Features**:
+    - ✅ Three-level drill-down: Campaigns → Ad Sets → Ads with identical layout at each level
+    - ✅ Live metrics: Revenue, Spend, ROAS, Conversions, CPC, CTR from MetricFact aggregation
+    - ✅ Hierarchy-aware rollup: Recursive CTEs roll up metrics from leaf (ad) to ancestors (campaign/ad set)
+    - ✅ Trend sparklines: Small timeseries (7d/30d) with gap filling for chart continuity
+    - ✅ Last updated: MetricFact.ingested_at formatted as relative time ("2h ago")
+    - ✅ Filters: Platform (all/meta/google/tiktok), Status (all/active/paused), Timeframe (7d/30d/custom)
+    - ✅ Sorting: ROAS (default), Revenue, Spend, Conversions, CPC, CTR (server-side with aggregate expressions)
+    - ✅ Pagination: 8 rows per page with total count and prev/next navigation
+    - ✅ Breadcrumbs: "Campaigns › {Campaign Name}" on detail pages
+    - ✅ Loading/error/empty states: Skeletons, retry buttons, empty state messages
+  - **Design principles**:
+    - **Strict SoC**: Backend aggregates all metrics, frontend only displays formatted values
+    - **Thin client**: campaignsApiClient has zero business logic, just HTTP calls with caching
+    - **Adapter layer**: campaignsAdapter handles all formatting/mapping, components receive ready-to-display data
+    - **WHAT/WHY/REFERENCES comments**: Every new file cross-references related modules
+    - **Dumb components**: UI components receive props, no data fetching or business logic
+  - **Hierarchy rollup (backend)**:
+    - **Campaign level**: Uses `campaign_ancestor_cte` to aggregate metrics from all child ads to campaign level
+    - **Ad set level**: Uses `adset_ancestor_cte` to aggregate metrics from all child ads to ad set level
+    - **Ad level**: Direct `MetricFact` query (leaf nodes, no hierarchy needed)
+    - All queries filter by workspace_id, date range, and optional parent_id for drill-down
+  - **Sorting implementation**:
+    - Server-side sorting using aggregate expressions (e.g., `func.sum(MetricFact.revenue)`) in ORDER BY clause
+    - PostgreSQL compliance: Aggregate expressions used directly to satisfy GROUP BY requirements
+    - Derived metrics (ROAS, CPC, CTR) computed as SQL expressions with nullsafe division
+  - **Adapter formatting**:
+    - Currency: $1,234.56 (or $1.2K for large values)
+    - Ratios: 2.45× (ROAS)
+    - Percentages: 4.2% (CTR)
+    - Relative time: "2h ago", "3d ago" (last updated)
+    - Trend gap filling: Missing days filled with 0 for revenue, null for ROAS
+  - **Caching strategy**:
+    - Cache key: JSON.stringify({ level, parentId, params })
+    - Invalidation: Manual via `invalidateEntityPerformanceCache()`
+    - Stored in Map (in-memory, per-session)
+  - **Testing**:
+    - ✅ Backend: 9 integration tests (auth, pagination, filters, sorting, drill-down, empty states, invalid input)
+    - ⏳ Frontend: Adapter unit tests TODO (formatters, trend mapping, view model contract)
+    - ⏳ Frontend: Component interaction tests TODO (filter changes, navigation, sorting)
+  - **API Endpoints**:
+    - `GET /entity-performance/list?entity_level={level}&timeframe={7d|30d|custom}&platform={meta|google|tiktok}&status={active|paused|all}&sort_by={roas|revenue|spend|conversions|cpc|ctr}&sort_dir={asc|desc}&page={int}&page_size={int}`: List campaigns/ad sets/ads
+    - `GET /entity-performance/{entity_id}/children?timeframe={7d|30d|custom}&...`: List child entities (ad sets for campaign, ads for ad set)
+  - **Known limitations**:
+    - Auth context: Workspace ID temporarily hardcoded (proper auth hook TODO)
+    - Custom date range: UI selector exists but backend integration TODO
+    - Active Rules: Not implemented (out of scope for this task)
+    - Frontend tests: Adapter and component tests TODO (infrastructure in place)
+  - **Benefits**:
+    - Natural drill-down: Click campaign → see ad sets; click ad set → see ads
+    - Consistent experience: Same layout, filters, and metrics at every level
+    - Real-time data: Metrics update as MetricFact data is ingested
+    - Performance: Server-side aggregation and sorting for fast queries
+    - Maintainability: Clear SoC makes frontend simple and backend testable
 | - 2025-10-11T20:30:00Z — **FEATURE**: Finance & P&L Backend Integration ✅ — Real-time P&L from MetricFact + manual costs with strict SoC.
   - **Overview**: Connected Finance page to backend with zero business logic in UI; all calculations server-side
   - **Data source**: MetricFact (real-time ad spend) + ManualCost (user costs) for complete P&L view
