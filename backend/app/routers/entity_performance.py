@@ -150,10 +150,14 @@ def _base_query(
         query = query.filter(ancestor.status == status)
 
     if parent_id and level != models.LevelEnum.campaign:
-        try:
-            parent_uuid = uuid.UUID(parent_id)
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail="Invalid parent_id format") from exc
+        # parent_id can be either a string or UUID object
+        if isinstance(parent_id, str):
+            try:
+                parent_uuid = uuid.UUID(parent_id)
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail="Invalid parent_id format") from exc
+        else:
+            parent_uuid = parent_id
         query = query.filter(ancestor.parent_id == parent_uuid)
 
     group_columns = [

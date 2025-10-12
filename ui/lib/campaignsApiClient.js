@@ -41,8 +41,20 @@ export async function fetchEntityPerformance({
   page = 1,
   pageSize = 25,
 }) {
-  const params = new URLSearchParams({ entity_level: entityLevel, timeframe, sort_by: sortBy, sort_dir: sortDir, page: String(page), page_size: String(pageSize) });
-  if (parentId) params.set('parent_id', parentId);
+  // Build params based on whether we're fetching children or list
+  const params = new URLSearchParams({
+    timeframe,
+    sort_by: sortBy,
+    sort_dir: sortDir,
+    page: String(page),
+    page_size: String(pageSize),
+  });
+  
+  // Only add entity_level for list endpoint (not children)
+  if (!parentId) {
+    params.set('entity_level', entityLevel);
+  }
+  
   if (dateStart && dateEnd) {
     params.set('date_start', dateStart);
     params.set('date_end', dateEnd);

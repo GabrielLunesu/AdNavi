@@ -1,7 +1,7 @@
-import Card from "../../components/Card";
+import Card from "../Card";
 import EntityRow from "./EntityRow";
 
-export default function EntityTable({ title, rows = [], loading = false }) {
+export default function EntityTable({ title, rows = [], loading = false, error = null }) {
   return (
     <Card className="rounded-2xl">
       <div className="px-3 py-2 text-xs text-slate-400 flex items-center justify-between">
@@ -21,7 +21,16 @@ export default function EntityTable({ title, rows = [], loading = false }) {
         <div className="text-right">Action</div>
       </div>
       <div className="divide-y divide-white/10">
-        {rows.map(r => (
+        {loading && (
+          <div className="p-8 text-center text-slate-400">Loading {title.toLowerCase()}...</div>
+        )}
+        {error && (
+          <div className="p-8 text-center text-red-400">Failed to load {title.toLowerCase()}. Please try again.</div>
+        )}
+        {!loading && !error && rows.length === 0 && (
+          <div className="p-8 text-center text-slate-400">No {title.toLowerCase()} found.</div>
+        )}
+        {!loading && !error && rows.map(r => (
           <EntityRow key={r.id} row={r} />
         ))}
       </div>
