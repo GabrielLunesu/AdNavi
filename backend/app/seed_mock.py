@@ -174,6 +174,7 @@ def seed():
         db.query(models.Fetch).delete()
         db.query(models.Connection).delete()
         db.query(models.QaQueryLog).delete()
+        db.query(models.ManualCost).delete()  # Delete manual costs before users
         db.query(models.AuthCredential).delete()
         db.query(models.User).delete()
         db.query(models.Token).delete()
