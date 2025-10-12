@@ -1,84 +1,56 @@
 "use client";
-import { useState } from "react";
-import Sparkline from "./Sparkline";
-import ExpandedDetail from "./ExpandedDetail";
+import PlatformBadge from "../../../../components/campaigns/PlatformBadge";
+import TrendSparkline from "../../../../components/campaigns/TrendSparkline";
+import StatusPill from "../../../../components/StatusPill"; // Global StatusPill
 
-function PlatformBadge({ platform }) {
-  const config = {
-    meta: { color: 'bg-blue-500', letter: 'M', label: 'Meta' },
-    google: { color: 'bg-red-500', letter: 'G', label: 'Google' },
-    tiktok: { color: 'bg-black', letter: 'T', label: 'TikTok' },
-  };
-  
-  const { color, letter, label } = config[platform.toLowerCase()] || config.meta;
-  
-  return (
-    <span className="inline-flex items-center gap-1.5 text-sm text-neutral-700">
-      <div className={`w-5 h-5 rounded ${color} flex items-center justify-center text-white text-xs font-semibold`}>
-        {letter}
-      </div>
-      {label}
-    </span>
-  );
+function CellValue({ v }) {
+  return <div className="text-right tabular-nums">{v || '—'}</div>;
 }
 
-function StatusPill({ status }) {
-  const isActive = status.toLowerCase() === 'active';
-  return (
-    <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${isActive ? 'pill-active' : 'pill-paused'}`}>
-      {status}
-    </span>
-  );
-}
-
-export default function CampaignRow({ campaign, index, isLast }) {
-  const [isExpanded, setIsExpanded] = useState(false);
-
+// WHAT: Displays a single row in the Campaigns or Ad Sets table.
+// WHY: Presentational component, receives pre-formatted data from adapter.
+// REFERENCES:
+// - ui/app/(dashboard)/campaigns/page.jsx (parent)
+// - ui/app/(dashboard)/campaigns/[id]/page.jsx (parent)
+// - ui/lib/campaignsAdapter.js (data source)
+export default function CampaignRow({ row, onClick }) {
   return (
     <div
-      className={`campaign-row glass-card border border-neutral-200/60 ${isLast && !isExpanded ? 'rounded-b-3xl' : ''} px-8 py-6 cursor-pointer relative overflow-hidden fade-up-in`}
-      style={{ animationDelay: `${index * 40}ms` }}
-      onClick={() => setIsExpanded(!isExpanded)}
+      className="grid grid-cols-12 gap-4 items-center glass-card border border-neutral-200/60 px-8 py-4 cursor-pointer hover:border-cyan-400/40 transition-all relative overflow-hidden"
+      onClick={() => onClick(row.id)}
     >
       <div className="glow-edge-hover"></div>
-      <div className="grid grid-cols-12 gap-4 items-center">
-        <div className="col-span-3">
-          <p className="text-base font-semibold text-neutral-900">{campaign.name}</p>
-          <p className="text-sm text-neutral-500 mt-0.5">Created {campaign.created}</p>
-        </div>
-        <div className="col-span-1">
-          <PlatformBadge platform={campaign.platform} />
-        </div>
-        <div className="col-span-1 text-right">
-          <p className="text-base font-semibold text-neutral-900">${campaign.revenue.toLocaleString()}</p>
-        </div>
-        <div className="col-span-1 text-right">
-          <p className="text-base font-medium text-neutral-700">${campaign.spend.toLocaleString()}</p>
-        </div>
-        <div className="col-span-1 text-right">
-          <p className="text-base font-semibold text-cyan-600">{campaign.roas}x</p>
-        </div>
-        <div className="col-span-1 text-right">
-          <p className="text-base font-medium text-neutral-700">{campaign.conversions}</p>
-        </div>
-        <div className="col-span-1 text-right">
-          <p className="text-sm font-medium text-neutral-700">${campaign.cpc}</p>
-        </div>
-        <div className="col-span-1 text-right">
-          <p className="text-sm font-medium text-neutral-700">{campaign.ctr}%</p>
-        </div>
-        <div className="col-span-1">
-          <StatusPill status={campaign.status} />
-        </div>
-        <div className="col-span-1">
-          <Sparkline data={campaign.sparklineData} />
-        </div>
+      <div className="col-span-3">
+        <p className="text-base font-semibold text-neutral-900">{row.name}</p>
+        <p className="text-sm text-neutral-500 mt-0.5">{row.display?.subtitle || '—'}</p>
       </div>
-      
-      {/* Expanded Section */}
-      {isExpanded && (
-        <ExpandedDetail campaign={campaign} />
-      )}
+      <div className="col-span-1">
+        <PlatformBadge platform={row.platform} />
+      </div>
+      <div className="col-span-1 text-right">
+        <CellValue v={row.display?.revenue} />
+      </div>
+      <div className="col-span-1 text-right">
+        <CellValue v={row.display?.spend} />
+      </div>
+      <div className="col-span-1 text-right">
+        <CellValue v={row.display?.roas} />
+      </div>
+      <div className="col-span-1 text-right">
+        <CellValue v={row.display?.conversions} />
+      </div>
+      <div className="col-span-1 text-right">
+        <CellValue v={row.display?.cpc} />
+      </div>
+      <div className="col-span-1 text-right">
+        <CellValue v={row.display?.ctr} />
+      </div>
+      <div className="col-span-1">
+        <StatusPill status={row.status} />
+      </div>
+      <div className="col-span-1">
+        <TrendSparkline data={row.trend?.map(p => p.value) || []} />
+      </div>
     </div>
   );
 }
