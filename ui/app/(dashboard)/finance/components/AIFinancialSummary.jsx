@@ -49,7 +49,7 @@ export default function AIFinancialSummary({ workspaceId, selectedPeriod }) {
         return `${monthNames[date.getMonth()]} ${date.getDate()}`;
       };
       
-      const question = `Workspace performance breakdown from ${formatDate(startDate)} to ${formatDate(endDate)}?`;
+      const question = `Workspace performance breakdown from ${formatDate(startDate)} to ${formatDate(endDate)} 2025`;
       
       // Log for debugging
       console.log('Finance AI Question:', question);

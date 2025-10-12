@@ -91,8 +91,8 @@ export default function TopBar({ selectedPeriod, onPeriodChange, compareEnabled,
                 ))}
               </div>
               
-              {/* Dropdown for other months */}
-              <div className="relative" ref={dropdownRef}>
+              {/* Dropdown for other months, highest z-index */}
+              <div className="relative z-50" ref={dropdownRef}>
                 <button
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                   className={`px-4 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2 ${
