@@ -122,7 +122,7 @@ def _base_query(
                 entity.id.label("entity_id"),
                 entity.name.label("entity_name"),
                 entity.status,
-                entity.connection_id,
+                MF.provider.label("provider"),
                 func.max(MF.ingested_at).label("last_updated"),
                 func.coalesce(func.sum(MF.spend), 0).label("spend"),
                 func.coalesce(func.sum(MF.revenue), 0).label("revenue"),
@@ -148,7 +148,7 @@ def _base_query(
                 ancestor.id.label("entity_id"),
                 ancestor.name.label("entity_name"),
                 ancestor.status,
-                ancestor.connection_id,
+                MF.provider.label("provider"),
                 func.max(MF.ingested_at).label("last_updated"),
                 func.coalesce(func.sum(MF.spend), 0).label("spend"),
                 func.coalesce(func.sum(MF.revenue), 0).label("revenue"),
@@ -193,7 +193,7 @@ def _base_query(
         entity_alias.id,
         entity_alias.name,
         entity_alias.status,
-        entity_alias.connection_id,
+        MF.provider,
     ]
 
     return query.group_by(*group_columns)
@@ -401,15 +401,9 @@ def list_entities_performance(
             rows=[],
         )
 
-    connection_map = _connection_platform_map(db, workspace_id)
     trend_metric = "revenue" if sort_by == "revenue" else "roas"
     entity_ids = [row.entity_id for row in rows]
     trend_series = _fetch_trend(db, entity_ids, trend_metric, start, end, level)
-
-    def _platform_for_connection(connection_id: Optional[str]) -> Optional[str]:
-        if not connection_id:
-            return None
-        return connection_map.get(str(connection_id))
 
     response_rows: List[EntityPerformanceRow] = []
     for row in rows:
@@ -425,7 +419,7 @@ def list_entities_performance(
             EntityPerformanceRow(
                 id=str(row.entity_id),
                 name=row.entity_name,
-                platform=_platform_for_connection(row.connection_id),
+                platform=row.provider.value if row.provider else None,
                 revenue=revenue,
                 spend=spend,
                 roas=roas,
@@ -494,7 +488,6 @@ def list_child_entities(
     total = base.count()
     rows = _apply_sort(base, sort_by, sort_dir).offset((page - 1) * page_size).limit(page_size).all()
 
-    connection_map = _connection_platform_map(db, str(current_user.workspace_id))
     trend_metric = "revenue" if sort_by == "revenue" else "roas"
     entity_ids = [row.entity_id for row in rows]
     trend_series = _fetch_trend(db, entity_ids, trend_metric, start, end, child_level)
@@ -513,7 +506,7 @@ def list_child_entities(
             EntityPerformanceRow(
                 id=str(row.entity_id),
                 name=row.entity_name,
-                platform=connection_map.get(str(row.connection_id)) if row.connection_id else None,
+                platform=row.provider.value if row.provider else None,
                 revenue=revenue,
                 spend=spend,
                 roas=roas,

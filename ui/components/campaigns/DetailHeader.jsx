@@ -15,10 +15,10 @@ export default function DetailHeader({ name, platform, status, timeframe = 'Last
           <div className="text-slate-400 text-sm mt-1">{platform} • {status} • {timeframe}</div>
           <div className="text-xs text-neutral-500 mt-1">{subtitle || 'Last updated —'}</div>
         </div>
-        <div className="flex items-center gap-2">
+        {/* <div className="flex items-center gap-2">
           <button className="rounded-full px-3 py-1.5 text-sm border border-slate-600/40 bg-slate-900/35">Export</button>
           <button className="rounded-full px-3 py-1.5 text-sm border border-slate-600/40 bg-slate-900/35">Customize</button>
-        </div>
+        </div> */}
       </div>
     </div>
   );

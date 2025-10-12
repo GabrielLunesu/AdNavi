@@ -119,12 +119,12 @@ export default function TopToolbar({ meta, onPlatformChange, onStatusChange, onS
             </div>
             
             {/* Export & Customize */}
-            <button className="w-10 h-10 rounded-full bg-white/60 border border-neutral-200/60 hover:border-cyan-400/40 hover:bg-white transition-all flex items-center justify-center">
+            {/* <button className="w-10 h-10 rounded-full bg-white/60 border border-neutral-200/60 hover:border-cyan-400/40 hover:bg-white transition-all flex items-center justify-center">
               <Download className="w-4 h-4 text-neutral-600" strokeWidth={1.5} />
             </button>
             <button className="w-10 h-10 rounded-full bg-white/60 border border-neutral-200/60 hover:border-cyan-400/40 hover:bg-white transition-all flex items-center justify-center">
               <SlidersHorizontal className="w-4 h-4 text-neutral-600" strokeWidth={1.5} />
-            </button>
+            </button> */}
           </div>
         </div>
       </div>

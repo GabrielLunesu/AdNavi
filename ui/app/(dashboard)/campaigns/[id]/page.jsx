@@ -1,5 +1,7 @@
 'use client'
 
+// page for ad set detail (ad level)
+
 import { useEffect, useState, useTransition } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import DetailHeader from '../../../../components/campaigns/DetailHeader';
