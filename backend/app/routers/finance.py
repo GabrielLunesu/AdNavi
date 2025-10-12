@@ -476,11 +476,19 @@ def get_financial_insight(
 
 def _cost_to_schema(cost: models.ManualCost) -> schemas.ManualCostOut:
     """Convert DB model to schema."""
+    # Extract dates properly - if they're datetime objects, get the date part; if already date, use as-is
+    def extract_date(dt):
+        if dt is None:
+            return None
+        if hasattr(dt, 'date'):
+            return dt.date()
+        return dt
+    
     allocation = schemas.ManualCostAllocation(
         type=cost.allocation_type,
-        date=cost.allocation_date.date() if cost.allocation_date else None,
-        start_date=cost.allocation_start.date() if cost.allocation_start else None,
-        end_date=cost.allocation_end.date() if cost.allocation_end else None
+        date=extract_date(cost.allocation_date),
+        start_date=extract_date(cost.allocation_start),
+        end_date=extract_date(cost.allocation_end)
     )
     
     return schemas.ManualCostOut(

@@ -1,11 +1,9 @@
 """Pydantic schemas for request/response payloads."""
 
-from __future__ import annotations
-
 from datetime import datetime, date
 from uuid import UUID
-from typing import Optional, List, Literal, Union
-from pydantic import BaseModel, EmailStr, constr, Field
+from typing import Optional, List, Literal, Union, Any
+from pydantic import BaseModel, EmailStr, constr, Field, field_serializer
 from .models import RoleEnum, ProviderEnum, LevelEnum, KindEnum, ComputeRunTypeEnum
 
 
@@ -629,9 +627,9 @@ class PnLStatementResponse(BaseModel):
 class ManualCostAllocation(BaseModel):
     """Allocation strategy for manual costs."""
     type: Literal["one_off", "range"]
-    date: Optional[date] = None
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
+    date: Any = None
+    start_date: Any = None
+    end_date: Any = None
 
 class ManualCostCreate(BaseModel):
     """Create a manual cost entry."""

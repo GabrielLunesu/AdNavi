@@ -26,6 +26,7 @@ import { currentUser } from "@/lib/auth";
 import TopBar from "./components/TopBar";
 import FinancialSummaryCards from "./components/FinancialSummaryCards";
 import PLTable from "./components/PLTable";
+import ManualCostModal from "./components/ManualCostModal";
 import ChartsSection from "./components/ChartsSection";
 import AIFinancialSummary from "./components/AIFinancialSummary";
 import { getPnLStatement } from "@/lib/financeApiClient";
@@ -47,6 +48,9 @@ export default function FinancePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [excludedRows, setExcludedRows] = useState(new Set());
+  const [showAddCost, setShowAddCost] = useState(false);
+  const [editingCost, setEditingCost] = useState(null);
+  const [manualCosts, setManualCosts] = useState([]);
   
   // Get current user
   useEffect(() => {
@@ -67,6 +71,23 @@ export default function FinancePage() {
       mounted = false;
     };
   }, []);
+  
+  // Fetch manual costs when user loads
+  useEffect(() => {
+    if (!user) return;
+    
+    async function fetchManualCosts() {
+      try {
+        const { listManualCosts } = await import("@/lib/financeApiClient");
+        const costs = await listManualCosts({ workspaceId: user.workspace_id });
+        setManualCosts(costs);
+      } catch (err) {
+        console.error('Failed to fetch manual costs:', err);
+      }
+    }
+    
+    fetchManualCosts();
+  }, [user]);
   
   // Fetch P&L data when user/period/compare changes
   useEffect(() => {
@@ -122,6 +143,91 @@ export default function FinancePage() {
       }
       return newSet;
     });
+  };
+
+  // Add/Edit manual cost
+  const handleAddCost = () => {
+    setEditingCost(null);
+    setShowAddCost(true);
+  };
+  
+  const handleEditCost = (cost) => {
+    setEditingCost(cost);
+    setShowAddCost(true);
+  };
+  
+  const handleSubmitCost = async (payload) => {
+    try {
+      if (editingCost) {
+        // Update existing cost
+        const { updateManualCost } = await import("@/lib/financeApiClient");
+        await updateManualCost({
+          workspaceId: user.workspace_id,
+          costId: editingCost.id,
+          updates: payload
+        });
+      } else {
+        // Create new cost
+        const { createManualCost } = await import("@/lib/financeApiClient");
+        await createManualCost({ workspaceId: user.workspace_id, cost: payload });
+      }
+      
+      setShowAddCost(false);
+      setEditingCost(null);
+      
+      // Refetch manual costs
+      const { listManualCosts } = await import("@/lib/financeApiClient");
+      const costs = await listManualCosts({ workspaceId: user.workspace_id });
+      setManualCosts(costs);
+      
+      // Refetch P&L
+      const { periodStart, periodEnd } = getPeriodDatesForMonth(
+        selectedPeriod.year,
+        selectedPeriod.month
+      );
+      const apiResponse = await getPnLStatement({
+        workspaceId: user.workspace_id,
+        granularity: 'month',
+        periodStart,
+        periodEnd,
+        compare: compareEnabled
+      });
+      const adapted = adaptPnLStatement(apiResponse);
+      setViewModel(adapted);
+    } catch (err) {
+      console.error('Failed to save cost:', err);
+      alert('Failed to save cost: ' + err.message);
+    }
+  };
+  
+  const handleDeleteCost = async (costId) => {
+    try {
+      const { deleteManualCost } = await import("@/lib/financeApiClient");
+      await deleteManualCost({ workspaceId: user.workspace_id, costId });
+      
+      // Refetch manual costs
+      const { listManualCosts } = await import("@/lib/financeApiClient");
+      const costs = await listManualCosts({ workspaceId: user.workspace_id });
+      setManualCosts(costs);
+      
+      // Refetch P&L
+      const { periodStart, periodEnd } = getPeriodDatesForMonth(
+        selectedPeriod.year,
+        selectedPeriod.month
+      );
+      const apiResponse = await getPnLStatement({
+        workspaceId: user.workspace_id,
+        granularity: 'month',
+        periodStart,
+        periodEnd,
+        compare: compareEnabled
+      });
+      const adapted = adaptPnLStatement(apiResponse);
+      setViewModel(adapted);
+    } catch (err) {
+      console.error('Failed to delete cost:', err);
+      alert('Failed to delete cost: ' + err.message);
+    }
   };
   
   // Calculate adjusted totals based on excluded rows
@@ -215,9 +321,15 @@ export default function FinancePage() {
 
       {/* Editable P&L Grid */}
       <PLTable 
+        // selected month
+        selectedMonth={selectedPeriod.month}
         rows={viewModel.rows} 
         excludedRows={excludedRows}
         onRowToggle={handleRowToggle}
+        onAddCost={handleAddCost}
+        manualCosts={manualCosts}
+        onEditCost={handleEditCost}
+        onDeleteCost={handleDeleteCost}
       />
 
       {/* Variance Visualization Section */}
@@ -236,6 +348,20 @@ export default function FinancePage() {
         workspaceId={user.workspace_id}
         selectedPeriod={selectedPeriod}
       />
+
+      {showAddCost && (
+        <ManualCostModal
+          open={showAddCost}
+          onClose={() => {
+            setShowAddCost(false);
+            setEditingCost(null);
+          }}
+          onSubmit={handleSubmitCost}
+          defaultMonth={selectedPeriod.month}
+          defaultYear={selectedPeriod.year}
+          editingCost={editingCost}
+        />
+      )}
     </div>
   );
 }

@@ -52,6 +52,9 @@ def calculate_allocated_amount(
     if cost.allocation_type == "one_off":
         # Include if date falls within period
         cost_date = cost.allocation_date.date() if hasattr(cost.allocation_date, 'date') else cost.allocation_date
+        if cost_date is None:
+            # If no date specified, include in current period as fallback
+            return float(cost.amount_dollar)
         if period_start <= cost_date < period_end:
             return float(cost.amount_dollar)
         return 0.0
@@ -60,6 +63,10 @@ def calculate_allocated_amount(
         # Pro-rate based on overlapping days
         cost_start = cost.allocation_start.date() if hasattr(cost.allocation_start, 'date') else cost.allocation_start
         cost_end = cost.allocation_end.date() if hasattr(cost.allocation_end, 'date') else cost.allocation_end
+        
+        # Skip if dates are missing
+        if cost_start is None or cost_end is None:
+            return 0.0
         
         # Calculate overlap
         overlap_start = max(cost_start, period_start)
