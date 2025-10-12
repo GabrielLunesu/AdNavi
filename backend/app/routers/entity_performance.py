@@ -109,36 +109,65 @@ def _base_query(
     HOW: Join MetricFact with Entity, optionally join parent ancestor (campaign→ad sets).
     """
 
-    if level not in (models.LevelEnum.campaign, models.LevelEnum.adset):
+    if level not in (models.LevelEnum.campaign, models.LevelEnum.adset, models.LevelEnum.ad):
         raise HTTPException(status_code=400, detail="Unsupported entity level")
 
     MF = models.MetricFact
-    leaf = aliased(models.Entity)
-    ancestor = aliased(models.Entity)
-    mapping = campaign_ancestor_cte(db) if level == models.LevelEnum.campaign else adset_ancestor_cte(db)
-
-    query = (
-        db.query(
-            ancestor.id.label("entity_id"),
-            ancestor.name.label("entity_name"),
-            ancestor.status,
-            ancestor.connection_id,
-            func.max(MF.ingested_at).label("last_updated"),
-            func.coalesce(func.sum(MF.spend), 0).label("spend"),
-            func.coalesce(func.sum(MF.revenue), 0).label("revenue"),
-            func.coalesce(func.sum(MF.clicks), 0).label("clicks"),
-            func.coalesce(func.sum(MF.impressions), 0).label("impressions"),
-            func.coalesce(func.sum(MF.conversions), 0).label("conversions"),
+    
+    # For ads (leaf level), query MetricFacts directly without hierarchy CTEs
+    if level == models.LevelEnum.ad:
+        entity = aliased(models.Entity)
+        query = (
+            db.query(
+                entity.id.label("entity_id"),
+                entity.name.label("entity_name"),
+                entity.status,
+                entity.connection_id,
+                func.max(MF.ingested_at).label("last_updated"),
+                func.coalesce(func.sum(MF.spend), 0).label("spend"),
+                func.coalesce(func.sum(MF.revenue), 0).label("revenue"),
+                func.coalesce(func.sum(MF.clicks), 0).label("clicks"),
+                func.coalesce(func.sum(MF.impressions), 0).label("impressions"),
+                func.coalesce(func.sum(MF.conversions), 0).label("conversions"),
+            )
+            .select_from(MF)
+            .join(entity, entity.id == MF.entity_id)
+            .filter(entity.workspace_id == workspace_id)
+            .filter(entity.level == models.LevelEnum.ad)
+            .filter(func.date(MF.event_date) >= start)
+            .filter(func.date(MF.event_date) < end)
         )
-        .select_from(MF)
-        .join(leaf, leaf.id == MF.entity_id)
-        .join(mapping, mapping.c.leaf_id == leaf.id)
-        .join(ancestor, ancestor.id == mapping.c.ancestor_id)
-        .filter(ancestor.workspace_id == workspace_id)
-        .filter(func.date(MF.event_date) >= start)
-        .filter(func.date(MF.event_date) < end)
-    )
+    else:
+        # For campaigns and adsets, use hierarchy CTEs
+        leaf = aliased(models.Entity)
+        ancestor = aliased(models.Entity)
+        mapping = campaign_ancestor_cte(db) if level == models.LevelEnum.campaign else adset_ancestor_cte(db)
 
+        query = (
+            db.query(
+                ancestor.id.label("entity_id"),
+                ancestor.name.label("entity_name"),
+                ancestor.status,
+                ancestor.connection_id,
+                func.max(MF.ingested_at).label("last_updated"),
+                func.coalesce(func.sum(MF.spend), 0).label("spend"),
+                func.coalesce(func.sum(MF.revenue), 0).label("revenue"),
+                func.coalesce(func.sum(MF.clicks), 0).label("clicks"),
+                func.coalesce(func.sum(MF.impressions), 0).label("impressions"),
+                func.coalesce(func.sum(MF.conversions), 0).label("conversions"),
+            )
+            .select_from(MF)
+            .join(leaf, leaf.id == MF.entity_id)
+            .join(mapping, mapping.c.leaf_id == leaf.id)
+            .join(ancestor, ancestor.id == mapping.c.ancestor_id)
+            .filter(ancestor.workspace_id == workspace_id)
+            .filter(func.date(MF.event_date) >= start)
+            .filter(func.date(MF.event_date) < end)
+        )
+
+    # Apply filters - use the appropriate entity alias
+    entity_alias = entity if level == models.LevelEnum.ad else ancestor
+    
     if platform:
         try:
             provider = models.ProviderEnum(platform)
@@ -147,7 +176,7 @@ def _base_query(
         query = query.filter(MF.provider == provider)
 
     if status and status.lower() != "all":
-        query = query.filter(ancestor.status == status)
+        query = query.filter(entity_alias.status == status)
 
     if parent_id and level != models.LevelEnum.campaign:
         # parent_id can be either a string or UUID object
@@ -158,13 +187,13 @@ def _base_query(
                 raise HTTPException(status_code=400, detail="Invalid parent_id format") from exc
         else:
             parent_uuid = parent_id
-        query = query.filter(ancestor.parent_id == parent_uuid)
+        query = query.filter(entity_alias.parent_id == parent_uuid)
 
     group_columns = [
-        ancestor.id,
-        ancestor.name,
-        ancestor.status,
-        ancestor.connection_id,
+        entity_alias.id,
+        entity_alias.name,
+        entity_alias.status,
+        entity_alias.connection_id,
     ]
 
     return query.group_by(*group_columns)
@@ -226,28 +255,50 @@ def _fetch_trend(
         return {}
 
     MF = models.MetricFact
-    leaf = aliased(models.Entity)
-    mapping = campaign_ancestor_cte(db) if level == models.LevelEnum.campaign else adset_ancestor_cte(db)
-
-    results = (
-        db.query(
-            mapping.c.ancestor_id.label("entity_id"),
-            func.date(MF.event_date).label("bucket_date"),
-            func.coalesce(func.sum(MF.spend), 0).label("spend"),
-            func.coalesce(func.sum(MF.revenue), 0).label("revenue"),
-            func.coalesce(func.sum(MF.clicks), 0).label("clicks"),
-            func.coalesce(func.sum(MF.impressions), 0).label("impressions"),
-            func.coalesce(func.sum(MF.conversions), 0).label("conversions"),
+    
+    # For ads (leaf level), query MetricFacts directly
+    if level == models.LevelEnum.ad:
+        results = (
+            db.query(
+                MF.entity_id.label("entity_id"),
+                func.date(MF.event_date).label("bucket_date"),
+                func.coalesce(func.sum(MF.spend), 0).label("spend"),
+                func.coalesce(func.sum(MF.revenue), 0).label("revenue"),
+                func.coalesce(func.sum(MF.clicks), 0).label("clicks"),
+                func.coalesce(func.sum(MF.impressions), 0).label("impressions"),
+                func.coalesce(func.sum(MF.conversions), 0).label("conversions"),
+            )
+            .select_from(MF)
+            .filter(MF.entity_id.in_(entity_ids))
+            .filter(func.date(MF.event_date) >= start)
+            .filter(func.date(MF.event_date) < end)
+            .group_by(MF.entity_id, func.date(MF.event_date))
+            .all()
         )
-        .select_from(MF)
-        .join(leaf, leaf.id == MF.entity_id)
-        .join(mapping, mapping.c.leaf_id == leaf.id)
-        .filter(mapping.c.ancestor_id.in_(entity_ids))
-        .filter(func.date(MF.event_date) >= start)
-        .filter(func.date(MF.event_date) < end)
-        .group_by(mapping.c.ancestor_id, func.date(MF.event_date))
-        .all()
-    )
+    else:
+        # For campaigns and adsets, use hierarchy CTEs
+        leaf = aliased(models.Entity)
+        mapping = campaign_ancestor_cte(db) if level == models.LevelEnum.campaign else adset_ancestor_cte(db)
+
+        results = (
+            db.query(
+                mapping.c.ancestor_id.label("entity_id"),
+                func.date(MF.event_date).label("bucket_date"),
+                func.coalesce(func.sum(MF.spend), 0).label("spend"),
+                func.coalesce(func.sum(MF.revenue), 0).label("revenue"),
+                func.coalesce(func.sum(MF.clicks), 0).label("clicks"),
+                func.coalesce(func.sum(MF.impressions), 0).label("impressions"),
+                func.coalesce(func.sum(MF.conversions), 0).label("conversions"),
+            )
+            .select_from(MF)
+            .join(leaf, leaf.id == MF.entity_id)
+            .join(mapping, mapping.c.leaf_id == leaf.id)
+            .filter(mapping.c.ancestor_id.in_(entity_ids))
+            .filter(func.date(MF.event_date) >= start)
+            .filter(func.date(MF.event_date) < end)
+            .group_by(mapping.c.ancestor_id, func.date(MF.event_date))
+            .all()
+        )
 
     buckets_by_entity: dict[str, dict[date, dict]] = {}
     for row in results:
@@ -389,7 +440,12 @@ def list_entities_performance(
         )
 
     latest_update = max((row.last_updated_at for row in response_rows if row.last_updated_at), default=None)
-    title = "Campaigns" if level == models.LevelEnum.campaign else "Ad Sets"
+    if level == models.LevelEnum.campaign:
+        title = "Campaigns"
+    elif level == models.LevelEnum.adset:
+        title = "Ad Sets"
+    else:
+        title = "Ads"
     meta = EntityPerformanceMeta(title=title, level=level.value, last_updated_at=latest_update)
 
     return EntityPerformanceResponse(

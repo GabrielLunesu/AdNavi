@@ -59,11 +59,14 @@ export const adaptEntityPerformance = (payload) => {
   const rows = (payload.rows || []).map((row) => {
     const trendMetric = row.trend_metric;
     const fillWith = trendMetric === 'revenue' ? 0 : null;
+    // Infer level from meta if not present on row
+    const level = row.level || payload.meta?.level;
     return {
       id: row.id,
       name: row.name,
       platform: row.platform,
       status: row.status,
+      level: level, // Used to determine if entity has children
       revenueRaw: row.revenue,
       spendRaw: row.spend,
       roasRaw: row.roas,

@@ -1,7 +1,7 @@
 import Card from "../Card";
 import EntityRow from "./EntityRow";
 
-export default function EntityTable({ title, rows = [], loading = false, error = null }) {
+export default function EntityTable({ title, rows = [], loading = false, error = null, onRowClick }) {
   return (
     <Card className="rounded-2xl">
       <div className="px-3 py-2 text-xs text-slate-400 flex items-center justify-between">
@@ -31,7 +31,7 @@ export default function EntityTable({ title, rows = [], loading = false, error =
           <div className="p-8 text-center text-slate-400">No {title.toLowerCase()} found.</div>
         )}
         {!loading && !error && rows.map(r => (
-          <EntityRow key={r.id} row={r} />
+          <EntityRow key={r.id} row={r} onClick={onRowClick} />
         ))}
       </div>
     </Card>

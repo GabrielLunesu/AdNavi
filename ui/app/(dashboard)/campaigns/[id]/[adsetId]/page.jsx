@@ -1,16 +1,14 @@
 'use client'
 
 import { useEffect, useState, useTransition } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import DetailHeader from '../../../../components/campaigns/DetailHeader';
-import EntityTable from '../../../../components/campaigns/EntityTable';
-import RulesPanel from '../../../../components/campaigns/RulesPanel';
-import { campaignsApiClient, campaignsAdapter } from '../../../../lib';
+import { useParams } from 'next/navigation';
+import DetailHeader from '../../../../../components/campaigns/DetailHeader';
+import EntityTable from '../../../../../components/campaigns/EntityTable';
+import { campaignsApiClient, campaignsAdapter } from '../../../../../lib';
 
-export default function CampaignDetailPage() {
+export default function AdSetDetailPage() {
   const params = useParams();
-  const router = useRouter();
-  const id = params?.id;
+  const adsetId = params?.adsetId;
   // TODO: Get workspace ID from auth context
   const workspaceId = "1e72698a-1f6c-4abb-9b99-48dba86508ce";
   
@@ -26,13 +24,13 @@ export default function CampaignDetailPage() {
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
-    if (!id) return;
+    if (!adsetId) return;
     let isMounted = true;
     startTransition(() => {
       campaignsApiClient.fetchEntityPerformance({
         workspaceId,
-        entityLevel: 'adset',
-        parentId: id,
+        entityLevel: 'ad',
+        parentId: adsetId,
         timeframe: filters.timeframe,
         status: filters.status,
         sortBy: filters.sortBy,
@@ -48,31 +46,26 @@ export default function CampaignDetailPage() {
         })
         .catch((err) => {
           if (!isMounted) return;
-          console.error('Failed to load ad sets', err);
+          console.error('Failed to load ads', err);
           setError(err);
         });
     });
     return () => {
       isMounted = false;
     };
-  }, [id, filters, workspaceId]);
+  }, [adsetId, filters, workspaceId]);
 
-  if (!id) {
-    return <div className="text-slate-400">No campaign selected.</div>;
+  if (!adsetId) {
+    return <div className="text-slate-400">No ad set selected.</div>;
   }
 
   const rows = data?.rows || [];
   const meta = data?.meta;
 
-  const handleAdSetClick = (adsetId) => {
-    // Navigate to ad set detail page
-    router.push(`/campaigns/${id}/${adsetId}`);
-  };
-
   return (
     <div className="max-w-[1200px] mx-auto">
       <DetailHeader
-        name={meta?.title || 'Campaign'}
+        name={meta?.title || 'Ad Set'}
         platform={rows[0]?.platform || '—'}
         status={rows[0]?.status || '—'}
         timeframe={filters.timeframe}
@@ -81,13 +74,13 @@ export default function CampaignDetailPage() {
       />
       <div className="mb-6" />
       <EntityTable 
-        title="Ad Sets" 
+        title="Ads" 
         rows={rows} 
         loading={isPending}
         error={error}
-        onRowClick={handleAdSetClick}
+        onRowClick={null} // Ads are leaf nodes, no drill-down
       />
-      {/* <RulesPanel /> */}
     </div>
   );
 }
+
