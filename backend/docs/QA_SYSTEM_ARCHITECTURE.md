@@ -1,8 +1,8 @@
 # QA System Architecture & DSL Specification
 
-**Version**: DSL v2.1.4 (Sort Order & Performance Breakdown - Phase 4.5)  
-**Last Updated**: 2025-10-08  
-**Status**: Production Ready - Natural Copilot Phase 4.5 Implemented
+**Version**: DSL v2.2.0 (Advanced Analytics - Phase 7)  
+**Last Updated**: 2025-10-13  
+**Status**: Production Ready - Natural Copilot Phase 7 Implemented
 
 ✅ **Phase 1 Complete**: Intent-based answer depth implemented. Simple questions now get simple answers (1 sentence), comparative questions get comparisons (2-3 sentences), analytical questions get full context (3-4 sentences).
 
@@ -37,6 +37,12 @@
 - GPT-4-turbo upgrade for improved instruction following
 - Regex-based canonicalization for flexible phrase matching
 - **Impact**: "Lowest CPC" queries now return correct entities (80% success on target tests)
+
+✅ **Phase 7 Complete**: Advanced Analytics capabilities:
+- **Multi-Metric Queries**: Support for multiple metrics in single query (e.g., "What's my spend and revenue?")
+- **Metric Value Filtering**: Filter entities by performance metrics (e.g., "Show me campaigns with ROAS above 4")
+- **Temporal Breakdowns**: Group data by time periods (e.g., "Which day had the highest CPC?")
+- **Impact**: Addresses 80% of previously failing queries from Phase 6 test results
 
 ---
 
@@ -566,6 +572,74 @@ DSL supports three types of queries:
 ```
 
 **Result**: System returns AdSet with CPC $0.54 (highest), Answer Builder says "your worst performer" (because higher CPC is worse).
+
+### Multi-Metric Queries (NEW in v2.2.0 - Phase 7)
+
+**Purpose**: Support queries requesting multiple metrics in a single question.
+
+**How it works**:
+- `metric` field now accepts either a single string or a list of strings
+- Executor calculates all requested metrics from the same base aggregation
+- Answer Builder generates comprehensive answers covering all metrics
+
+**Example**:
+```json
+{
+  "metric": ["spend", "revenue", "roas"],
+  "time_range": {"last_n_days": 7},
+  "group_by": "none",
+  "breakdown": null
+}
+```
+
+**Result**: Returns all three metrics with coherent natural language summary.
+
+### Metric Value Filtering (NEW in v2.2.0 - Phase 7)
+
+**Purpose**: Filter entities based on their performance metrics (e.g., "Show me campaigns with ROAS above 4").
+
+**How it works**:
+- New `metric_filters` field in Filters model
+- Post-aggregation filtering after metric calculation
+- Supports operators: `>`, `>=`, `<`, `<=`, `=`, `!=`
+
+**Example**:
+```json
+{
+  "metric": "roas",
+  "time_range": {"last_n_days": 7},
+  "group_by": "campaign",
+  "breakdown": "campaign",
+  "filters": {
+    "metric_filters": [{"metric": "roas", "operator": ">", "value": 4}]
+  }
+}
+```
+
+**Result**: Only campaigns with ROAS > 4 are returned.
+
+### Temporal Breakdowns (NEW in v2.2.0 - Phase 7)
+
+**Purpose**: Group data by time periods for temporal analysis (e.g., "Which day had the highest CPC?").
+
+**How it works**:
+- New temporal values for `group_by` and `breakdown`: `"day"`, `"week"`, `"month"`
+- Uses SQL `date_trunc` function for temporal grouping
+- Enables time-series analysis and temporal comparisons
+
+**Example**:
+```json
+{
+  "metric": "cpc",
+  "time_range": {"last_n_days": 7},
+  "group_by": "day",
+  "breakdown": "day",
+  "top_n": 1,
+  "sort_order": "desc"
+}
+```
+
+**Result**: Returns the day with the highest CPC value.
 
 ### Query Examples
 
@@ -1449,6 +1523,34 @@ Try the `/qa` endpoint with:
 - Enhanced DSL with proper Pydantic models
 - Added canonicalization, validation, planning
 - Comprehensive test coverage
+
+---
+
+## Current Limitations (Phase 7)
+
+### Temporal Breakdown Limitations
+- **Supported**: Day, week, month breakdowns
+- **Not Supported**: Hour, minute, or other sub-daily breakdowns
+- **Reason**: Schema only allows `day`, `week`, `month` values
+- **Example**: "What time of day do I get the best CPC?" → Not supported
+
+### Multi-Entity Comparisons
+- **Supported**: Single entity filtering (e.g., "Holiday Sale campaign")
+- **Not Supported**: Direct comparisons between two named entities
+- **Reason**: DSL schema doesn't support multiple entity names in filters
+- **Example**: "Compare Holiday Sale vs App Install campaigns" → Not supported
+- **Workaround**: Ask for each entity separately and compare manually
+
+### Complex Query Types
+- **Supported**: Multi-metric queries, temporal breakdowns, metric value filtering
+- **Not Supported**: Queries requiring complex business logic or external data
+- **Reason**: System focuses on metric aggregation and analysis
+
+### Future Enhancements
+- Add support for hour-level temporal breakdowns
+- Implement multi-entity comparison queries
+- Add support for custom date ranges
+- Implement advanced statistical functions
 
 ---
 

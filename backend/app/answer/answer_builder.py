@@ -338,7 +338,11 @@ class AnswerBuilder:
             
             # Step 2: Extract context and build prompt based on query type and intent
             if dsl.query_type == "metrics":
-                # Extract rich context
+                # Phase 7: Handle multi-metric queries
+                if isinstance(result, dict) and result.get("query_type") == "multi_metrics":
+                    return self._build_multi_metric_answer(dsl, result, timeframe_display, question, log_latency)
+                
+                # Single metric query - extract rich context
                 context = extract_rich_context(
                     result=result,
                     query=dsl,
@@ -879,4 +883,143 @@ CONTEXT:
 {json.dumps(filtered, indent=2)}
 
 Remember: Include comparison, keep it conversational, 2-3 sentences max."""
+
+    def _build_multi_metric_answer(
+        self,
+        dsl: MetricQuery,
+        result: Dict[str, Any],
+        timeframe_display: str,
+        question: str,
+        log_latency: bool = False
+    ) -> tuple[str, Optional[int]]:
+        """
+        Build answer for multi-metric queries (Phase 7).
+        
+        Args:
+            dsl: The MetricQuery that was executed
+            result: Multi-metric result dict with structure:
+                {
+                    "metrics": {
+                        "spend": {"summary": 1000.0, "previous": 900.0, "delta_pct": 11.1},
+                        "revenue": {"summary": 2000.0, "previous": 1800.0, "delta_pct": 11.1},
+                        "roas": {"summary": 2.0, "previous": 2.0, "delta_pct": 0.0}
+                    },
+                    "query_type": "multi_metrics"
+                }
+            timeframe_display: Human-friendly timeframe string
+            question: Original user question
+            log_latency: Whether to return latency in ms
+            
+        Returns:
+            tuple: (answer_text, latency_ms) if log_latency=True, else (answer_text, None)
+        """
+        start_time = time.time() if log_latency else None
+        
+        try:
+            # Build context for multi-metric answer
+            metrics_data = result.get("metrics", {})
+            
+            # Format each metric value
+            formatted_metrics = {}
+            for metric_name, metric_data in metrics_data.items():
+                summary_value = metric_data.get("summary")
+                previous_value = metric_data.get("previous")
+                delta_pct = metric_data.get("delta_pct")
+                
+                if summary_value is not None:
+                    formatted_value = format_metric_value(metric_name, summary_value)
+                    formatted_metrics[metric_name] = {
+                        "value": formatted_value,
+                        "raw_value": summary_value,
+                        "previous": previous_value,
+                        "delta_pct": delta_pct
+                    }
+            
+            # Build context for LLM
+            context = {
+                "metrics": formatted_metrics,
+                "timeframe_display": timeframe_display,
+                "question": question,
+                "metric_count": len(formatted_metrics)
+            }
+            
+            # Use analytical prompt for multi-metric answers
+            system_prompt = ANALYTICAL_ANSWER_PROMPT
+            user_prompt = f"""
+Generate a natural, conversational answer for a multi-metric query.
+
+QUESTION: {question}
+
+METRICS DATA:
+{json.dumps(context, indent=2)}
+
+INSTRUCTIONS:
+1. Include ALL requested metrics in your answer
+2. Use the timeframe_display for timeframe context
+3. Keep it conversational and natural
+4. If there are comparisons available, include them briefly
+5. Format numbers appropriately (currency, percentages, etc.)
+6. Keep the answer concise but comprehensive
+
+Answer:"""
+            
+            # Call LLM
+            client = OpenAI(api_key=get_settings().openai_api_key)
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=0.1,
+                max_tokens=500
+            )
+            
+            answer = response.choices[0].message.content.strip()
+            
+            # Calculate latency if requested
+            latency_ms = None
+            if log_latency and start_time:
+                latency_ms = int((time.time() - start_time) * 1000)
+            
+            logger.info(f"[MULTI_METRIC_ANSWER] Generated answer for {len(formatted_metrics)} metrics")
+            return answer, latency_ms
+            
+        except Exception as e:
+            logger.error(f"[MULTI_METRIC_ANSWER] Failed to generate answer: {e}")
+            # Fallback to simple template
+            return self._build_multi_metric_template_answer(dsl, result, timeframe_display), None
+    
+    def _build_multi_metric_template_answer(
+        self,
+        dsl: MetricQuery,
+        result: Dict[str, Any],
+        timeframe_display: str
+    ) -> str:
+        """
+        Fallback template-based answer for multi-metric queries.
+        
+        This provides a simple, deterministic answer when LLM fails.
+        """
+        metrics_data = result.get("metrics", {})
+        
+        if not metrics_data:
+            return f"No data available for {timeframe_display if timeframe_display else 'the selected period'}."
+        
+        # Build simple list of metrics
+        metric_lines = []
+        for metric_name, metric_data in metrics_data.items():
+            summary_value = metric_data.get("summary")
+            if summary_value is not None:
+                formatted_value = format_metric_value(metric_name, summary_value)
+                metric_lines.append(f"• {metric_name.upper()}: {formatted_value}")
+        
+        if not metric_lines:
+            return f"No data available for {timeframe_display if timeframe_display else 'the selected period'}."
+        
+        # Combine into answer
+        metrics_text = "\n".join(metric_lines)
+        timeframe_text = f" {timeframe_display}" if timeframe_display else ""
+        
+        return f"Here are your metrics{timeframe_text}:\n\n{metrics_text}"
 

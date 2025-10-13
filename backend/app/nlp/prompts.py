@@ -233,6 +233,123 @@ FEW_SHOT_EXAMPLES = [
         }
     },
     
+    # Phase 7: Multi-metric query examples
+    {
+        "question": "What's my spend and revenue this week?",
+        "dsl": {
+            "metric": ["spend", "revenue"],
+            "time_range": {"last_n_days": 7},
+            "compare_to_previous": False,
+            "group_by": "none",
+            "breakdown": None,
+            "top_n": 5,
+            "filters": {}
+        }
+    },
+    {
+        "question": "Give me CPC, CTR, and ROAS for Google campaigns",
+        "dsl": {
+            "metric": ["cpc", "ctr", "roas"],
+            "time_range": {"last_n_days": 7},
+            "compare_to_previous": False,
+            "group_by": "none",
+            "breakdown": None,
+            "top_n": 5,
+            "filters": {"provider": "google"}
+        }
+    },
+    {
+        "question": "Show me clicks, conversions, and cost per conversion for Meta campaigns last 5 days",
+        "dsl": {
+            "metric": ["clicks", "conversions", "cpa"],
+            "time_range": {"last_n_days": 5},
+            "compare_to_previous": False,
+            "group_by": "none",
+            "breakdown": None,
+            "top_n": 5,
+            "filters": {"provider": "meta"}
+        }
+    },
+    
+    # Phase 7: Metric value filtering examples
+    {
+        "question": "Show me campaigns with ROAS above 4",
+        "dsl": {
+            "metric": "roas",
+            "time_range": {"last_n_days": 7},
+            "compare_to_previous": False,
+            "group_by": "campaign",
+            "breakdown": "campaign",
+            "top_n": 10,
+            "filters": {"metric_filters": [{"metric": "roas", "operator": ">", "value": 4}]}
+        }
+    },
+    {
+        "question": "Which adsets have CPC below 0.50?",
+        "dsl": {
+            "metric": "cpc",
+            "time_range": {"last_n_days": 7},
+            "compare_to_previous": False,
+            "group_by": "adset",
+            "breakdown": "adset",
+            "top_n": 10,
+            "filters": {"metric_filters": [{"metric": "cpc", "operator": "<", "value": 0.50}]}
+        }
+    },
+    {
+        "question": "Give me campaigns with spend over 1000",
+        "dsl": {
+            "metric": "spend",
+            "time_range": {"last_n_days": 7},
+            "compare_to_previous": False,
+            "group_by": "campaign",
+            "breakdown": "campaign",
+            "top_n": 10,
+            "filters": {"metric_filters": [{"metric": "spend", "operator": ">", "value": 1000}]}
+        }
+    },
+    
+    # Phase 7: Temporal breakdown examples
+    {
+        "question": "Which day had the highest CPC?",
+        "dsl": {
+            "metric": "cpc",
+            "time_range": {"last_n_days": 7},
+            "compare_to_previous": False,
+            "group_by": "day",
+            "breakdown": "day",
+            "top_n": 1,
+            "sort_order": "desc",
+            "filters": {}
+        }
+    },
+    {
+        "question": "Show me weekly revenue performance",
+        "dsl": {
+            "metric": "revenue",
+            "time_range": {"last_n_days": 30},
+            "compare_to_previous": False,
+            "group_by": "week",
+            "breakdown": "week",
+            "top_n": 10,
+            "sort_order": "desc",
+            "filters": {}
+        }
+    },
+    {
+        "question": "Give me monthly spend breakdown",
+        "dsl": {
+            "metric": "spend",
+            "time_range": {"last_n_days": 365},
+            "compare_to_previous": False,
+            "group_by": "month",
+            "breakdown": "month",
+            "top_n": 12,
+            "sort_order": "desc",
+            "filters": {}
+        }
+    },
+    
     # Phase 5: Performance breakdown queries
     {
         "question": "Give me a breakdown of campaign performance",
@@ -680,6 +797,15 @@ QUERY TYPES:
 - "metrics": For metric aggregations (ROAS, spend, revenue, etc.) — DEFAULT if not clear
 - "providers": For listing ad platforms ("Which platforms?", "What channels?")
 - "entities": For listing campaigns/adsets/ads ("List my campaigns", "Show me adsets")
+
+QUERY TYPE CLASSIFICATION RULES:
+- Use "metrics" for ANY question involving metric values, comparisons, or filtering by performance
+- Use "entities" ONLY for simple listing without metric analysis
+- Examples:
+  * "Show me campaigns with ROAS above 4" → "metrics" (filtering by metric value)
+  * "Which campaigns performed best?" → "metrics" (performance analysis)
+  * "List my campaigns" → "entities" (simple listing)
+  * "What's my ROAS?" → "metrics" (metric aggregation)
 """
 
     # Define the metrics section
@@ -692,6 +818,14 @@ Derived metrics (computed):
 Cost/Efficiency: cpc, cpm, cpa, cpl, cpi, cpp
 Value: roas, poas, arpv, aov
 Engagement: ctr, cvr
+
+MULTI-METRIC SUPPORT:
+- For single metric questions: use "metric": "roas"
+- For multiple metrics questions: use "metric": ["spend", "revenue", "roas"]
+- Examples:
+  * "What's my spend and revenue?" → "metric": ["spend", "revenue"]
+  * "Give me CPC, CTR, and ROAS" → "metric": ["cpc", "ctr", "roas"]
+  * "Show me clicks, conversions, and cost per conversion" → "metric": ["clicks", "conversions", "cpa"]
 """
 
     # Define the filters section
@@ -702,6 +836,15 @@ FILTERS (optional, only if mentioned):
 - status: "active" | "paused"
 - entity_ids: ["uuid1", "uuid2", ...]
 - entity_name: string
+- metric_filters: [{"metric": "roas", "operator": ">", "value": 4}] (NEW - Phase 7)
+
+METRIC VALUE FILTERING (NEW - Phase 7):
+- For questions like "Show me campaigns with ROAS above 4"
+- Use metric_filters with operators: ">", ">=", "<", "<=", "=", "!="
+- Examples:
+  * "campaigns with ROAS above 4" → "metric_filters": [{"metric": "roas", "operator": ">", "value": 4}]
+  * "adsets with CPC below 0.50" → "metric_filters": [{"metric": "cpc", "operator": "<", "value": 0.50}]
+  * "campaigns with spend over 1000" → "metric_filters": [{"metric": "spend", "operator": ">", "value": 1000}]
 """
 
     # Define the entity name filtering rules section
@@ -720,6 +863,15 @@ Use when user mentions specific campaign/adset/ad names:
     BREAKDOWN_DIMENSIONS_SECTION = """
 BREAKDOWN DIMENSIONS:
 - "provider", "campaign", "adset", "ad"
+- "day", "week", "month" (NEW - Phase 7 temporal breakdowns)
+
+TEMPORAL BREAKDOWNS (NEW - Phase 7):
+- For questions like "Which day had the highest CPC?"
+- Use temporal breakdown values: "day", "week", "month"
+- Examples:
+  * "Which day had the highest CPC?" → "breakdown": "day"
+  * "Show me weekly performance" → "breakdown": "week"
+  * "Give me monthly revenue" → "breakdown": "month"
 """
 
     # Define the thresholds section

@@ -145,6 +145,13 @@ def build_plan(query: MetricQuery) -> Optional[Plan]:
     if not query.metric:
         raise ValueError("metric field is required for metrics queries")
     
+    # Phase 7: Handle multi-metric queries
+    # Normalize metric to list for consistent processing
+    if isinstance(query.metric, str):
+        metrics = [query.metric]
+    else:
+        metrics = query.metric
+    
     # Step 1: Resolve time range to absolute dates
     # For metrics queries, use default if not specified
     if not query.time_range:
@@ -160,23 +167,50 @@ def build_plan(query: MetricQuery) -> Optional[Plan]:
         days = query.time_range.last_n_days or 7
         start = end - timedelta(days=days - 1)  # -1 because range is inclusive
     
-    # Step 2: Determine if metric is derived
-    derived_metrics = {"roas", "cpa", "cvr"}
-    is_derived = query.metric in derived_metrics
-    derived = query.metric if is_derived else None
+    # Step 2: Determine base measures needed for all metrics
+    # Collect all unique base measures required by the requested metrics
+    derived_metrics = {"roas", "cpa", "cvr", "cpc", "cpm", "cpl", "cpi", "cpp", "poas", "arpv", "aov", "ctr"}
+    all_base_measures = set()
     
-    # Step 3: Map metrics to base measures
-    # Derived metrics require multiple base columns
-    # Base metrics only need themselves
-    if query.metric == "roas":
-        base_measures = ["spend", "revenue"]
-    elif query.metric == "cpa":
-        base_measures = ["spend", "conversions"]
-    elif query.metric == "cvr":
-        base_measures = ["clicks", "conversions"]
+    for metric in metrics:
+        if metric == "roas":
+            all_base_measures.update(["spend", "revenue"])
+        elif metric == "cpa":
+            all_base_measures.update(["spend", "conversions"])
+        elif metric == "cvr":
+            all_base_measures.update(["clicks", "conversions"])
+        elif metric == "cpc":
+            all_base_measures.update(["spend", "clicks"])
+        elif metric == "cpm":
+            all_base_measures.update(["spend", "impressions"])
+        elif metric == "cpl":
+            all_base_measures.update(["spend", "leads"])
+        elif metric == "cpi":
+            all_base_measures.update(["spend", "installs"])
+        elif metric == "cpp":
+            all_base_measures.update(["spend", "purchases"])
+        elif metric == "poas":
+            all_base_measures.update(["profit", "spend"])
+        elif metric == "arpv":
+            all_base_measures.update(["revenue", "visitors"])
+        elif metric == "aov":
+            all_base_measures.update(["revenue", "purchases"])
+        elif metric == "ctr":
+            all_base_measures.update(["clicks", "impressions"])
+        else:
+            # Base metric: just need itself
+            all_base_measures.add(metric)
+    
+    base_measures = list(all_base_measures)
+    
+    # For single metric queries, keep the original derived logic
+    # For multi-metric queries, we'll handle derivation in the executor
+    if len(metrics) == 1:
+        is_derived = metrics[0] in derived_metrics
+        derived = metrics[0] if is_derived else None
     else:
-        # Base metric: just need itself
-        base_measures = [query.metric]
+        # Multi-metric: no single derived metric
+        derived = None
     
     # Step 4: Always compute timeseries for now (can optimize later)
     # Timeseries is cheap and useful for visualization

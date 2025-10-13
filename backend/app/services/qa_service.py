@@ -424,7 +424,10 @@ class QAService:
         
         # METRICS: Original logic (DSL v1.1), now with formatters (Derived Metrics v1)
         # NEW v2.0: Intent-first answers for top_n=1 queries
-        metric_display = dsl.metric.upper() if dsl.metric else "METRIC"
+        if isinstance(dsl.metric, list):
+            metric_display = ", ".join(dsl.metric).upper()
+        else:
+            metric_display = dsl.metric.upper() if dsl.metric else "METRIC"
         
         # For metrics, result is a MetricResult or dict with .summary
         if isinstance(result, dict):
