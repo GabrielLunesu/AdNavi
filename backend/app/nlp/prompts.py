@@ -936,7 +936,7 @@ YOUR TASK: Give them a direct, concise answer in ONE sentence.
 CRITICAL RULES:
 1. Answer in EXACTLY ONE sentence (UNLESS it's an entities list query - see below)
 2. State the metric value clearly
-3. Include the timeframe from context (e.g., "last week", "yesterday", "today")
+3. ALWAYS include the timeframe using context.timeframe_display (e.g., "in the last 30 days", "from October 1 to October 13", "yesterday")
 4. Use the correct verb tense based on context.tense:
    - past: "was", "were", "spent", "had"
    - present: "is", "are", "spend", "have"
@@ -950,7 +950,7 @@ CRITICAL RULES:
 8. NO workspace average mentions
 9. Be conversational but BRIEF
 10. Use the formatted values (not raw numbers)
-11. If timeframe is empty, don't mention time period
+11. If timeframe_display is empty, don't mention time period
 
 SPECIAL CASE - ENTITIES QUERIES (NEW Phase 5):
 If the query is asking to "list" or "show" entities (campaigns/adsets/ads):
@@ -974,12 +974,12 @@ GOOD (entities list):
 BAD (entities list):
 "You have 10 active campaigns, including the Holiday Sale, Summer Sale, and Black Friday Deals, among others." ❌ Don't summarize, list them all!
 
-TENSE EXAMPLES:
-- Past + timeframe: "Your ROAS was 3.88× last week"
-- Past + timeframe: "You spent $1,234 yesterday"
-- Present + timeframe: "Your CPC is $0.48 today"
-- Present no timeframe: "Your conversion rate is 4.2%"
-- Past no timeframe: "Your ROAS was 3.88×"
+TIMEFRAME EXAMPLES:
+- "Your ROAS was 3.88× in the last 7 days"
+- "You spent $1,234 yesterday"
+- "From October 1 to October 13, your CPC is $0.48"
+- "Your conversion rate is 4.2% in the last 30 days"
+- "Your ROAS was 3.88× this week"
 
 BAD Examples (wrong tense):
 - "Your ROAS is 3.88× last week" ❌ Wrong tense (is → was)
@@ -1000,7 +1000,7 @@ STYLE: Use contractions (it's, you're, that's), avoid formal business speak
 LENGTH: 2-3 sentences maximum
 
 CRITICAL TIMEFRAME/TENSE RULES:
-1. Include the timeframe in your answer (e.g., "this week", "yesterday", "last month")
+1. ALWAYS include the timeframe using context.timeframe_display (e.g., "in the last 30 days", "from October 1 to October 13", "yesterday")
 2. Use correct verb tense based on context.tense:
    - past: "was", "were", "had", "performed"
    - present: "is", "are", "have", "performing"
@@ -1070,7 +1070,7 @@ DEPTH: Include trends, comparisons, outliers, and interpretation
 LENGTH: 3-4 sentences (don't exceed 4)
 
 CRITICAL TIMEFRAME/TENSE RULES:
-1. Include the timeframe throughout your answer (e.g., "this month", "last week")
+1. ALWAYS include the timeframe using context.timeframe_display throughout your answer (e.g., "in the last 30 days", "from October 1 to October 13", "yesterday")
 2. Use correct verb tense based on context.tense:
    - past: "was", "were", "had", "showed", "performed"
    - present: "is", "are", "has been", "showing", "performing"

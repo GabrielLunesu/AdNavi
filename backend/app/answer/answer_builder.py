@@ -103,6 +103,91 @@ def _format_date_range(start: date, end: date) -> str:
     return f"{start.strftime('%b %d, %Y')}–{end.strftime('%b %d, %Y')}"
 
 
+def _format_timeframe_display(timeframe_desc: str, window: Optional[Dict[str, date]]) -> str:
+    """
+    Build human-friendly timeframe display for answers.
+    
+    WHY this exists:
+    - Users want clear timeframe context in answers
+    - Combines user's original phrase with actual date range
+    - Provides transparency about what time period data covers
+    
+    Args:
+        timeframe_desc: User's original timeframe phrase (e.g., "this month", "last week")
+        window: Actual date range {"start": date, "end": date}
+        
+    Returns:
+        Human-friendly timeframe string for answers
+        
+    Examples:
+        >>> _format_timeframe_display("last month", {"start": date(2025, 9, 1), "end": date(2025, 9, 30)})
+        "in the last 30 days"
+        
+        >>> _format_timeframe_display("this month", {"start": date(2025, 10, 1), "end": date(2025, 10, 13)})
+        "from October 1 to October 13"
+        
+        >>> _format_timeframe_display("last week", {"start": date(2025, 10, 6), "end": date(2025, 10, 12)})
+        "in the last 7 days"
+        
+        >>> _format_timeframe_display("yesterday", {"start": date(2025, 10, 12), "end": date(2025, 10, 12)})
+        "yesterday"
+        
+        >>> _format_timeframe_display("this week", {"start": date(2025, 10, 6), "end": date(2025, 10, 12)})
+        "this week"
+    
+    Logic:
+    - Use user's phrase for common relative timeframes (yesterday, this week, last week)
+    - Convert "this month" to actual date range for transparency
+    - Convert "last month" to "in the last X days" for clarity
+    - Fallback to date range format if no specific mapping
+    """
+    if not timeframe_desc:
+        return ""
+    
+    # Handle specific relative timeframes that users expect to see as-is
+    if timeframe_desc.lower() in ["yesterday", "today", "this week", "last week"]:
+        return timeframe_desc.lower()
+    
+    # Handle "this month" -> show actual date range for transparency
+    if timeframe_desc.lower() == "this month" and window:
+        start_date = window.get("start")
+        end_date = window.get("end")
+        if start_date and end_date:
+            # Format as "from October 1 to October 13"
+            start_str = start_date.strftime("%B %d")
+            end_str = end_date.strftime("%B %d")
+            if start_date.month == end_date.month:
+                # Same month: "from October 1 to 13"
+                end_str = end_date.strftime("%d")
+            return f"from {start_str} to {end_str}"
+    
+    # Handle "last month" -> show as "in the last X days"
+    if timeframe_desc.lower() == "last month" and window:
+        start_date = window.get("start")
+        end_date = window.get("end")
+        if start_date and end_date:
+            days = (end_date - start_date).days + 1
+            return f"in the last {days} days"
+    
+    # Handle other "last X" patterns
+    if timeframe_desc.lower().startswith("last ") and window:
+        start_date = window.get("start")
+        end_date = window.get("end")
+        if start_date and end_date:
+            days = (end_date - start_date).days + 1
+            if days == 1:
+                return "yesterday"
+            elif days == 7:
+                return "in the last 7 days"
+            elif days == 30:
+                return "in the last 30 days"
+            else:
+                return f"in the last {days} days"
+    
+    # Fallback: use user's original phrase
+    return timeframe_desc.lower()
+
+
 class AnswerBuilderError(Exception):
     """
     Raised when answer generation fails.
@@ -234,6 +319,9 @@ class AnswerBuilder:
             timeframe_desc = getattr(dsl, 'timeframe_description', None) or ""
             tense = detect_tense(question, timeframe_desc)
             
+            # Step 1.7: Build human-friendly timeframe display
+            timeframe_display = _format_timeframe_display(timeframe_desc, window)
+            
             # Step 1.6: Detect performer intent for breakdown queries (NEW in Phase 4)
             performer_intent = detect_performer_intent(question, dsl)
             
@@ -265,6 +353,7 @@ class AnswerBuilder:
                         "metric_value": context.metric_value,
                         "metric_value_raw": context.metric_value_raw,
                         "timeframe": timeframe_desc,
+                        "timeframe_display": timeframe_display,  # NEW: Human-friendly timeframe
                         "tense": tense.value,
                         "performer_intent": performer_intent.value  # NEW in Phase 4
                     }
@@ -282,6 +371,7 @@ class AnswerBuilder:
                         "top_performer": context.top_performer,
                         "performance_level": context.performance_level,
                         "timeframe": timeframe_desc,
+                        "timeframe_display": timeframe_display,  # NEW: Human-friendly timeframe
                         "tense": tense.value,
                         "performer_intent": performer_intent.value  # NEW in Phase 4
                     }
@@ -290,6 +380,8 @@ class AnswerBuilder:
                     
                 else:  # ANALYTICAL
                     # ANALYTICAL: Include everything (full rich context)
+                    # Add timeframe_display to rich context
+                    context.timeframe_display = timeframe_display
                     system_prompt = ANALYTICAL_ANSWER_PROMPT
                     user_prompt = self._build_rich_context_prompt(context, dsl)
                 
