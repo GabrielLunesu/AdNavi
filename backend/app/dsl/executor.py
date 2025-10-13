@@ -208,12 +208,17 @@ def execute_plan(
             ]
         }
     
-    # METRICS: Execute the plan (existing v1.1 logic)
+    # METRICS: Execute the plan (existing v1.1 logic + multi-metric support)
     # This is the default/legacy behavior
     if query.query_type == "metrics":
         if not plan:
             raise ValueError("Plan is required for metrics queries")
-        return _execute_metrics_plan(db, workspace_id, plan)
+        
+        # Phase 7: Handle multi-metric queries
+        if isinstance(query.metric, list):
+            return _execute_multi_metric_plan(db, workspace_id, plan, query)
+        else:
+            return _execute_metrics_plan(db, workspace_id, plan)
     
     # Unknown query type
     raise ValueError(f"Unsupported query_type: {query.query_type}")
@@ -487,6 +492,41 @@ def _execute_metrics_plan(
                 .group_by("group_id", "group_name")
             )
             
+        # Phase 7: Temporal breakdowns (day, week, month)
+        elif plan.breakdown in ["day", "week", "month"]:
+            
+            # Map breakdown to SQL date_trunc period
+            if plan.breakdown == "day":
+                date_trunc_period = "day"
+            elif plan.breakdown == "week":
+                date_trunc_period = "week"
+            elif plan.breakdown == "month":
+                date_trunc_period = "month"
+            else:
+                raise ValueError(f"Unknown temporal breakdown: {plan.breakdown}")
+            
+            # Build temporal breakdown query
+            breakdown_query = (
+                db.query(
+                    func.cast(func.date_trunc(date_trunc_period, MF.event_date), Date).label("group_name"),
+                    # Aggregate all base measures
+                    func.coalesce(func.sum(MF.spend), 0).label("spend"),
+                    func.coalesce(func.sum(MF.revenue), 0).label("revenue"),
+                    func.coalesce(func.sum(MF.clicks), 0).label("clicks"),
+                    func.coalesce(func.sum(MF.impressions), 0).label("impressions"),
+                    func.coalesce(func.sum(MF.conversions), 0).label("conversions"),
+                    func.coalesce(func.sum(MF.leads), 0).label("leads"),
+                    func.coalesce(func.sum(MF.installs), 0).label("installs"),
+                    func.coalesce(func.sum(MF.purchases), 0).label("purchases"),
+                    func.coalesce(func.sum(MF.visitors), 0).label("visitors"),
+                    func.coalesce(func.sum(MF.profit), 0).label("profit"),
+                )
+                .join(E, E.id == MF.entity_id)
+                .filter(E.workspace_id == workspace_id)
+                .filter(cast(MF.event_date, Date).between(plan.start, plan.end))
+                .group_by(func.date_trunc(date_trunc_period, MF.event_date))
+            )
+            
         else:
             # For "ad" breakdown, no rollup needed - facts are at the right level
             breakdown_query = (
@@ -638,7 +678,7 @@ def _execute_metrics_plan(
             # Build breakdown item with value + denominators
             # Include all key measures that might be useful for answer generation
             item = {
-                "label": row.group_name,
+                "label": str(row.group_name),
                 "value": value,
                 # Denominators: useful for explaining results in answers
                 # Example: "Summer Sale had highest ROAS at 3.20× (Spend $1,234, Revenue $3,948)"
@@ -650,6 +690,74 @@ def _execute_metrics_plan(
                 "impressions": totals.get("impressions"),
             }
             breakdown.append(item)
+    
+    # --- METRIC VALUE FILTERING (NEW - Phase 7) ---
+    # Apply post-aggregation filtering based on metric values
+    # WHY: Enables queries like "Show me campaigns with ROAS above 4"
+    # HOW: Filter breakdown results after metric calculation
+    if plan.filters.get("metric_filters") and breakdown:
+        filtered_breakdown = []
+        for item in breakdown:
+            # Check if item meets all metric filter conditions
+            meets_all_filters = True
+            
+            for filter_condition in plan.filters["metric_filters"]:
+                filter_metric = filter_condition.get("metric")
+                filter_operator = filter_condition.get("operator")
+                filter_value = filter_condition.get("value")
+                
+                if not all([filter_metric, filter_operator, filter_value is not None]):
+                    logger.warning(f"Invalid metric filter condition: {filter_condition}")
+                    continue
+                
+                # Get the metric value for this item
+                item_totals = {
+                    "spend": item.get("spend", 0),
+                    "revenue": item.get("revenue", 0),
+                    "clicks": item.get("clicks", 0),
+                    "impressions": item.get("impressions", 0),
+                    "conversions": item.get("conversions", 0),
+                    "leads": item.get("leads", 0),
+                    "installs": item.get("installs", 0),
+                    "purchases": item.get("purchases", 0),
+                    "visitors": item.get("visitors", 0),
+                    "profit": item.get("profit", 0),
+                }
+                
+                try:
+                    item_metric_value = compute_metric(filter_metric, item_totals)
+                    
+                    # Apply filter condition
+                    if filter_operator == ">":
+                        meets_condition = item_metric_value > filter_value
+                    elif filter_operator == ">=":
+                        meets_condition = item_metric_value >= filter_value
+                    elif filter_operator == "<":
+                        meets_condition = item_metric_value < filter_value
+                    elif filter_operator == "<=":
+                        meets_condition = item_metric_value <= filter_value
+                    elif filter_operator == "=":
+                        meets_condition = item_metric_value == filter_value
+                    elif filter_operator == "!=":
+                        meets_condition = item_metric_value != filter_value
+                    else:
+                        logger.warning(f"Unknown filter operator: {filter_operator}")
+                        meets_condition = True
+                    
+                    if not meets_condition:
+                        meets_all_filters = False
+                        break
+                        
+                except Exception as e:
+                    logger.error(f"Failed to evaluate metric filter {filter_condition}: {e}")
+                    meets_all_filters = False
+                    break
+            
+            if meets_all_filters:
+                filtered_breakdown.append(item)
+        
+        breakdown = filtered_breakdown
+        logger.info(f"[METRIC_FILTER] Applied {len(plan.filters['metric_filters'])} filters, {len(breakdown)} items remain")
     
     # --- WORKSPACE AVERAGE CALCULATION (NEW in v2.0.1) ---
     # Calculate workspace-wide average for comparison context
@@ -773,3 +881,166 @@ def _calculate_workspace_avg(
     except Exception as e:
         logger.error(f"[WORKSPACE_AVG] Failed to calculate workspace avg for {metric}: {e}")
         return None
+
+
+def _execute_multi_metric_plan(
+    db: Session,
+    workspace_id: str,
+    plan: Plan,
+    query: MetricQuery
+) -> Dict[str, Any]:
+    """
+    Execute a multi-metric query plan (Phase 7).
+    
+    This function handles queries that request multiple metrics at once.
+    It executes the same base aggregation for all metrics and returns
+    a structured result with all requested metric values.
+    
+    Args:
+        db: SQLAlchemy database session
+        workspace_id: Workspace UUID for scoping
+        plan: Execution plan with dates, filters
+        query: Original MetricQuery with list of metrics
+        
+    Returns:
+        Dict with structure:
+        {
+            "metrics": {
+                "spend": {"summary": 1000.0, "previous": 900.0, "delta_pct": 11.1},
+                "revenue": {"summary": 2000.0, "previous": 1800.0, "delta_pct": 11.1},
+                "roas": {"summary": 2.0, "previous": 2.0, "delta_pct": 0.0}
+            },
+            "timeseries": [...],  # Optional
+            "breakdown": [...]    # Optional
+        }
+    """
+    from typing import Dict, Any, List
+    
+    logger.info(f"[MULTI_METRIC] Executing plan for metrics: {query.metric}")
+    
+    # Get the base aggregation (same for all metrics)
+    MF, E = models.MetricFact, models.Entity
+    
+    base_query = (
+        db.query(
+            # Original base measures
+            func.coalesce(func.sum(MF.spend), 0).label("spend"),
+            func.coalesce(func.sum(MF.revenue), 0).label("revenue"),
+            func.coalesce(func.sum(MF.clicks), 0).label("clicks"),
+            func.coalesce(func.sum(MF.impressions), 0).label("impressions"),
+            func.coalesce(func.sum(MF.conversions), 0).label("conversions"),
+            # Derived Metrics v1: New base measures
+            func.coalesce(func.sum(MF.leads), 0).label("leads"),
+            func.coalesce(func.sum(MF.installs), 0).label("installs"),
+            func.coalesce(func.sum(MF.purchases), 0).label("purchases"),
+            func.coalesce(func.sum(MF.visitors), 0).label("visitors"),
+            func.coalesce(func.sum(MF.profit), 0).label("profit"),
+        )
+        .join(E, E.id == MF.entity_id)
+        .filter(E.workspace_id == workspace_id)  # TENANT SCOPING
+        .filter(cast(MF.event_date, Date).between(plan.start, plan.end))
+    )
+    
+    # Apply filters (same logic as single metric)
+    if plan.filters.get("provider"):
+        base_query = base_query.filter(MF.provider == plan.filters["provider"])
+    if plan.filters.get("level"):
+        base_query = base_query.filter(MF.level == plan.filters["level"])
+    if plan.filters.get("status"):
+        base_query = base_query.filter(E.status == plan.filters["status"])
+    if plan.filters.get("entity_ids"):
+        base_query = base_query.filter(MF.entity_id.in_(plan.filters["entity_ids"]))
+    
+    # Named entity filtering
+    if plan.filters.get("entity_name"):
+        pattern = f"%{plan.filters['entity_name']}%"
+        base_query = base_query.filter(E.name.ilike(pattern))
+    
+    # Execute base query
+    totals_now = base_query.one()._asdict()
+    
+    # Calculate each requested metric
+    metrics_result = {}
+    for metric_name in query.metric:
+        try:
+            # Calculate current period value
+            current_value = compute_metric(metric_name, totals_now)
+            
+            # Calculate previous period if requested
+            previous_value = None
+            delta_pct = None
+            if plan.need_previous:
+                # Calculate previous period totals
+                prev_start = plan.start - timedelta(days=(plan.end - plan.start).days + 1)
+                prev_end = plan.start - timedelta(days=1)
+                
+                prev_query = (
+                    db.query(
+                        func.coalesce(func.sum(MF.spend), 0).label("spend"),
+                        func.coalesce(func.sum(MF.revenue), 0).label("revenue"),
+                        func.coalesce(func.sum(MF.clicks), 0).label("clicks"),
+                        func.coalesce(func.sum(MF.impressions), 0).label("impressions"),
+                        func.coalesce(func.sum(MF.conversions), 0).label("conversions"),
+                        func.coalesce(func.sum(MF.leads), 0).label("leads"),
+                        func.coalesce(func.sum(MF.installs), 0).label("installs"),
+                        func.coalesce(func.sum(MF.purchases), 0).label("purchases"),
+                        func.coalesce(func.sum(MF.visitors), 0).label("visitors"),
+                        func.coalesce(func.sum(MF.profit), 0).label("profit"),
+                    )
+                    .join(E, E.id == MF.entity_id)
+                    .filter(E.workspace_id == workspace_id)
+                    .filter(cast(MF.event_date, Date).between(prev_start, prev_end))
+                )
+                
+                # Apply same filters to previous period
+                if plan.filters.get("provider"):
+                    prev_query = prev_query.filter(MF.provider == plan.filters["provider"])
+                if plan.filters.get("level"):
+                    prev_query = prev_query.filter(MF.level == plan.filters["level"])
+                if plan.filters.get("status"):
+                    prev_query = prev_query.filter(E.status == plan.filters["status"])
+                if plan.filters.get("entity_ids"):
+                    prev_query = prev_query.filter(MF.entity_id.in_(plan.filters["entity_ids"]))
+                if plan.filters.get("entity_name"):
+                    pattern = f"%{plan.filters['entity_name']}%"
+                    prev_query = prev_query.filter(E.name.ilike(pattern))
+                
+                totals_prev = prev_query.one()._asdict()
+                previous_value = compute_metric(metric_name, totals_prev)
+                
+                # Calculate delta percentage
+                if previous_value is not None and previous_value != 0 and current_value is not None:
+                    delta_pct = ((current_value - previous_value) / previous_value) * 100
+            
+            metrics_result[metric_name] = {
+                "summary": current_value,
+                "previous": previous_value,
+                "delta_pct": delta_pct
+            }
+            
+        except Exception as e:
+            logger.error(f"[MULTI_METRIC] Failed to calculate {metric_name}: {e}")
+            metrics_result[metric_name] = {
+                "summary": None,
+                "previous": None,
+                "delta_pct": None
+            }
+    
+    # Build result structure
+    result = {
+        "metrics": metrics_result,
+        "query_type": "multi_metrics"
+    }
+    
+    # Add timeseries if requested (simplified for multi-metric)
+    if plan.need_timeseries:
+        logger.info("[MULTI_METRIC] Timeseries not yet implemented for multi-metric queries")
+        result["timeseries"] = []
+    
+    # Add breakdown if requested (simplified for multi-metric)
+    if plan.breakdown:
+        logger.info("[MULTI_METRIC] Breakdown not yet implemented for multi-metric queries")
+        result["breakdown"] = []
+    
+    logger.info(f"[MULTI_METRIC] Completed execution for {len(query.metric)} metrics")
+    return result

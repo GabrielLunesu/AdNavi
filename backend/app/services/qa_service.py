@@ -424,7 +424,10 @@ class QAService:
         
         # METRICS: Original logic (DSL v1.1), now with formatters (Derived Metrics v1)
         # NEW v2.0: Intent-first answers for top_n=1 queries
-        metric_display = dsl.metric.upper() if dsl.metric else "METRIC"
+        if isinstance(dsl.metric, list):
+            metric_display = ", ".join(dsl.metric).upper()
+        else:
+            metric_display = dsl.metric.upper() if dsl.metric else "METRIC"
         
         # For metrics, result is a MetricResult or dict with .summary
         if isinstance(result, dict):
@@ -479,9 +482,13 @@ class QAService:
             return answer
         
         # Get timeframe and tense
-        timeframe = getattr(dsl, 'timeframe_description', '')
+        timeframe_desc = getattr(dsl, 'timeframe_description', '')
         question = getattr(dsl, 'question', '')
-        tense = detect_tense(question, timeframe)
+        tense = detect_tense(question, timeframe_desc)
+        
+        # Build human-friendly timeframe display
+        from app.answer.answer_builder import _format_timeframe_display
+        timeframe_display = _format_timeframe_display(timeframe_desc, window)
         
         # Natural metric names
         natural_names = {
@@ -511,32 +518,32 @@ class QAService:
         
         if is_null_or_zero:
             # Data is missing - provide helpful context
-            if timeframe in ['today', 'yesterday']:
+            if timeframe_desc in ['today', 'yesterday']:
                 # Suggest checking broader timeframe
-                return f"No data available for {timeframe} yet. Your {metric_natural} last week was available - try asking about a longer timeframe."
+                return f"No data available for {timeframe_display} yet. Your {metric_natural} last week was available - try asking about a longer timeframe."
             elif value is None:
                 # Truly no data (N/A)
-                return f"No {metric_natural} data available for {timeframe if timeframe else 'the selected period'}."
+                return f"No {metric_natural} data available for {timeframe_display if timeframe_display else 'the selected period'}."
             # If value is exactly 0, continue with normal answer (it might genuinely be zero)
         
         # Build natural sentence based on tense and metric type
         if tense == VerbTense.PAST:
             if metric_display == "SPEND":
-                answer = f"You spent {value_str}{' ' + timeframe if timeframe else ''}."
+                answer = f"You spent {value_str}{' ' + timeframe_display if timeframe_display else ''}."
             elif metric_display == "REVENUE":
-                answer = f"You generated {value_str} in revenue{' ' + timeframe if timeframe else ''}."
+                answer = f"You generated {value_str} in revenue{' ' + timeframe_display if timeframe_display else ''}."
             elif metric_display == "CLICKS":
-                answer = f"You got {value_str} clicks{' ' + timeframe if timeframe else ''}."
+                answer = f"You got {value_str} clicks{' ' + timeframe_display if timeframe_display else ''}."
             elif metric_display == "IMPRESSIONS":
-                answer = f"Your ads received {value_str} impressions{' ' + timeframe if timeframe else ''}."
+                answer = f"Your ads received {value_str} impressions{' ' + timeframe_display if timeframe_display else ''}."
             elif metric_display == "CONVERSIONS":
-                answer = f"You had {value_str} conversions{' ' + timeframe if timeframe else ''}."
+                answer = f"You had {value_str} conversions{' ' + timeframe_display if timeframe_display else ''}."
             else:
                 # For ratio/rate metrics
-                answer = f"Your {metric_natural} was {value_str}{' ' + timeframe if timeframe else ''}."
+                answer = f"Your {metric_natural} was {value_str}{' ' + timeframe_display if timeframe_display else ''}."
         else:  # PRESENT or FUTURE
             verb = "is" if tense == VerbTense.PRESENT else "will be"
-            answer = f"Your {metric_natural} {verb} {value_str}{' ' + timeframe if timeframe else ''}."
+            answer = f"Your {metric_natural} {verb} {value_str}{' ' + timeframe_display if timeframe_display else ''}."
         
         # Add comparison if available (using shared formatters)
         # WHY format_delta_pct: Consistent with AnswerBuilder, includes sign (+/-)

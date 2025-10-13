@@ -103,6 +103,91 @@ def _format_date_range(start: date, end: date) -> str:
     return f"{start.strftime('%b %d, %Y')}–{end.strftime('%b %d, %Y')}"
 
 
+def _format_timeframe_display(timeframe_desc: str, window: Optional[Dict[str, date]]) -> str:
+    """
+    Build human-friendly timeframe display for answers.
+    
+    WHY this exists:
+    - Users want clear timeframe context in answers
+    - Combines user's original phrase with actual date range
+    - Provides transparency about what time period data covers
+    
+    Args:
+        timeframe_desc: User's original timeframe phrase (e.g., "this month", "last week")
+        window: Actual date range {"start": date, "end": date}
+        
+    Returns:
+        Human-friendly timeframe string for answers
+        
+    Examples:
+        >>> _format_timeframe_display("last month", {"start": date(2025, 9, 1), "end": date(2025, 9, 30)})
+        "in the last 30 days"
+        
+        >>> _format_timeframe_display("this month", {"start": date(2025, 10, 1), "end": date(2025, 10, 13)})
+        "from October 1 to October 13"
+        
+        >>> _format_timeframe_display("last week", {"start": date(2025, 10, 6), "end": date(2025, 10, 12)})
+        "in the last 7 days"
+        
+        >>> _format_timeframe_display("yesterday", {"start": date(2025, 10, 12), "end": date(2025, 10, 12)})
+        "yesterday"
+        
+        >>> _format_timeframe_display("this week", {"start": date(2025, 10, 6), "end": date(2025, 10, 12)})
+        "this week"
+    
+    Logic:
+    - Use user's phrase for common relative timeframes (yesterday, this week, last week)
+    - Convert "this month" to actual date range for transparency
+    - Convert "last month" to "in the last X days" for clarity
+    - Fallback to date range format if no specific mapping
+    """
+    if not timeframe_desc:
+        return ""
+    
+    # Handle specific relative timeframes that users expect to see as-is
+    if timeframe_desc.lower() in ["yesterday", "today", "this week", "last week"]:
+        return timeframe_desc.lower()
+    
+    # Handle "this month" -> show actual date range for transparency
+    if timeframe_desc.lower() == "this month" and window:
+        start_date = window.get("start")
+        end_date = window.get("end")
+        if start_date and end_date:
+            # Format as "from October 1 to October 13"
+            start_str = start_date.strftime("%B %d")
+            end_str = end_date.strftime("%B %d")
+            if start_date.month == end_date.month:
+                # Same month: "from October 1 to 13"
+                end_str = end_date.strftime("%d")
+            return f"from {start_str} to {end_str}"
+    
+    # Handle "last month" -> show as "in the last X days"
+    if timeframe_desc.lower() == "last month" and window:
+        start_date = window.get("start")
+        end_date = window.get("end")
+        if start_date and end_date:
+            days = (end_date - start_date).days + 1
+            return f"in the last {days} days"
+    
+    # Handle other "last X" patterns
+    if timeframe_desc.lower().startswith("last ") and window:
+        start_date = window.get("start")
+        end_date = window.get("end")
+        if start_date and end_date:
+            days = (end_date - start_date).days + 1
+            if days == 1:
+                return "yesterday"
+            elif days == 7:
+                return "in the last 7 days"
+            elif days == 30:
+                return "in the last 30 days"
+            else:
+                return f"in the last {days} days"
+    
+    # Fallback: use user's original phrase
+    return timeframe_desc.lower()
+
+
 class AnswerBuilderError(Exception):
     """
     Raised when answer generation fails.
@@ -234,6 +319,9 @@ class AnswerBuilder:
             timeframe_desc = getattr(dsl, 'timeframe_description', None) or ""
             tense = detect_tense(question, timeframe_desc)
             
+            # Step 1.7: Build human-friendly timeframe display
+            timeframe_display = _format_timeframe_display(timeframe_desc, window)
+            
             # Step 1.6: Detect performer intent for breakdown queries (NEW in Phase 4)
             performer_intent = detect_performer_intent(question, dsl)
             
@@ -250,7 +338,11 @@ class AnswerBuilder:
             
             # Step 2: Extract context and build prompt based on query type and intent
             if dsl.query_type == "metrics":
-                # Extract rich context
+                # Phase 7: Handle multi-metric queries
+                if isinstance(result, dict) and result.get("query_type") == "multi_metrics":
+                    return self._build_multi_metric_answer(dsl, result, timeframe_display, question, log_latency)
+                
+                # Single metric query - extract rich context
                 context = extract_rich_context(
                     result=result,
                     query=dsl,
@@ -265,6 +357,7 @@ class AnswerBuilder:
                         "metric_value": context.metric_value,
                         "metric_value_raw": context.metric_value_raw,
                         "timeframe": timeframe_desc,
+                        "timeframe_display": timeframe_display,  # NEW: Human-friendly timeframe
                         "tense": tense.value,
                         "performer_intent": performer_intent.value  # NEW in Phase 4
                     }
@@ -282,6 +375,7 @@ class AnswerBuilder:
                         "top_performer": context.top_performer,
                         "performance_level": context.performance_level,
                         "timeframe": timeframe_desc,
+                        "timeframe_display": timeframe_display,  # NEW: Human-friendly timeframe
                         "tense": tense.value,
                         "performer_intent": performer_intent.value  # NEW in Phase 4
                     }
@@ -290,6 +384,8 @@ class AnswerBuilder:
                     
                 else:  # ANALYTICAL
                     # ANALYTICAL: Include everything (full rich context)
+                    # Add timeframe_display to rich context
+                    context.timeframe_display = timeframe_display
                     system_prompt = ANALYTICAL_ANSWER_PROMPT
                     user_prompt = self._build_rich_context_prompt(context, dsl)
                 
@@ -787,4 +883,143 @@ CONTEXT:
 {json.dumps(filtered, indent=2)}
 
 Remember: Include comparison, keep it conversational, 2-3 sentences max."""
+
+    def _build_multi_metric_answer(
+        self,
+        dsl: MetricQuery,
+        result: Dict[str, Any],
+        timeframe_display: str,
+        question: str,
+        log_latency: bool = False
+    ) -> tuple[str, Optional[int]]:
+        """
+        Build answer for multi-metric queries (Phase 7).
+        
+        Args:
+            dsl: The MetricQuery that was executed
+            result: Multi-metric result dict with structure:
+                {
+                    "metrics": {
+                        "spend": {"summary": 1000.0, "previous": 900.0, "delta_pct": 11.1},
+                        "revenue": {"summary": 2000.0, "previous": 1800.0, "delta_pct": 11.1},
+                        "roas": {"summary": 2.0, "previous": 2.0, "delta_pct": 0.0}
+                    },
+                    "query_type": "multi_metrics"
+                }
+            timeframe_display: Human-friendly timeframe string
+            question: Original user question
+            log_latency: Whether to return latency in ms
+            
+        Returns:
+            tuple: (answer_text, latency_ms) if log_latency=True, else (answer_text, None)
+        """
+        start_time = time.time() if log_latency else None
+        
+        try:
+            # Build context for multi-metric answer
+            metrics_data = result.get("metrics", {})
+            
+            # Format each metric value
+            formatted_metrics = {}
+            for metric_name, metric_data in metrics_data.items():
+                summary_value = metric_data.get("summary")
+                previous_value = metric_data.get("previous")
+                delta_pct = metric_data.get("delta_pct")
+                
+                if summary_value is not None:
+                    formatted_value = format_metric_value(metric_name, summary_value)
+                    formatted_metrics[metric_name] = {
+                        "value": formatted_value,
+                        "raw_value": summary_value,
+                        "previous": previous_value,
+                        "delta_pct": delta_pct
+                    }
+            
+            # Build context for LLM
+            context = {
+                "metrics": formatted_metrics,
+                "timeframe_display": timeframe_display,
+                "question": question,
+                "metric_count": len(formatted_metrics)
+            }
+            
+            # Use analytical prompt for multi-metric answers
+            system_prompt = ANALYTICAL_ANSWER_PROMPT
+            user_prompt = f"""
+Generate a natural, conversational answer for a multi-metric query.
+
+QUESTION: {question}
+
+METRICS DATA:
+{json.dumps(context, indent=2)}
+
+INSTRUCTIONS:
+1. Include ALL requested metrics in your answer
+2. Use the timeframe_display for timeframe context
+3. Keep it conversational and natural
+4. If there are comparisons available, include them briefly
+5. Format numbers appropriately (currency, percentages, etc.)
+6. Keep the answer concise but comprehensive
+
+Answer:"""
+            
+            # Call LLM
+            client = OpenAI(api_key=get_settings().openai_api_key)
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=0.1,
+                max_tokens=500
+            )
+            
+            answer = response.choices[0].message.content.strip()
+            
+            # Calculate latency if requested
+            latency_ms = None
+            if log_latency and start_time:
+                latency_ms = int((time.time() - start_time) * 1000)
+            
+            logger.info(f"[MULTI_METRIC_ANSWER] Generated answer for {len(formatted_metrics)} metrics")
+            return answer, latency_ms
+            
+        except Exception as e:
+            logger.error(f"[MULTI_METRIC_ANSWER] Failed to generate answer: {e}")
+            # Fallback to simple template
+            return self._build_multi_metric_template_answer(dsl, result, timeframe_display), None
+    
+    def _build_multi_metric_template_answer(
+        self,
+        dsl: MetricQuery,
+        result: Dict[str, Any],
+        timeframe_display: str
+    ) -> str:
+        """
+        Fallback template-based answer for multi-metric queries.
+        
+        This provides a simple, deterministic answer when LLM fails.
+        """
+        metrics_data = result.get("metrics", {})
+        
+        if not metrics_data:
+            return f"No data available for {timeframe_display if timeframe_display else 'the selected period'}."
+        
+        # Build simple list of metrics
+        metric_lines = []
+        for metric_name, metric_data in metrics_data.items():
+            summary_value = metric_data.get("summary")
+            if summary_value is not None:
+                formatted_value = format_metric_value(metric_name, summary_value)
+                metric_lines.append(f"• {metric_name.upper()}: {formatted_value}")
+        
+        if not metric_lines:
+            return f"No data available for {timeframe_display if timeframe_display else 'the selected period'}."
+        
+        # Combine into answer
+        metrics_text = "\n".join(metric_lines)
+        timeframe_text = f" {timeframe_display}" if timeframe_display else ""
+        
+        return f"Here are your metrics{timeframe_text}:\n\n{metrics_text}"
 

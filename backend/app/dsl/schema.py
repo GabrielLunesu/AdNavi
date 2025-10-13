@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from enum import Enum
 from pydantic import BaseModel, Field, field_validator, model_validator
-from typing import Literal, Optional, List, Dict, Union
+from typing import Literal, Optional, List, Dict, Union, Any
 from datetime import date
 
 # Query types: different types of questions we can answer
@@ -96,9 +96,22 @@ class TimeRange(BaseModel):
     - If using absolute dates, end must be >= start
     - last_n_days must be between 1 and 365
     """
-    last_n_days: Optional[int] = Field(default=7, ge=1, le=365)
+    last_n_days: Optional[int] = Field(default=None, ge=1, le=365)
     start: Optional[date] = None
     end: Optional[date] = None
+
+    @model_validator(mode='after')
+    def validate_xor(self):
+        has_relative = self.last_n_days is not None
+        has_absolute = self.start is not None and self.end is not None
+
+        if not (has_relative ^ has_absolute):
+            raise ValueError(
+                "TimeRange must specify either 'last_n_days' OR 'start'/'end' dates, not both. "
+                "Use last_n_days for relative timeframes (last week, this month). "
+                "Use start/end for absolute timeframes (September, specific date ranges)."
+            )
+        return self
 
     @field_validator("end")
     @classmethod
@@ -119,12 +132,14 @@ class Filters(BaseModel):
     - entity_ids: Filter by specific entity UUIDs
     - status: Filter by entity status (active, paused)
     - entity_name: Filter by entity name (NEW - case-insensitive partial match)
+    - metric_filters: Filter by metric values (NEW - Phase 7)
     
     Examples:
         {"provider": "google", "status": "active"}
         {"level": "campaign", "entity_ids": ["uuid1", "uuid2"]}
         {"entity_name": "Holiday Sale"}  # NEW - matches "Holiday Sale - Purchases"
         {"level": "campaign", "entity_name": "Sale"}  # Matches all campaigns with "Sale"
+        {"metric_filters": [{"metric": "roas", "operator": ">", "value": 4}]}  # NEW - Phase 7
     
     Named Entity Filtering (NEW):
     - Case-insensitive: "HOLIDAY" = "holiday" = "Holiday"
@@ -151,6 +166,12 @@ class Filters(BaseModel):
     entity_name: Optional[str] = Field(
         default=None,
         description="Filter by entity name (case-insensitive partial match). Example: 'holiday' matches 'Holiday Sale - Purchases'"
+    )
+    
+    # Phase 7: Metric value filtering
+    metric_filters: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description="Filter entities based on metric values. Example: [{'metric': 'roas', 'operator': '>', 'value': 4}]"
     )
 
 
@@ -223,7 +244,7 @@ class MetricQuery(BaseModel):
     
     Fields:
     - query_type: Type of query (metrics, providers, entities)
-    - metric: Which metric to aggregate (required for metrics queries)
+    - metric: Which metric(s) to aggregate (required for metrics queries, supports single metric or list)
     - time_range: Time window for the query (optional for providers/entities)
     - compare_to_previous: Whether to include previous period comparison
     - group_by: Grouping dimension (none = single aggregate)
@@ -232,10 +253,21 @@ class MetricQuery(BaseModel):
     - filters: Optional scoping filters
     
     Examples:
-        # Metrics query: "What's my ROAS this week?"
+        # Single metric query: "What's my ROAS this week?"
         {
             "query_type": "metrics",
             "metric": "roas",
+            "time_range": {"last_n_days": 7},
+            "compare_to_previous": false,
+            "group_by": "none",
+            "breakdown": null,
+            "filters": {}
+        }
+        
+        # Multi-metric query: "What's my spend, revenue, and ROAS this week?"
+        {
+            "query_type": "metrics",
+            "metric": ["spend", "revenue", "roas"],
             "time_range": {"last_n_days": 7},
             "compare_to_previous": false,
             "group_by": "none",
@@ -269,9 +301,9 @@ class MetricQuery(BaseModel):
         description="Type of query to execute (metrics, providers, entities)"
     )
     
-    metric: Optional[Metric] = Field(
+    metric: Optional[Union[Metric, List[Metric]]] = Field(
         default=None,
-        description="Metric to aggregate (required for metrics queries, ignored otherwise)"
+        description="Metric(s) to aggregate (required for metrics queries, ignored otherwise). Can be a single metric or list of metrics for multi-metric queries."
     )
     
     time_range: Optional[TimeRange] = Field(
@@ -284,14 +316,14 @@ class MetricQuery(BaseModel):
         description="Include previous period comparison for delta calculation (metrics only)"
     )
     
-    group_by: Literal["none", "provider", "campaign", "adset", "ad"] = Field(
+    group_by: Literal["none", "provider", "campaign", "adset", "ad", "day", "week", "month"] = Field(
         default="none",
-        description="Grouping dimension (none = single aggregate value)"
+        description="Grouping dimension (none = single aggregate value). Temporal values: day, week, month"
     )
     
-    breakdown: Optional[Literal["provider", "campaign", "adset", "ad"]] = Field(
+    breakdown: Optional[Literal["provider", "campaign", "adset", "ad", "day", "week", "month"]] = Field(
         default=None,
-        description="Breakdown dimension for driver analysis (top movers)"
+        description="Breakdown dimension for driver analysis (top movers). Temporal values: day, week, month"
     )
     
     top_n: int = Field(
