@@ -1077,7 +1077,7 @@ _Last updated: 2025-10-05T12:00:00Z_
    - Files: `ui/components/analytics/OpportunityItem.jsx`, `ui/components/analytics/KPIGrid.jsx`
  - 2025-09-25T14:48:00Z — Analytics UI tweaks to match design: Today timeframe, simplified ad-set tiles, chart header tabs, remove right rail.
    - Files: `ui/components/analytics/AnalyticsControls.jsx`, `ui/components/analytics/AdSetTile.jsx`, `ui/components/analytics/ChartCard.jsx`, `ui/app/(dashboard)/analytics/page.jsx`
- - 2025-09-25T14:53:00Z — Rules panel scope selector added (“Rules for [campaign, platform, workspace]”).
+ - 2025-09-25T14:53:00Z — Rules panel scope selector added ("Rules for [campaign, platform, workspace]").
    - Files: `ui/components/analytics/RulesPanel.jsx`
  - 2025-09-25T14:28:00Z — Add Analytics page with granular components and mock data; update sidebar active state.
    - Route: `/analytics`
@@ -1092,12 +1092,30 @@ _Last updated: 2025-10-05T12:00:00Z_
   - Files: `ui/app/(dashboard)/dashboard/page.jsx`, `ui/components/*`, `ui/data/*`
 - 2025-09-25T13:53:00Z — Wireframe parity: AssistantSection inside page, KPI grid 3-col desktop, gradient background + glow orbs; removed sticky topbar usage from layout.
   - Files: `ui/components/AssistantSection.jsx`, `ui/app/(dashboard)/dashboard/page.jsx`, `ui/app/(dashboard)/layout.jsx`, `ui/app/layout.jsx`
+- 2025-10-13T12:00:00Z — **FEATURE**: Phase 6: Date Range Intelligence ✅ — Robust date handling to fix date-related query failures.
+  - **Overview**: Enhanced date handling by enforcing a clear separation between relative and absolute date ranges in the DSL, improving date extraction from user questions, and updating documentation.
+  - **Files created**:
+    - `backend/app/dsl/date_parser.py`: New module with `DateRangeParser` for pattern-based date extraction.
+    - `backend/app/tests/test_date_parser.py`: Unit tests for the new parser.
+  - **Files modified**:
+    - `backend/app/dsl/schema.py`: Added `@model_validator` to `TimeRange` to enforce XOR constraint.
+    - `backend/app/nlp/translator.py`: Integrated `DateRangeParser` into the translation pipeline.
+    - `backend/app/nlp/prompts.py`: Added "CRITICAL - Date Range Rules" to the system prompt.
+    - `backend/docs/QA_SYSTEM_ARCHITECTURE.md`: Updated with new "Date Parsing" stage and documented XOR constraint.
+  - **Features**:
+    - ✅ **XOR Validation**: `TimeRange` now prevents specifying both `last_n_days` and `start`/`end` dates.
+    - ✅ **Dedicated Date Parser**: `DateRangeParser` improves accuracy of date extraction.
+    - ✅ **Guided LLM**: The LLM is now explicitly instructed on which `time_range` to use.
+  - **Benefits**:
+    - **Reliability**: Fixes a class of date-related query failures.
+    - **Clarity**: Reduces ambiguity in how timeframes are interpreted.
+    - **Maintainability**: Centralizes date parsing logic.
 
 Update routine (repeat every change)
 
 READ docs/ADNAVI_BUILD_LOG.md.
 
-SYNC PLAN if your upcoming change differs from “Plan / Next Steps”.
+SYNC PLAN if your upcoming change differs from "Plan / Next Steps".
 
 MAKE CHANGES in the repo.
 

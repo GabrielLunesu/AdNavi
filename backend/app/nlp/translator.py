@@ -32,6 +32,7 @@ from app.dsl.canonicalize import canonicalize_question
 from app.dsl.validate import validate_dsl, DSLValidationError
 from app.nlp.prompts import build_system_prompt, build_few_shot_prompt
 from app.deps import get_settings
+from app.dsl.date_parser import DateRangeParser
 
 
 class TranslationError(Exception):
@@ -90,7 +91,9 @@ class Translator:
             self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
         else:
             self.client = client
-    
+        
+        self.date_parser = DateRangeParser()
+
     def to_dsl(
         self, 
         question: str,
@@ -139,83 +142,78 @@ class Translator:
         """
         start_time = time.time() if log_latency else None
         
-        # Step 1: Canonicalize to reduce LLM variance
-        canonical_question = canonicalize_question(question)
-        
-        # Step 2: Build context summary for follow-up resolution
-        # WHY: User might ask "Which one performed best?" after "Show me campaigns"
-        # We include the last 1-2 queries to help LLM resolve pronouns
+        # Step 1: Pre-process the question
+        canon_question = canonicalize_question(question)
+
+        # Step 2: Parse date range early to guide the LLM
+        parsed_date_range = self.date_parser.parse(question)
+
+        # Step 3: Build context for follow-up questions
         context_summary = self._build_context_summary(context) if context else ""
-        
-        # Step 3: Build prompt
+
+        # Step 4: Build the full prompt
         system_prompt = build_system_prompt()
+        few_shot_prompt = build_few_shot_prompt(include_followups=bool(context))
         
-        # Include follow-up examples when context is available
-        # WHY: Help LLM understand how to inherit metrics and resolve pronouns
-        has_context = context_summary != ""
-        few_shots = build_few_shot_prompt(include_followups=has_context)
-        
-        # Include context in user message if available
+        # Add date parsing results to the prompt for the LLM
+        date_instruction = ""
+        if parsed_date_range:
+            date_instruction = f"IMPORTANT: A date range has been pre-parsed for this question. You MUST use the following time_range object in your response:\n"
+            date_instruction += f"```json\n{json.dumps(parsed_date_range, default=str)}\n```\n"
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": few_shot_prompt},
+        ]
         if context_summary:
-            user_message = f"""{few_shots}
-
-CONVERSATION HISTORY (for reference if needed):
-{context_summary}
-
-Now translate this question:
-"{canonical_question}"
-
-Output the JSON DSL:"""
-        else:
-            user_message = f"{few_shots}\n\nNow translate this question:\n\"{canonical_question}\"\n\nOutput the JSON DSL:"
+            messages.append({"role": "system", "content": context_summary})
         
-        # Step 4: Call OpenAI
+        final_question = f"{date_instruction}Question: {canon_question}"
+        messages.append({"role": "user", "content": final_question})
+        
+        # Step 5: Call OpenAI API
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4-turbo",  # Phase 4.5: Upgraded for better sort_order detection
-                temperature=0,         # Deterministic outputs
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_message},
-                ],
-                response_format={"type": "json_object"}  # Force JSON output
+                model="gpt-4-turbo",
+                messages=messages,
+                temperature=0,
+                response_format={"type": "json_object"},
             )
         except Exception as e:
             raise TranslationError(
-                message=f"OpenAI API call failed: {str(e)}",
-                question=question,
-                raw_response=""
-            )
-        
-        # Step 5: Parse JSON
-        raw_content = response.choices[0].message.content.strip()
-        
+                f"OpenAI API call failed: {e}",
+                question=question
+            ) from e
+
+        # Step 6: Parse and validate the response
+        raw_response = response.choices[0].message.content
         try:
-            dsl_dict = json.loads(raw_content)
+            dsl_dict = json.loads(raw_response)
         except json.JSONDecodeError as e:
             raise TranslationError(
-                message=f"Failed to parse JSON from LLM response: {str(e)}",
+                f"LLM returned invalid JSON: {e}",
                 question=question,
-                raw_response=raw_content
-            )
-        
-        # NEW: Add original question for tense detection
+                raw_response=raw_response
+            ) from e
+
+        # Add original question for context in answer generation
         dsl_dict['question'] = question
-        
-        # Step 6: Validate via Pydantic
-        # This will raise DSLValidationError if invalid
-        validated_dsl = validate_dsl(dsl_dict)
-        
-        # Step 7: Calculate latency if requested
-        latency_ms = None
-        if log_latency and start_time is not None:
-            latency_ms = int((time.time() - start_time) * 1000)
-        
-        return validated_dsl, latency_ms
-    
+
+        try:
+            validated_dsl = validate_dsl(dsl_dict)
+            latency = int((time.time() - start_time) * 1000) if start_time else None
+            return validated_dsl, latency
+        except DSLValidationError as e:
+            # Re-raise with more context for logging
+            raise DSLValidationError(
+                message=f"DSL validation failed: {e}",
+                raw_dict=dsl_dict,
+                pydantic_errors=e.pydantic_errors
+            ) from e
+
     def _build_context_summary(self, context: List[Dict[str, Any]]) -> str:
         """
-        Build a concise summary of conversation history for the LLM prompt.
+        Build a concise summary of conversation history for the LLM.
         
         WHY this exists:
         - Help LLM resolve follow-up questions with pronouns ("which one", "that", "this")

@@ -153,6 +153,12 @@ graph TD
 - Handles error propagation and logging
 - Measures total latency
 
+### 2️⃣.1️⃣ **Date Parsing** (`app/dsl/date_parser.py`) - NEW
+- **Purpose**: Pre-parse date ranges to guide LLM
+- **How**: Pattern matching for common phrases ("last week", "in September")
+- **Output**: Structured date range (`{"last_n_days": 7}` or `{"start": ..., "end": ...}`)
+- **Benefit**: Reduces LLM ambiguity and date-related errors
+
 ### 3️⃣ **Context Retrieval** (`app/context/context_manager.py`)
 - **Purpose**: Enable multi-turn conversations and follow-up questions
 - **Retrieves**: Last N queries (default 5) for this user+workspace
@@ -453,7 +459,7 @@ DSL supports three types of queries:
 
 1. **Query Type**: Must be "metrics", "providers", or "entities"
 2. **Metric**: Required for metrics queries; must be valid metric name
-3. **Time Range**: Either `last_n_days` (1-365) OR both `start` and `end`
+3. **Time Range**: Either `last_n_days` (1-365) OR both `start` and `end`, but not both (XOR)
 4. **Dates**: End date must be >= start date
 5. **Breakdown**: Must match `group_by` (or group_by must be "none")
 6. **Top N**: Between 1 and 50
@@ -1212,6 +1218,12 @@ The roadmap outlines our evolution from Q&A system to autonomous marketing intel
 ---
 
 ## Version History
+
+- **v2.1.5 (2025-10-13)**: Date Range Intelligence (Phase 6)
+  - Enforced XOR constraint on TimeRange (last_n_days vs start/end)
+  - Added dedicated DateRangeParser for robust date extraction
+  - Integrated parser into translation pipeline to guide LLM
+  - Enhanced prompts with explicit date handling rules
 
 - **v2.1.4 (2025-10-08)**: Sort Order Support - Dynamic ordering for lowest/highest queries
   - Added `sort_order` field to MetricQuery ("asc" for lowest, "desc" for highest)

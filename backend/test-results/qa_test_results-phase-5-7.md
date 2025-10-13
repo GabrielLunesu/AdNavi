@@ -1,6 +1,6 @@
 # QA Test Results
 
-**Test Run**: Mon Oct 13 13:55:33 CEST 2025
+**Test Run**: Mon Oct 13 14:30:50 CEST 2025
 **Workspace**: Defang Labs (9c76b246-faf1-42d6-9a5a-f564f7801b4e)
 **System Version**: Phase 5 (v2.1.3)
 
@@ -17,9 +17,9 @@
   "query_type": "metrics",
   "metric": "cpc",
   "time_range": {
-    "last_n_days": 30,
-    "start": null,
-    "end": null
+    "last_n_days": null,
+    "start": "2025-10-01",
+    "end": "2025-10-13"
   },
   "compare_to_previous": false,
   "group_by": "none",
@@ -44,7 +44,7 @@
 ## Test 2: How much did I spend this month?
 
 **Answer**:
-> You spent $275,259.45 this month.
+> You spent $114,830.27 this month.
 
 **DSL**:
 ```json
@@ -52,9 +52,9 @@
   "query_type": "metrics",
   "metric": "spend",
   "time_range": {
-    "last_n_days": 30,
-    "start": null,
-    "end": null
+    "last_n_days": null,
+    "start": "2025-10-01",
+    "end": "2025-10-13"
   },
   "compare_to_previous": false,
   "group_by": "none",
@@ -254,7 +254,7 @@
 ## Test 8: How many leads did I generate this month?
 
 **Answer**:
-> You generated 19,964 leads this month.
+> You generated 8,404 leads this month.
 
 **DSL**:
 ```json
@@ -262,9 +262,9 @@
   "query_type": "metrics",
   "metric": "leads",
   "time_range": {
-    "last_n_days": 30,
-    "start": null,
-    "end": null
+    "last_n_days": null,
+    "start": "2025-10-01",
+    "end": "2025-10-13"
   },
   "compare_to_previous": false,
   "group_by": "none",
@@ -289,7 +289,7 @@
 ## Test 9: What is my cost per lead this month?
 
 **Answer**:
-> Your cost per lead this month is $13.79.
+> Your cost per lead this month is $13.66.
 
 **DSL**:
 ```json
@@ -297,9 +297,9 @@
   "query_type": "metrics",
   "metric": "cpl",
   "time_range": {
-    "last_n_days": 30,
-    "start": null,
-    "end": null
+    "last_n_days": null,
+    "start": "2025-10-01",
+    "end": "2025-10-13"
   },
   "compare_to_previous": false,
   "group_by": "none",
@@ -324,7 +324,7 @@
 ## Test 10: Which campaign had the highest ROAS last week?
 
 **Answer**:
-> The Holiday Sale - Purchases had the highest ROAS last week at an impressive 13.36×—your top performer! For context, your overall ROAS was 6.15×, which matches the workspace average, so that’s a solid result overall.
+> The Holiday Sale - Purchases had the highest ROAS last week at an impressive 13.36×—your top performer! For context, your overall ROAS was 6.15×, which matches the workspace average. That's a solid result, but this campaign really stood out!
 
 **DSL**:
 ```json
@@ -359,7 +359,7 @@
 ## Test 11: What's my ROAS for Google campaigns only?
 
 **Answer**:
-> Your ROAS for Google campaigns was 6.15× last week.
+> Your ROAS for Google campaigns only was 6.15× last week.
 
 **DSL**:
 ```json
@@ -394,7 +394,7 @@
 ## Test 12: Which campaign spent the most yesterday?
 
 **Answer**:
-> It looks like no campaigns spent anything yesterday, so there wasn't a top spender. That's pretty average compared to what you usually see, but it might be worth checking in on your budget settings.
+> It looks like there wasn't any spend yesterday, so no campaign spent the most—just an average day overall. If you're looking to boost your spending, it might be worth checking in on your campaigns to see where you can invest!
 
 **DSL**:
 ```json
@@ -429,7 +429,7 @@
 ## Test 13: List all active campaigns
 
 **Answer**:
-> You have 10 active campaigns, including the Holiday Sale - Purchases, Summer Sale Campaign, and Black Friday Deals, among others.
+> You have a total of 10 active campaigns, including the Holiday Sale - Purchases, Summer Sale Campaign, Black Friday Deals, and others like the App Install Campaign and Brand Awareness.
 
 **DSL**:
 ```json
@@ -460,7 +460,7 @@
 ## Test 14: Which ad has the highest CTR?
 
 **Answer**:
-> The Video Ad - Morning Audience - Lead Gen - B2B had the highest CTR at 4.2% last week—your top performer! For context, your overall CTR was 2.6%, which is right at the average for your workspace.
+> The Video Ad - Morning Audience - Lead Gen - B2B had the highest CTR at 4.2% last week—your top performer! For context, your overall CTR was 2.6%, which is right on par with the workspace average.
 
 **DSL**:
 ```json
@@ -530,7 +530,7 @@
 ## Test 16: Which campaign generated the most leads?
 
 **Answer**:
-> The Lead Gen - B2B campaign generated the most leads last week with 2,704—your top performer! For context, your overall leads were 4,288, which is right at the workspace average.
+> The Lead Gen - B2B campaign generated the most leads last week with 2,704—your top performer! For context, your overall leads were 4,288, which is right at the average for your workspace.
 
 **DSL**:
 ```json
@@ -565,7 +565,7 @@
 ## Test 17: Rank platforms by cost per conversion
 
 **Answer**:
-> Google had the lowest cost per conversion at $4.37 last week, making it your top performer. In comparison, your overall CPA was $5.43, which is right at the workspace average. So, it looks like Google is doing a bit better than the rest!
+> Google had the lowest cost per conversion at $4.37 last week, making it the top performer among your platforms. In comparison, your overall CPA was $5.43, which is right at the workspace average. So, Google’s doing a bit better than the rest!
 
 **DSL**:
 ```json
@@ -580,7 +580,7 @@
   "compare_to_previous": false,
   "group_by": "provider",
   "breakdown": "provider",
-  "top_n": 10,
+  "top_n": 5,
   "sort_order": "asc",
   "filters": {
     "provider": null,
@@ -600,7 +600,7 @@
 ## Test 18: give me a breakdown of holiday campaign performance
 
 **Answer**:
-> Your revenue from the holiday campaign was $52,634.16 last week.
+> Your holiday campaign brought in $52,634.16 last week, which is below the workspace average of $355,398.23—definitely something to keep an eye on. Interestingly, the Holiday Sale - Purchases was your top performer, but overall, the performance level is concerning.
 
 **DSL**:
 ```json
@@ -613,8 +613,8 @@
     "end": null
   },
   "compare_to_previous": false,
-  "group_by": "none",
-  "breakdown": null,
+  "group_by": "campaign",
+  "breakdown": "campaign",
   "top_n": 5,
   "sort_order": "desc",
   "filters": {
@@ -670,7 +670,7 @@
 ## Test 20: give me a list of the top 5 adsets last week by revenue
 
 **Answer**:
-> You have a total of 5 entities, which include Holiday Sale - Purchases, Summer Sale Campaign, Black Friday Deals, App Install Campaign, and Mobile Game Installs.
+> You have five entities to work with: Holiday Sale - Purchases, Summer Sale Campaign, Black Friday Deals, App Install Campaign, and Mobile Game Installs.
 
 **DSL**:
 ```json
@@ -740,34 +740,11 @@
 ## Test 22: wich day had the lowest cpc on holiday sale campaign?
 
 **Answer**:
-> The lowest CPC for your Holiday Sale campaign last week was $0.50, which is a bit above the workspace average of $0.45. So, while it's not your best performance, it's still pretty close to the average.
+> ERROR
 
 **DSL**:
 ```json
-{
-  "query_type": "metrics",
-  "metric": "cpc",
-  "time_range": {
-    "last_n_days": 7,
-    "start": null,
-    "end": null
-  },
-  "compare_to_previous": false,
-  "group_by": "none",
-  "breakdown": null,
-  "top_n": 1,
-  "sort_order": "asc",
-  "filters": {
-    "provider": null,
-    "level": null,
-    "entity_ids": null,
-    "status": null,
-    "entity_name": "Holiday Sale"
-  },
-  "thresholds": null,
-  "question": "wich day had the lowest cpc on holiday sale campaign?",
-  "timeframe_description": "last week"
-}
+{}
 ```
 
 ---
@@ -775,7 +752,7 @@
 ## Test 23: roas last month for holiday sale campaign?
 
 **Answer**:
-> Your ROAS for the Holiday Sale campaign last month was an impressive 11.80×, which is well above the workspace average of 6.40×. That's a solid performance!
+> Your ROAS for the Holiday Sale campaign was 11.80× last month—pretty impressive! For some context, that's well above the workspace average of 6.40×, so it really stood out.
 
 **DSL**:
 ```json
@@ -876,7 +853,7 @@
 ## Test 26: what is my revenue this month?
 
 **Answer**:
-> Your revenue this month is $1,762,399.43.
+> Your revenue this month is $725,481.04.
 
 **DSL**:
 ```json
@@ -884,9 +861,9 @@
   "query_type": "metrics",
   "metric": "revenue",
   "time_range": {
-    "last_n_days": 30,
-    "start": null,
-    "end": null
+    "last_n_days": null,
+    "start": "2025-10-01",
+    "end": "2025-10-13"
   },
   "compare_to_previous": false,
   "group_by": "none",
@@ -1016,7 +993,7 @@
 ## Test 30: Compare Google vs Meta performance
 
 **Answer**:
-> Last month, Google had a ROAS of 6.40×, which is right on par with your workspace average. In comparison, Meta really stood out with a ROAS of 9.42×, making it your top performer. So, while Google’s doing okay, Meta’s definitely leading the pack!
+> Last month, Google had a ROAS of 6.40×, which is right on par with the workspace average. Meanwhile, Meta was your top performer, crushing it with a ROAS of 9.42×. So, while Google’s doing okay, Meta's really leading the pack!
 
 **DSL**:
 ```json
@@ -1051,7 +1028,7 @@
 ## Test 31: Is my ROAS improving or declining?
 
 **Answer**:
-> Your ROAS was 6.15× last week, which is a decline of about 4.7% from 6.45× the week before. So, it's not improving right now. For context, your current ROAS matches the workspace average, so you're right on par with others.
+> Your ROAS was 6.15× last week, which is a decline of about 4.7% from 6.45× the week before. It's sitting right at the average for your workspace, so it’s not too far off the mark. Overall, it seems like it could use a little boost!
 
 **DSL**:
 ```json
@@ -1086,13 +1063,13 @@
 ## Test 32: compare holiday campaign performance to app install campaign performance
 
 **Answer**:
-> Last month, the holiday campaign brought in $0 in revenue, which is concerning since the workspace average is around $1.76 million—definitely below average. In comparison, the app install campaign also struggled, but it’s important to note that both campaigns need some attention to boost performance.
+> No ROAS data available for last month.
 
 **DSL**:
 ```json
 {
   "query_type": "metrics",
-  "metric": "revenue",
+  "metric": "roas",
   "time_range": {
     "last_n_days": 30,
     "start": null,
@@ -1101,7 +1078,7 @@
   "compare_to_previous": false,
   "group_by": "campaign",
   "breakdown": "campaign",
-  "top_n": 5,
+  "top_n": 10,
   "sort_order": "desc",
   "filters": {
     "provider": null,
@@ -1121,7 +1098,7 @@
 ## Test 33: Which campaign had the highest ROAS last week?
 
 **Answer**:
-> The Holiday Sale - Purchases had the highest ROAS at 13.36× last week—your top performer! For context, your overall ROAS was 6.15×, which matches the workspace average. That's a solid result, especially with the Holiday Sale leading the pack!
+> The Holiday Sale - Purchases had the highest ROAS at 13.36× last week—your top performer! For context, your overall ROAS was 6.15×, which matches the workspace average. That's a solid result!
 
 **DSL**:
 ```json
@@ -1156,7 +1133,7 @@
 ## Test 34: Show me top 5 campaigns by revenue
 
 **Answer**:
-> The Summer Sale Campaign brought in the highest revenue at $85,108.72 last week—your top performer! Overall, your total revenue was $355,398.23, which is right on par with the workspace average.
+> The Summer Sale Campaign was your top performer last week, bringing in $85,108.72. Overall, your total revenue was $355,398.23, which matches the workspace average—so you're right on track!
 
 **DSL**:
 ```json
@@ -1191,7 +1168,7 @@
 ## Test 35: List all active campaigns
 
 **Answer**:
-> You currently have 10 active campaigns, including the Holiday Sale - Purchases, Summer Sale Campaign, and Black Friday Deals, among others.
+> You have a total of 10 active campaigns, including the Holiday Sale - Purchases, Summer Sale Campaign, Black Friday Deals, and more.
 
 **DSL**:
 ```json
@@ -1222,7 +1199,7 @@
 ## Test 36: Which adset had the highest cpc last week?
 
 **Answer**:
-> The Weekend Audience - Black Friday Deals had the highest CPC at $0.64 last week—definitely needs some attention. For context, your overall CPC was $0.45, which is right at the workspace average.
+> The Weekend Audience - Black Friday Deals had the highest CPC at $0.64 last week—your worst performer. For context, your overall CPC was $0.45, which is right at the average for your workspace.
 
 **DSL**:
 ```json
@@ -1257,7 +1234,7 @@
 ## Test 37: Which adset had the highest cpc last week?
 
 **Answer**:
-> The Weekend Audience - Black Friday Deals had the highest CPC at $0.64 last week—definitely needs some attention. For context, your overall CPC was $0.45, which is right at the workspace average.
+> The Weekend Audience - Black Friday Deals had the highest CPC at $0.64 last week—definitely your worst performer. For context, your overall CPC was $0.45, which matches the workspace average, so this adset really stood out in the wrong way.
 
 **DSL**:
 ```json
@@ -1292,7 +1269,7 @@
 ## Test 38: Which adset had the lowest ctr last week?
 
 **Answer**:
-> The Morning Audience - General Conversions had the lowest CTR at 1.7% last week—definitely needs some attention. For context, your overall CTR was 2.6%, which is right at the workspace average.
+> The Morning Audience - General Conversions had the lowest CTR at 1.7% last week—definitely needs some attention. For context, your overall CTR was 2.6%, which matches the workspace average.
 
 **DSL**:
 ```json
@@ -1572,7 +1549,7 @@
 ## Test 46: wich ad had the lowest cpc last week?
 
 **Answer**:
-> The Image Ad - Weekend Audience - Website Traffic Push had the lowest CPC at $0.28 last week—your best performer! For context, your overall CPC was $0.45, which matches the workspace average.
+> The Image Ad - Weekend Audience - Website Traffic Push had the lowest CPC at $0.28 last week—your top performer! For context, your overall CPC was $0.45, which is right at the average for the workspace.
 
 **DSL**:
 ```json
@@ -1607,34 +1584,11 @@
 ## Test 47: What time on average do i get the best cpc?
 
 **Answer**:
-> Your average CPC was $0.45 last week, which is right on par with the overall workspace average—so you're doing just fine! It looks like there's been no deviation, meaning your performance is steady.
+> ERROR
 
 **DSL**:
 ```json
-{
-  "query_type": "metrics",
-  "metric": "cpc",
-  "time_range": {
-    "last_n_days": 7,
-    "start": null,
-    "end": null
-  },
-  "compare_to_previous": false,
-  "group_by": "none",
-  "breakdown": null,
-  "top_n": 5,
-  "sort_order": "desc",
-  "filters": {
-    "provider": null,
-    "level": null,
-    "entity_ids": null,
-    "status": null,
-    "entity_name": null
-  },
-  "thresholds": null,
-  "question": "What time on average do i get the best cpc?",
-  "timeframe_description": "last week"
-}
+{}
 ```
 
 ---
@@ -1677,11 +1631,34 @@
 ## Test 49: 
 
 **Answer**:
-> ERROR
+> Your revenue was $355,398.23 last week.
 
 **DSL**:
 ```json
-{}
+{
+  "query_type": "metrics",
+  "metric": "revenue",
+  "time_range": {
+    "last_n_days": 7,
+    "start": null,
+    "end": null
+  },
+  "compare_to_previous": false,
+  "group_by": "none",
+  "breakdown": null,
+  "top_n": 5,
+  "sort_order": "desc",
+  "filters": {
+    "provider": null,
+    "level": null,
+    "entity_ids": null,
+    "status": null,
+    "entity_name": null
+  },
+  "thresholds": null,
+  "question": "",
+  "timeframe_description": "last week"
+}
 ```
 
 ---
@@ -1689,7 +1666,7 @@
 ## Test 50: How is the Summer Sale campaign performing?
 
 **Answer**:
-> The Summer Sale campaign brought in $6,190.20 last week, which is below the workspace average of $355,398.23—definitely concerning. It seems like it’s not hitting the mark compared to what you typically see.
+> The Summer Sale campaign brought in $6,190.20 last week, which is below the workspace average of $355,398.23—definitely concerning. It seems like it’s not quite hitting the mark compared to what you usually see.
 
 **DSL**:
 ```json
@@ -1724,7 +1701,7 @@
 ## Test 51: Show me all lead gen campaigns
 
 **Answer**:
-> You're currently running one campaign, which is "Lead Gen - B2B."
+> You're currently running one campaign, which is named "Lead Gen - B2B."
 
 **DSL**:
 ```json
@@ -1755,7 +1732,7 @@
 ## Test 52: What's the CPA for Morning Audience adsets?
 
 **Answer**:
-> Your CPA for Morning Audience adsets was $4.83 last week.
+> Your CPA for the Morning Audience adsets was $4.83 last week.
 
 **DSL**:
 ```json
@@ -1790,7 +1767,7 @@
 ## Test 53: What's the revenue for Black Friday campaign?
 
 **Answer**:
-> Your revenue for the Black Friday campaign was $2,942.13 last week.
+> The revenue for the Black Friday campaign was $49,130.30 last week.
 
 **DSL**:
 ```json
@@ -1809,7 +1786,7 @@
   "sort_order": "desc",
   "filters": {
     "provider": null,
-    "level": "campaign",
+    "level": null,
     "entity_ids": null,
     "status": null,
     "entity_name": "black friday"
@@ -1825,7 +1802,7 @@
 ## Test 54: Give me ROAS for App Install campaigns
 
 **Answer**:
-> Your ROAS for App Install campaigns was 0.64× last week, which is below the workspace average of 6.15×—that's concerning. It looks like this campaign is your top performer, but it still needs some attention to get closer to that average.
+> Your ROAS for App Install campaigns was 0.64× last week, which is below the workspace average of 6.15×—that's concerning. It looks like this campaign is currently your top performer, but it still has a long way to go to catch up with the average.
 
 **DSL**:
 ```json
@@ -1891,7 +1868,7 @@
 ## Test 56: What's the CTR for Evening Audience adsets?
 
 **Answer**:
-> Your CTR was 2.5% last week.
+> Your CTR for Evening Audience adsets was 2.5% last week.
 
 **DSL**:
 ```json
@@ -1913,7 +1890,7 @@
     "level": "adset",
     "entity_ids": null,
     "status": null,
-    "entity_name": "evening audience"
+    "entity_name": "Evening Audience"
   },
   "thresholds": null,
   "question": "What's the CTR for Evening Audience adsets?",
@@ -1926,7 +1903,7 @@
 ## Test 57: How much did Holiday Sale campaign spend last week?
 
 **Answer**:
-> The Holiday Sale campaign spent $298.38 last week.
+> The Holiday Sale campaign spent $3,939.79 last week.
 
 **DSL**:
 ```json
@@ -1945,7 +1922,7 @@
   "sort_order": "desc",
   "filters": {
     "provider": null,
-    "level": "campaign",
+    "level": null,
     "entity_ids": null,
     "status": null,
     "entity_name": "Holiday Sale"
@@ -1973,34 +1950,11 @@
 ## Test 59: What's the spend, revenue, and ROAS for all Google campaigns in September?
 
 **Answer**:
-> In September, your Google campaigns had a total spend of $0.00, which is pretty average compared to previous months. Since there was no spend, revenue and ROAS are also at $0—so it looks like there’s room for improvement moving forward!
+> ERROR
 
 **DSL**:
 ```json
-{
-  "query_type": "metrics",
-  "metric": "spend",
-  "time_range": {
-    "last_n_days": 7,
-    "start": "2023-09-01",
-    "end": "2023-09-30"
-  },
-  "compare_to_previous": false,
-  "group_by": "campaign",
-  "breakdown": "campaign",
-  "top_n": 5,
-  "sort_order": "desc",
-  "filters": {
-    "provider": "google",
-    "level": "campaign",
-    "entity_ids": null,
-    "status": null,
-    "entity_name": null
-  },
-  "thresholds": null,
-  "question": "What's the spend, revenue, and ROAS for all Google campaigns in September?",
-  "timeframe_description": "last week"
-}
+{}
 ```
 
 ---
@@ -2008,34 +1962,11 @@
 ## Test 60: Show me clicks, conversions, and cost per conversion for Meta campaigns last 5 days
 
 **Answer**:
-> Your cost per conversion for Meta campaigns over the last 5 days was $5.25, which is a bit better than the workspace average of $5.40. Just so you know, the top performer in this period was the Black Friday Deals campaign at $11.28. Overall, you're doing pretty average!
+> ERROR
 
 **DSL**:
 ```json
-{
-  "query_type": "metrics",
-  "metric": "cpa",
-  "time_range": {
-    "last_n_days": 5,
-    "start": null,
-    "end": null
-  },
-  "compare_to_previous": false,
-  "group_by": "campaign",
-  "breakdown": "campaign",
-  "top_n": 5,
-  "sort_order": "desc",
-  "filters": {
-    "provider": "meta",
-    "level": null,
-    "entity_ids": null,
-    "status": null,
-    "entity_name": null
-  },
-  "thresholds": null,
-  "question": "Show me clicks, conversions, and cost per conversion for Meta campaigns last 5 days",
-  "timeframe_description": "last 5 days"
-}
+{}
 ```
 
 ---
@@ -2043,34 +1974,11 @@
 ## Test 61: Give me CTR, CPC, and conversion rate for Summer Sale campaign last month
 
 **Answer**:
-> Your CTR for the Summer Sale campaign was 3.1% last month.
+> ERROR
 
 **DSL**:
 ```json
-{
-  "query_type": "metrics",
-  "metric": "ctr",
-  "time_range": {
-    "last_n_days": 30,
-    "start": null,
-    "end": null
-  },
-  "compare_to_previous": false,
-  "group_by": "none",
-  "breakdown": null,
-  "top_n": 5,
-  "sort_order": "desc",
-  "filters": {
-    "provider": null,
-    "level": "campaign",
-    "entity_ids": null,
-    "status": null,
-    "entity_name": "Summer Sale"
-  },
-  "thresholds": null,
-  "question": "Give me CTR, CPC, and conversion rate for Summer Sale campaign last month",
-  "timeframe_description": "last month"
-}
+{}
 ```
 
 ---
@@ -2078,7 +1986,7 @@
 ## Test 62: Compare spend and revenue between Morning Audience and Evening Audience adsets this month to date
 
 **Answer**:
-> The Morning Audience ad set hasn't spent anything this month, which is concerning since the workspace average spend is around $275,259.45—so it's definitely below average. You might want to look into why that is!
+> The Morning Audience ad set hasn't spent anything this month, which is concerning since the average spend across the workspace is about $114,830.27—so it's definitely below average. It might be worth looking into why it's not performing as expected.
 
 **DSL**:
 ```json
@@ -2086,9 +1994,9 @@
   "query_type": "metrics",
   "metric": "spend",
   "time_range": {
-    "last_n_days": 30,
-    "start": null,
-    "end": null
+    "last_n_days": null,
+    "start": "2025-10-01",
+    "end": "2025-10-13"
   },
   "compare_to_previous": false,
   "group_by": "adset",
@@ -2113,7 +2021,7 @@
 ## Test 63: What's the ROAS, revenue, and profit for Black Friday campaign last week?
 
 **Answer**:
-> The Black Friday campaign had an impressive ROAS of 10.22× last week, which is well above the workspace average of 6.15×—that's excellent! It looks like those Black Friday Deals really paid off!
+> The Black Friday campaign had an impressive ROAS of 10.22× last week, making it your top performer! For some context, that's well above the workspace average of 6.15×—great job!
 
 **DSL**:
 ```json
@@ -2148,7 +2056,7 @@
 ## Test 64: Show me CPC, clicks, and spend for all active campaigns last 5 days
 
 **Answer**:
-> Your CPC was $0.45 over the last 5 days, which is pretty much in line with the workspace average of $0.46. The Black Friday Deals campaign had the highest CPC at $0.54, but overall, your CPC performance is looking average.
+> Your CPC was $0.45 over the last 5 days, which is slightly better than the workspace average of $0.46. The top performer, Black Friday Deals, had a CPC of $0.54, so you're doing pretty well overall!
 
 **DSL**:
 ```json
@@ -2163,7 +2071,7 @@
   "compare_to_previous": false,
   "group_by": "campaign",
   "breakdown": "campaign",
-  "top_n": 5,
+  "top_n": 10,
   "sort_order": "desc",
   "filters": {
     "provider": null,
@@ -2183,7 +2091,7 @@
 ## Test 65: Compare CTR and conversion rate for Google vs Meta campaigns in September
 
 **Answer**:
-> In September, your Google campaigns had an average CTR, while Meta's was also around the same level—so they're pretty much neck and neck. As for conversion rates, Google performed slightly better than Meta, which is a good sign for your overall strategy.
+> In September, Google had a CTR of 3.5%, which is above the workspace average of 2.5%, while Meta matched that average with a CTR of 2.5%. So, Google’s definitely leading in engagement this month! Overall, both platforms performed at the average level, but Google really stood out.
 
 **DSL**:
 ```json
@@ -2191,9 +2099,9 @@
   "query_type": "metrics",
   "metric": "ctr",
   "time_range": {
-    "last_n_days": 7,
-    "start": "2023-09-01",
-    "end": "2023-09-30"
+    "last_n_days": null,
+    "start": "2025-09-01",
+    "end": "2025-09-30"
   },
   "compare_to_previous": false,
   "group_by": "provider",
@@ -2209,7 +2117,7 @@
   },
   "thresholds": null,
   "question": "Compare CTR and conversion rate for Google vs Meta campaigns in September",
-  "timeframe_description": "last week"
+  "timeframe_description": "from 2025-09-01 to 2025-09-30"
 }
 ```
 
@@ -2218,7 +2126,7 @@
 ## Test 66: What's the revenue, ROAS, and cost per lead for lead gen campaigns this month to date?
 
 **Answer**:
-> Your revenue is $4,620.94 this month.
+> Your revenue is $2,064.52 this month.
 
 **DSL**:
 ```json
@@ -2226,9 +2134,9 @@
   "query_type": "metrics",
   "metric": "revenue",
   "time_range": {
-    "last_n_days": 30,
-    "start": null,
-    "end": null
+    "last_n_days": null,
+    "start": "2025-10-01",
+    "end": "2025-10-13"
   },
   "compare_to_previous": false,
   "group_by": "none",
@@ -2253,7 +2161,7 @@
 ## Test 67: Give me spend, clicks, and CPC for Holiday Sale and Summer Sale campaigns last month
 
 **Answer**:
-> The Holiday Sale campaign had a spend of $0 last month, which is concerning since it's below the workspace average of about $275,259. The Summer Sale also didn't spend anything, so both campaigns really need to ramp up their budgets to compete.
+> The Holiday Sale campaign had a spend of $0 last month, which is concerning since that's below the workspace average of about $275,259. The Summer Sale also didn’t spend anything, so both campaigns really need to ramp up their budgets to be competitive.
 
 **DSL**:
 ```json
@@ -2288,7 +2196,7 @@
 ## Test 68: Show me conversion rate, revenue, and profit for all campaigns last week
 
 **Answer**:
-> Last week, your overall conversion rate was 8.4%, which matches the workspace average—so you're right on track. The top performer, Lead Gen - B2B, really stood out with a conversion rate of 17.5%. That's a solid benchmark to aim for!
+> Last week, your overall conversion rate was 8.4%, which matches the workspace average—so you're right on track! The top performer was the Lead Gen - B2B campaign, crushing it with a conversion rate of 17.5%.
 
 **DSL**:
 ```json
@@ -2323,7 +2231,7 @@
 ## Test 69: Compare CPA, ROAS, and revenue for App Install campaign vs Holiday Sale campaign last 5 days
 
 **Answer**:
-> The App Install campaign had a CPA of $4.21 over the last 5 days, which is below the workspace average of $5.40—pretty solid performance! In comparison, the Holiday Sale campaign's CPA was higher, making the App Install campaign your top performer in this metric.
+> No cost per acquisition data available for last 5 days.
 
 **DSL**:
 ```json
@@ -2338,14 +2246,14 @@
   "compare_to_previous": false,
   "group_by": "campaign",
   "breakdown": "campaign",
-  "top_n": 5,
+  "top_n": 10,
   "sort_order": "desc",
   "filters": {
     "provider": null,
     "level": null,
     "entity_ids": null,
     "status": null,
-    "entity_name": "app install"
+    "entity_name": "app install, holiday sale"
   },
   "thresholds": null,
   "question": "Compare CPA, ROAS, and revenue for App Install campaign vs Holiday Sale campaign last 5 days",
@@ -2358,7 +2266,7 @@
 ## Test 70: What's the CTR, CPC, and conversions for Weekend Audience adsets in September?
 
 **Answer**:
-> The CTR for your Weekend Audience adsets last week was N/A, which is about average for your campaigns. For context, your overall CTR has been hovering around 2.4%, so it looks like there's room for improvement there.
+> In September, the Weekend Audience adsets had a CTR of 2.6%, which is pretty much in line with the workspace average of 2.5%. Your top performer was the Weekend Audience - Summer Sale Campaign, hitting 3.6%—that's a solid showing!
 
 **DSL**:
 ```json
@@ -2366,9 +2274,9 @@
   "query_type": "metrics",
   "metric": "ctr",
   "time_range": {
-    "last_n_days": 7,
-    "start": "2023-09-01",
-    "end": "2023-09-30"
+    "last_n_days": null,
+    "start": "2025-09-01",
+    "end": "2025-09-30"
   },
   "compare_to_previous": false,
   "group_by": "adset",
@@ -2377,14 +2285,14 @@
   "sort_order": "desc",
   "filters": {
     "provider": null,
-    "level": "adset",
+    "level": null,
     "entity_ids": null,
     "status": null,
     "entity_name": "weekend audience"
   },
   "thresholds": null,
   "question": "What's the CTR, CPC, and conversions for Weekend Audience adsets in September?",
-  "timeframe_description": "last week"
+  "timeframe_description": "from 2025-09-01 to 2025-09-30"
 }
 ```
 
@@ -2393,7 +2301,7 @@
 ## Test 71: Give me spend, revenue, ROAS, and profit for all Meta campaigns this month to date
 
 **Answer**:
-> Your spend for Meta campaigns this month is $74,391.51, which is below the workspace average of $275,259.45—definitely something to keep an eye on. The top performer is the Black Friday Deals campaign, bringing in $21,437.48.
+> This month to date, your spend on Meta campaigns is $31,037.16, which is below the workspace average of $114,830.27—definitely something to keep an eye on. The top performer is the Black Friday Deals campaign, bringing in $9,057.84.
 
 **DSL**:
 ```json
@@ -2401,14 +2309,14 @@
   "query_type": "metrics",
   "metric": "spend",
   "time_range": {
-    "last_n_days": 30,
-    "start": null,
-    "end": null
+    "last_n_days": null,
+    "start": "2025-10-01",
+    "end": "2025-10-13"
   },
   "compare_to_previous": false,
   "group_by": "campaign",
   "breakdown": "campaign",
-  "top_n": 5,
+  "top_n": 10,
   "sort_order": "desc",
   "filters": {
     "provider": "meta",
@@ -2428,13 +2336,13 @@
 ## Test 72: Compare clicks, CTR, and cost per click for Morning vs Evening Audience adsets last month
 
 **Answer**:
-> Last month, both the Morning and Evening Audience adsets had a CPC of $0.45, which is right on par with the workspace average. However, the Evening Audience - Newsletter Signup Campaign was your top performer at $0.53. So, while both are performing average, the Evening Audience is slightly higher in cost.
+> No click-through rate data available for last month.
 
 **DSL**:
 ```json
 {
   "query_type": "metrics",
-  "metric": "cpc",
+  "metric": "ctr",
   "time_range": {
     "last_n_days": 30,
     "start": null,
@@ -2450,7 +2358,7 @@
     "level": null,
     "entity_ids": null,
     "status": null,
-    "entity_name": null
+    "entity_name": "morning evening audience"
   },
   "thresholds": null,
   "question": "Compare clicks, CTR, and cost per click for Morning vs Evening Audience adsets last month",

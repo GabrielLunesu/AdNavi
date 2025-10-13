@@ -96,9 +96,22 @@ class TimeRange(BaseModel):
     - If using absolute dates, end must be >= start
     - last_n_days must be between 1 and 365
     """
-    last_n_days: Optional[int] = Field(default=7, ge=1, le=365)
+    last_n_days: Optional[int] = Field(default=None, ge=1, le=365)
     start: Optional[date] = None
     end: Optional[date] = None
+
+    @model_validator(mode='after')
+    def validate_xor(self):
+        has_relative = self.last_n_days is not None
+        has_absolute = self.start is not None and self.end is not None
+
+        if not (has_relative ^ has_absolute):
+            raise ValueError(
+                "TimeRange must specify either 'last_n_days' OR 'start'/'end' dates, not both. "
+                "Use last_n_days for relative timeframes (last week, this month). "
+                "Use start/end for absolute timeframes (September, specific date ranges)."
+            )
+        return self
 
     @field_validator("end")
     @classmethod
