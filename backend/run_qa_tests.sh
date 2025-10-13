@@ -1,7 +1,7 @@
 #!/bin/bash
 # Simple QA Test Runner
 
-WORKSPACE_ID="f6ddb2c3-a92d-4b3b-afde-e1606171c73b"
+WORKSPACE_ID="9c76b246-faf1-42d6-9a5a-f564f7801b4e"
 API_URL="http://localhost:8000/qa/?workspace_id=$WORKSPACE_ID"
 COOKIE_FILE="../cookies.txt"
 TEST_RESULTS_DIR="test-results"
@@ -20,15 +20,25 @@ echo "🧪 QA Test Suite Runner"
 echo "======================="
 echo ""
 
-# Check if logged in
-if [ ! -f "$COOKIE_FILE" ]; then
-    echo "⚠️  Cookie file not found. Please login first:"
-    echo "   curl -X 'POST' 'http://localhost:8000/auth/login' \\"
-    echo "     -H 'Content-Type: application/json' \\"
-    echo "     -d '{\"email\": \"owner@defanglabs.com\", \"password\": \"password123\"}' \\"
-    echo "     -c cookies.txt"
+# Login and get cookies
+echo -e "${BLUE}→${NC} Logging in..."
+login_response=$(curl -s -X 'POST' 'http://localhost:8000/auth/login' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{"email": "owner@defanglabs.com", "password": "password123"}' \
+  -c "$COOKIE_FILE")
+
+# Check if login was successful
+user_email=$(echo "$login_response" | jq -r '.user.email // empty')
+if [ -z "$user_email" ]; then
+    echo -e "${RED}✗${NC} Login failed"
+    echo "Response: $login_response"
     exit 1
 fi
+
+echo -e "${GREEN}✓${NC} Logged in as: $user_email"
+echo -e "${GREEN}✓${NC} Workspace ID: $WORKSPACE_ID"
+echo ""
 
 # Create output file with header
 cat > $OUTPUT_FILE << EOF
@@ -70,6 +80,9 @@ QUESTIONS=(
     "roas last month for holiday sale campaign?"
     "wich had highest cpc, holiday campaign or app install campaign?"
     "wich google campaigns are live?"
+    "what is my revenue this month?"
+    "what was my revenue last month?"
+    "what is my revenue this year?"
 
    
     
@@ -77,18 +90,19 @@ QUESTIONS=(
     "How does this week compare to last week?"
     "Compare Google vs Meta performance"
     "Is my ROAS improving or declining?"
+    "compare holiday campaign performance to app install campaign performance"
+
     
     # Breakdowns
     "Which campaign had the highest ROAS last week?"
     "Show me top 5 campaigns by revenue"
     "List all active campaigns"
     "Which adset had the highest cpc last week?"
-    "Which adset had the lowest ctr last week?"
-    "Which adset had the highest ctr last week?"
-    "Which adset had the lowest cpc last week?"
     "Which adset had the highest cpc last week?"
     "Which adset had the lowest ctr last week?"
     "what is my total CVR last month?"
+    "what is my cvr on google last month?"
+
         
     # Filters
     "What's my ROAS for active campaigns?"
@@ -114,6 +128,23 @@ QUESTIONS=(
     "Show me Weekend Audience adsets"
     "What's the CTR for Evening Audience adsets?"
     "How much did Holiday Sale campaign spend last week?"
+
+    # Multi-Entity + Multi-Metric + Time Range Tests
+    "Compare CPC, CTR, and ROAS for Holiday Sale and App Install campaigns last week"
+    "What's the spend, revenue, and ROAS for all Google campaigns in September?"
+    "Show me clicks, conversions, and cost per conversion for Meta campaigns last 5 days"
+    "Give me CTR, CPC, and conversion rate for Summer Sale campaign last month"
+    "Compare spend and revenue between Morning Audience and Evening Audience adsets this month to date"
+    "What's the ROAS, revenue, and profit for Black Friday campaign last week?"
+    "Show me CPC, clicks, and spend for all active campaigns last 5 days"
+    "Compare CTR and conversion rate for Google vs Meta campaigns in September"
+    "What's the revenue, ROAS, and cost per lead for lead gen campaigns this month to date?"
+    "Give me spend, clicks, and CPC for Holiday Sale and Summer Sale campaigns last month"
+    "Show me conversion rate, revenue, and profit for all campaigns last week"
+    "Compare CPA, ROAS, and revenue for App Install campaign vs Holiday Sale campaign last 5 days"
+    "What's the CTR, CPC, and conversions for Weekend Audience adsets in September?"
+    "Give me spend, revenue, ROAS, and profit for all Meta campaigns this month to date"
+    "Compare clicks, CTR, and cost per click for Morning vs Evening Audience adsets last month"
 
 )
 
