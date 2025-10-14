@@ -48,6 +48,13 @@
 - **Multi-Metric Execution**: Fixed `_execute_multi_metric_plan` function and answer generation
 - **Temporal Breakdown Logic**: Fixed `date_trunc` SQL and string conversion issues
 - **Answer Builder Integration**: Fixed parameter order and template fallback handling
+
+✅ **Unified Metrics Refactor Complete (2025-10-14)**: Major architectural improvement:
+- **Single Source of Truth**: All endpoints now use `UnifiedMetricService` for consistent calculations
+- **Data Consistency**: QA and KPI endpoints return identical results for same queries
+- **Default Behavior**: All entities (active + inactive) included by default unless explicitly filtered
+- **Endpoints Refactored**: QA (`dsl/executor.py`), KPI (`routers/kpis.py`), Finance (`routers/finance.py`), Metrics (`routers/metrics.py`)
+- **Impact**: Eliminated data mismatches between Copilot answers and UI dashboards
 - **System Integration**: All Phase 7 features now working reliably in production
 
 ---

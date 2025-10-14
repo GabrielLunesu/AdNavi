@@ -1,6 +1,6 @@
 # AdNavi — Living Build Log
 
-_Last updated: 2025-10-13T12:00:00Z_
+_Last updated: 2025-10-14T16:00:00Z_
 
 ## 0) Monorepo Map (Current & Planned)
 - **Frontend (current):** `ui/` — Next.js 15.5.4 (App Router), **JSX only**
@@ -1242,6 +1242,62 @@ _Last updated: 2025-10-13T12:00:00Z_
 - **User Experience**: Natural language queries now work for multi-metric, filtering, and temporal analysis
 - **System Reliability**: Addresses majority of previously failing query patterns
 - **Future-Proof**: Foundation for advanced analytics features
+
+### 2025-10-14T16:00:00Z — Unified Metrics Refactor: Single Source of Truth
+
+**Summary**: Major architectural refactor to eliminate data mismatches between QA system and UI endpoints by implementing a unified metric calculation service.
+
+**Problem**: Data inconsistencies between Copilot answers and UI dashboards:
+- QA system returned different revenue values than KPI endpoints
+- Different aggregation logic across endpoints caused confusion
+- Users couldn't trust Copilot answers when they didn't match UI data
+
+**Solution**: Implemented `UnifiedMetricService` as single source of truth for all metric calculations.
+
+**Files Created**:
+- `backend/app/services/unified_metric_service.py`: Core service with shared aggregation logic
+- `backend/tests/services/test_unified_metric_service.py`: Comprehensive unit tests (25 tests)
+- `backend/tests/integration/test_unified_metrics_integration.py`: Integration tests (6 tests)
+- `backend/docs/architecture/unified-metrics.md`: Architecture documentation
+
+**Files Refactored**:
+- `backend/app/dsl/executor.py`: QA metrics execution now uses UnifiedMetricService
+- `backend/app/routers/kpis.py`: KPI endpoint now uses UnifiedMetricService
+- `backend/app/routers/finance.py`: Finance P&L ad spend aggregation now uses UnifiedMetricService
+- `backend/app/routers/metrics.py`: Metrics summary endpoint now uses UnifiedMetricService
+- `backend/app/nlp/prompts.py`: Updated prompts with default entity behavior guidance
+
+**Key Features**:
+- ✅ **Consistent Calculations**: All endpoints use same aggregation logic
+- ✅ **Default Behavior**: All entities (active + inactive) included by default
+- ✅ **Filter Support**: Provider, level, status, entity_ids, entity_name filters
+- ✅ **Multi-Metric**: Support for multiple metrics in single query
+- ✅ **Timeseries**: Daily breakdown with consistent date handling
+- ✅ **Breakdowns**: Provider, level, and temporal breakdowns
+- ✅ **Workspace Average**: Consistent workspace-wide averages
+- ✅ **Previous Period**: Comparison calculations with delta percentages
+
+**Testing Results**:
+- ✅ **Unit Tests**: 25/25 passing for UnifiedMetricService
+- ✅ **Integration Tests**: 6/6 passing for QA vs KPI consistency
+- ✅ **Revenue Consistency**: QA and KPI return identical values (299,798.95 for all entities)
+- ✅ **Filter Consistency**: Active-only queries return identical values (268,899.6)
+- ✅ **Multi-Metric**: Multiple metrics return consistent values across endpoints
+- ✅ **Timeseries**: Daily data matches between QA and KPI endpoints
+- ✅ **Breakdowns**: Provider breakdowns return consistent results
+
+**Impact**:
+- **Data Accuracy**: Eliminated all data mismatches between QA and UI
+- **User Trust**: Copilot answers now match UI dashboards exactly
+- **System Reliability**: Single source of truth prevents future inconsistencies
+- **Maintainability**: Centralized metric logic easier to maintain and extend
+- **Performance**: Optimized queries with consistent caching behavior
+
+**Migration Notes**:
+- **Backward Compatibility**: All existing API contracts maintained
+- **Default Changes**: UI clients now default to `onlyActive=false` (all entities)
+- **QA Prompts**: Updated to clarify default entity behavior
+- **No Breaking Changes**: All existing functionality preserved
 
 Update routine (repeat every change)
 
