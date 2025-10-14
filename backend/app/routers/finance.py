@@ -97,6 +97,7 @@ def get_pnl_statement(
         )
         .join(E, E.id == MF.entity_id)
         .filter(E.workspace_id == workspace_id)
+        # Note: Finance includes ALL entities (active + inactive) because inactive campaigns still generated revenue
         .filter(MF.event_date >= period_start)
         .filter(MF.event_date < period_end)
         .group_by(MF.provider)
@@ -250,6 +251,7 @@ def get_pnl_statement(
         )
         .join(models.Entity, models.MetricFact.entity_id == models.Entity.id)
         .filter(models.Entity.workspace_id == workspace_id)
+        # Note: Finance includes ALL entities (active + inactive) because inactive campaigns still generated revenue
         .filter(models.MetricFact.event_date >= period_start)
         .filter(models.MetricFact.event_date < period_end)
         .group_by(func.date(models.MetricFact.event_date))

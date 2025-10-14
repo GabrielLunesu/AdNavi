@@ -89,7 +89,12 @@ def get_workspace_kpis(
         .filter(MF.event_date.between(start, end))
     )
     if provider:
-        base = base.filter(MF.provider == provider)
+        # Handle both enum format (ProviderEnum.meta) and string format (meta)
+        if provider.startswith("ProviderEnum."):
+            provider_value = provider.split(".")[1]  # Extract "meta" from "ProviderEnum.meta"
+        else:
+            provider_value = provider
+        base = base.filter(MF.provider == provider_value)
     if level:
         # BUG FIX: Use E.level (Entity table) not MF.level (MetricFact doesn't have level field)
         # WHY: Level is stored in Entity table, not MetricFact table
@@ -124,7 +129,12 @@ def get_workspace_kpis(
             .filter(MF.event_date.between(prev_start, prev_end))
         )
         if provider:
-            prev = prev.filter(MF.provider == provider)
+            # Handle both enum format (ProviderEnum.meta) and string format (meta)
+            if provider.startswith("ProviderEnum."):
+                provider_value = provider.split(".")[1]  # Extract "meta" from "ProviderEnum.meta"
+            else:
+                provider_value = provider
+            prev = prev.filter(MF.provider == provider_value)
         if level:
             # BUG FIX: Use E.level (Entity table) not MF.level (MetricFact doesn't have level field)
             prev = prev.filter(E.level == level)

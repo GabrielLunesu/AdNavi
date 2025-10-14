@@ -1111,6 +1111,37 @@ _Last updated: 2025-10-13T12:00:00Z_
     - **Clarity**: Reduces ambiguity in how timeframes are interpreted.
     - **Maintainability**: Centralizes date parsing logic.
 
+### 2025-10-14T14:30:00Z — **CRITICAL BUG FIX**: Finance vs QA Data Mismatch ✅ — Fixed QA system incorrectly filtering to active entities only, excluding inactive campaigns that still generated revenue.
+
+**Summary**: Fixed critical bug where QA system was showing different revenue values ($654,019.32) compared to Finance page ($725,481.04) due to QA incorrectly filtering to active entities only.
+
+**Root Cause**:
+- **Problem**: QA system was filtering to active entities only while Finance correctly included ALL entities
+- **Cause**: QA system was applying `E.status == "active"` filter by default (from previous incorrect fix)
+- **Impact**: QA showed lower revenue because it excluded inactive campaigns that still generated revenue
+
+**Files modified**:
+- `backend/app/dsl/executor.py`: Removed default active entity filter in 6 locations
+  - Main summary query, previous period comparison, timeseries query, breakdown query, multi-metric queries
+- **Note**: Finance endpoint was correct and unchanged
+
+**Technical Details**:
+- **Before**: QA system filtered to `E.status == "active"` by default (incorrect)
+- **After**: QA system includes ALL entities by default (matches Finance behavior)
+- **Why**: Inactive campaigns still generated revenue during their active period and should be included
+- **Result**: QA and Finance now return identical values for same time periods
+
+**Testing Results**:
+- ✅ **Finance P&L**: October 1-14, 2025 → $725,481.04 revenue (unchanged - was correct)
+- ✅ **QA System**: October 1-14, 2025 → $725,481.04 revenue (now matches Finance)
+- ✅ **Match**: Both systems now return identical values
+- ✅ **Verification**: Direct API calls confirm fix works correctly
+
+**Impact**:
+- **Data Consistency**: QA system now provides identical values to Finance page
+- **User Trust**: Eliminates confusion between Finance dashboard and QA answers
+- **Business Logic**: Correctly includes revenue from inactive campaigns that still generated value
+
 ### 2025-10-14T14:15:00Z — **CRITICAL BUG FIX**: QA vs UI ROAS Mismatch ✅ — Fixed status filter inconsistency causing different ROAS values between QA and UI.
 
 **Summary**: Fixed critical bug where QA system was returning different ROAS values (6.65x) compared to UI (6.41x) due to inconsistent status filtering.
