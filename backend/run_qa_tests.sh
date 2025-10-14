@@ -5,7 +5,7 @@ WORKSPACE_ID="9c76b246-faf1-42d6-9a5a-f564f7801b4e"
 API_URL="http://localhost:8000/qa/?workspace_id=$WORKSPACE_ID"
 COOKIE_FILE="../cookies.txt"
 TEST_RESULTS_DIR="test-results"
-OUTPUT_FILE="$TEST_RESULTS_DIR/qa_test_results-phase-5-8.md"
+OUTPUT_FILE="$TEST_RESULTS_DIR/qa_test_results-phase-5-9.md"
 
 # Create test-results directory if it doesn't exist
 mkdir -p "$TEST_RESULTS_DIR"
