@@ -9,6 +9,7 @@ Purpose:
 Design choices:
 - This endpoint returns exactly the data the homepage needs in one call.
 - We avoid N+1 calls from the UI and centralize the metric math here.
+- We handle both enum format (ProviderEnum.meta) and string format (meta) for provider filtering.
 """
 
 from datetime import date, timedelta
