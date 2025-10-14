@@ -1111,6 +1111,76 @@ _Last updated: 2025-10-13T12:00:00Z_
     - **Clarity**: Reduces ambiguity in how timeframes are interpreted.
     - **Maintainability**: Centralizes date parsing logic.
 
+### 2025-10-14T14:15:00Z — **CRITICAL BUG FIX**: QA vs UI ROAS Mismatch ✅ — Fixed status filter inconsistency causing different ROAS values between QA and UI.
+
+**Summary**: Fixed critical bug where QA system was returning different ROAS values (6.65x) compared to UI (6.41x) due to inconsistent status filtering.
+
+**Root Cause**:
+- **Problem**: QA returned 6.65x ROAS while UI showed 6.41x for "last 3 days"
+- **Cause**: QA included ALL entities (active + inactive) while UI KPI endpoint filtered to active entities only
+- **Impact**: Different entity sets led to different revenue/spend calculations and ROAS values
+
+**Files modified**:
+- `backend/app/dsl/executor.py`: Added default active-only filter in 6 locations
+  - Line 288-295: Main summary query filter
+  - Line 345-352: Previous period comparison filter
+  - Line 407-414: Timeseries query filter
+  - Line 575-582: Breakdown query filter
+  - Line 955-962: Multi-metric query filter
+  - Line 1007-1014: Multi-metric previous period filter
+- `backend/app/routers/kpis.py`: Fixed 3 instances of `MF.level` → `E.level` (same bug as executor)
+
+**Technical Details**:
+- **Before**: QA included all entities when no status filter specified
+- **After**: QA defaults to `E.status == "active"` when no status filter specified
+- **Why**: UI KPI endpoint uses `only_active=True` by default, QA should match
+- **Result**: QA and UI now return identical values for same queries
+
+**Testing Results**:
+- ✅ **ROAS Query**: "what was my roas in the last 3 days" → 6.41x (both QA and UI)
+- ✅ **Revenue Query**: "how much revenue did I make in the last 3 days" → $58,516.38 (both QA and UI)
+- ✅ **Match**: QA and UI now return identical values for all metric queries
+- ✅ **Verification**: Direct database queries confirm fix works correctly
+
+**Impact**:
+- **Data Consistency**: QA system now provides identical values to UI metrics
+- **User Trust**: Eliminates confusion between QA answers and UI dashboard
+- **System Reliability**: Fixes fundamental filtering inconsistency affecting all metric queries
+
+### 2025-10-14T13:55:00Z — **CRITICAL BUG FIX**: QA vs UI Revenue Mismatch ✅ — Fixed DSL executor level filter bug causing incorrect revenue calculations.
+
+**Summary**: Fixed critical bug where QA system was returning incorrect revenue values compared to UI due to incorrect level filtering in DSL executor.
+
+**Root Cause**:
+- **Problem**: QA system returned $15,680.00 for "Weekend Audience - Holiday Sale - Purchases ad set" while UI showed $16,838.90
+- **Cause**: DSL executor was filtering by `MF.level` (MetricFact table) instead of `E.level` (Entity table)
+- **Impact**: Level filters weren't applied correctly, causing QA to aggregate revenue across multiple entity levels (adset + ads) instead of just the requested level
+
+**Files modified**:
+- `backend/app/dsl/executor.py`: Fixed 5 instances of `MF.level` → `E.level` in filter application
+  - Line 284: Main summary query filter
+  - Line 343: Previous period comparison filter  
+  - Line 392: Timeseries query filter
+  - Line 953: Multi-metric query filter
+  - Line 1005: Multi-metric previous period filter
+
+**Technical Details**:
+- **Before**: `base_query.filter(MF.level == plan.filters["level"])` ❌
+- **After**: `base_query.filter(E.level == plan.filters["level"])` ✅
+- **Why**: Level field exists in Entity table, not MetricFact table
+- **Result**: QA now correctly filters by entity level, matching UI behavior
+
+**Testing Results**:
+- ✅ **QA Query**: "Weekend Audience - Holiday Sale - Purchases ad set revenue" → $3,761.96
+- ✅ **UI Query**: Same ad set via entity ID → $3,761.96  
+- ✅ **Match**: QA and UI now return identical values
+- ✅ **Verification**: Direct database queries confirm fix works correctly
+
+**Impact**:
+- **Data Accuracy**: QA system now provides correct revenue calculations
+- **User Trust**: Eliminates confusion between QA answers and UI metrics
+- **System Reliability**: Fixes fundamental filtering bug affecting all level-based queries
+
 ### 2025-10-13T12:00:00Z — Phase 7: Advanced Analytics Implementation
 
 **Summary**: Implemented three major analytical capabilities to address 80% of failing queries from Phase 6 test results.

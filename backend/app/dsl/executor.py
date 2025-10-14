@@ -281,9 +281,18 @@ def _execute_metrics_plan(
     if plan.filters.get("provider"):
         base_query = base_query.filter(MF.provider == plan.filters["provider"])
     if plan.filters.get("level"):
-        base_query = base_query.filter(MF.level == plan.filters["level"])
+        # BUG FIX: Use E.level (Entity table) not MF.level (MetricFact doesn't have level field)
+        # WHY: Level is stored in Entity table, not MetricFact table
+        # IMPACT: Fixes QA vs UI mismatch where level filters weren't applied correctly
+        base_query = base_query.filter(E.level == plan.filters["level"])
+    # BUG FIX: Default to active entities only to match UI behavior
+    # WHY: UI KPI endpoint uses only_active=True by default, QA should match
+    # IMPACT: Fixes QA vs UI mismatch where QA included inactive entities
     if plan.filters.get("status"):
         base_query = base_query.filter(E.status == plan.filters["status"])
+    else:
+        # Default to active entities only (matches UI behavior)
+        base_query = base_query.filter(E.status == "active")
     if plan.filters.get("entity_ids"):
         base_query = base_query.filter(MF.entity_id.in_(plan.filters["entity_ids"]))
     
@@ -337,9 +346,14 @@ def _execute_metrics_plan(
         if plan.filters.get("provider"):
             prev_query = prev_query.filter(MF.provider == plan.filters["provider"])
         if plan.filters.get("level"):
-            prev_query = prev_query.filter(MF.level == plan.filters["level"])
+            # BUG FIX: Use E.level (Entity table) not MF.level (MetricFact doesn't have level field)
+            prev_query = prev_query.filter(E.level == plan.filters["level"])
+        # BUG FIX: Default to active entities only to match UI behavior
         if plan.filters.get("status"):
             prev_query = prev_query.filter(E.status == plan.filters["status"])
+        else:
+            # Default to active entities only (matches UI behavior)
+            prev_query = prev_query.filter(E.status == "active")
         if plan.filters.get("entity_name"):
             pattern = f"%{plan.filters['entity_name']}%"
             prev_query = prev_query.filter(E.name.ilike(pattern))
@@ -385,12 +399,17 @@ def _execute_metrics_plan(
         if plan.filters.get("provider"):
             series_query = series_query.filter(MF.provider == plan.filters["provider"])
         if plan.filters.get("level"):
-            series_query = series_query.filter(MF.level == plan.filters["level"])
+            # BUG FIX: Use E.level (Entity table) not MF.level (MetricFact doesn't have level field)
+            series_query = series_query.filter(E.level == plan.filters["level"])
         if plan.filters.get("entity_name"):
             pattern = f"%{plan.filters['entity_name']}%"
             series_query = series_query.filter(E.name.ilike(pattern))
+        # BUG FIX: Default to active entities only to match UI behavior
         if plan.filters.get("status"):
             series_query = series_query.filter(E.status == plan.filters["status"])
+        else:
+            # Default to active entities only (matches UI behavior)
+            series_query = series_query.filter(E.status == "active")
         if plan.filters.get("entity_ids"):
             series_query = series_query.filter(MF.entity_id.in_(plan.filters["entity_ids"]))
         
@@ -553,8 +572,12 @@ def _execute_metrics_plan(
         # Apply filters (provider/status/entity_ids/entity_name)
         if plan.filters.get("provider"):
             breakdown_query = breakdown_query.filter(MF.provider == plan.filters["provider"])
+        # BUG FIX: Default to active entities only to match UI behavior
         if plan.filters.get("status"):
             breakdown_query = breakdown_query.filter(E.status == plan.filters["status"])
+        else:
+            # Default to active entities only (matches UI behavior)
+            breakdown_query = breakdown_query.filter(E.status == "active")
         if plan.filters.get("entity_ids"):
             breakdown_query = breakdown_query.filter(MF.entity_id.in_(plan.filters["entity_ids"]))
         
@@ -945,9 +968,16 @@ def _execute_multi_metric_plan(
     if plan.filters.get("provider"):
         base_query = base_query.filter(MF.provider == plan.filters["provider"])
     if plan.filters.get("level"):
-        base_query = base_query.filter(MF.level == plan.filters["level"])
+        # BUG FIX: Use E.level (Entity table) not MF.level (MetricFact doesn't have level field)
+        base_query = base_query.filter(E.level == plan.filters["level"])
+    # BUG FIX: Default to active entities only to match UI behavior
+    # WHY: UI KPI endpoint uses only_active=True by default, QA should match
+    # IMPACT: Fixes QA vs UI mismatch where QA included inactive entities
     if plan.filters.get("status"):
         base_query = base_query.filter(E.status == plan.filters["status"])
+    else:
+        # Default to active entities only (matches UI behavior)
+        base_query = base_query.filter(E.status == "active")
     if plan.filters.get("entity_ids"):
         base_query = base_query.filter(MF.entity_id.in_(plan.filters["entity_ids"]))
     
@@ -996,7 +1026,8 @@ def _execute_multi_metric_plan(
                 if plan.filters.get("provider"):
                     prev_query = prev_query.filter(MF.provider == plan.filters["provider"])
                 if plan.filters.get("level"):
-                    prev_query = prev_query.filter(MF.level == plan.filters["level"])
+                    # BUG FIX: Use E.level (Entity table) not MF.level (MetricFact doesn't have level field)
+                    prev_query = prev_query.filter(E.level == plan.filters["level"])
                 if plan.filters.get("status"):
                     prev_query = prev_query.filter(E.status == plan.filters["status"])
                 if plan.filters.get("entity_ids"):

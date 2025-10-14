@@ -91,7 +91,10 @@ def get_workspace_kpis(
     if provider:
         base = base.filter(MF.provider == provider)
     if level:
-        base = base.filter(MF.level == level)
+        # BUG FIX: Use E.level (Entity table) not MF.level (MetricFact doesn't have level field)
+        # WHY: Level is stored in Entity table, not MetricFact table
+        # IMPACT: Fixes QA vs UI mismatch where level filters weren't applied correctly
+        base = base.filter(E.level == level)
     if only_active:
         base = base.filter(E.status == "active")
 
@@ -123,7 +126,8 @@ def get_workspace_kpis(
         if provider:
             prev = prev.filter(MF.provider == provider)
         if level:
-            prev = prev.filter(MF.level == level)
+            # BUG FIX: Use E.level (Entity table) not MF.level (MetricFact doesn't have level field)
+            prev = prev.filter(E.level == level)
         if only_active:
             prev = prev.filter(E.status == "active")
         totals_prev = prev.one()._asdict()
@@ -153,7 +157,8 @@ def get_workspace_kpis(
         if provider:
             sparkline_query = sparkline_query.filter(MF.provider == provider)
         if level:
-            sparkline_query = sparkline_query.filter(MF.level == level)
+            # BUG FIX: Use E.level (Entity table) not MF.level (MetricFact doesn't have level field)
+            sparkline_query = sparkline_query.filter(E.level == level)
         if only_active:
             sparkline_query = sparkline_query.filter(E.status == "active")
         

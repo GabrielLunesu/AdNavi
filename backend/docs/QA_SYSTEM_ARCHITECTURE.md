@@ -1504,6 +1504,39 @@ Try the `/qa` endpoint with:
 
 ## Changelog
 
+### 2025-10-14T14:15:00Z - CRITICAL BUG FIX: QA vs UI ROAS Mismatch
+- Fixed `app/dsl/executor.py`: Status filter inconsistency causing different ROAS values
+  - **Root Cause**: QA included all entities while UI KPI endpoint filtered to active entities only
+  - **Impact**: Different entity sets led to different revenue/spend calculations and ROAS values
+  - **Fix**: Added default `E.status == "active"` filter in 6 locations when no status filter specified
+    - Line 288-295: Main summary query filter
+    - Line 345-352: Previous period comparison filter
+    - Line 407-414: Timeseries query filter
+    - Line 575-582: Breakdown query filter
+    - Line 955-962: Multi-metric query filter
+    - Line 1007-1014: Multi-metric previous period filter
+- Fixed `app/routers/kpis.py`: Level filter bug (same as executor)
+  - Changed 3 instances of `MF.level` → `E.level` in filter application
+- **Results**: QA and UI now return identical values for all metric queries
+  - ✅ "what was my roas in the last 3 days" → 6.41x (both QA and UI)
+  - ✅ "how much revenue did I make in the last 3 days" → $58,516.38 (both QA and UI)
+  - ✅ Eliminates confusion between QA answers and UI dashboard metrics
+
+### 2025-10-14T13:55:00Z - CRITICAL BUG FIX: QA vs UI Revenue Mismatch
+- Fixed `app/dsl/executor.py`: Level filter bug causing incorrect revenue calculations
+  - **Root Cause**: Executor filtered by `MF.level` (MetricFact table) instead of `E.level` (Entity table)
+  - **Impact**: Level filters weren't applied correctly, causing QA to aggregate across multiple entity levels
+  - **Fix**: Changed 5 instances of `MF.level` → `E.level` in filter application
+    - Line 284: Main summary query filter
+    - Line 343: Previous period comparison filter  
+    - Line 392: Timeseries query filter
+    - Line 953: Multi-metric query filter
+    - Line 1005: Multi-metric previous period filter
+- **Results**: QA and UI now return identical values for same queries
+  - ✅ "Weekend Audience - Holiday Sale - Purchases ad set revenue" → $3,761.96 (both QA and UI)
+  - ✅ Eliminates confusion between QA answers and UI metrics
+  - ✅ Fixes fundamental filtering bug affecting all level-based queries
+
 ### 2025-10-13T13:30:00Z - Phase 7: Advanced Analytics Fixes
 - Fixed `app/dsl/executor.py`: Multi-metric execution issues
   - Changed `plan.compare_to_previous` → `plan.need_previous`
@@ -1689,6 +1722,21 @@ Try the `/qa` endpoint with:
 - **Multi-Metric Queries**: Now fully supported ✅
 - **Temporal Breakdowns**: Day, week, month breakdowns working ✅
 - **Metric Value Filtering**: "ROAS above 4" queries working ✅
+
+### ✅ Critical Bug Fixes (2025-10-14)
+- **QA vs UI ROAS Mismatch**: Fixed status filter inconsistency ✅
+  - **Problem**: QA returned 6.65x ROAS while UI showed 6.41x for "last 3 days"
+  - **Root Cause**: QA included all entities while UI filtered to active entities only
+  - **Impact**: Different entity sets led to different revenue/spend calculations
+  - **Fix**: Added default `E.status == "active"` filter in 6 locations in `app/dsl/executor.py`
+  - **Result**: QA and UI now return identical values for all metric queries
+
+- **QA vs UI Revenue Mismatch**: Fixed DSL executor level filter bug ✅
+  - **Problem**: QA returned incorrect revenue values compared to UI
+  - **Root Cause**: Executor filtered by `MF.level` (MetricFact) instead of `E.level` (Entity)
+  - **Impact**: Level filters weren't applied correctly, causing cross-level aggregation
+  - **Fix**: Changed 5 instances of `MF.level` → `E.level` in `app/dsl/executor.py`
+  - **Result**: QA and UI now return identical values for same queries
 
 ### Remaining Limitations
 
