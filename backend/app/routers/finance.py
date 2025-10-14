@@ -81,38 +81,48 @@ def get_pnl_statement(
     # ========================================================================
     # WHAT: Sum all base measures from MetricFact, group by provider
     # WHY: Each ad platform becomes one P&L row
-    # REFERENCES: app/routers/kpis.py:get_workspace_kpis (similar aggregation)
+    # REFACTORED: Now uses UnifiedMetricService for consistent calculations
     
-    MF = models.MetricFact
-    E = models.Entity
+    # Import UnifiedMetricService
+    from app.services.unified_metric_service import UnifiedMetricService, MetricFilters
+    from app.dsl.schema import TimeRange as DSLTimeRange
     
-    ad_spend_query = (
-        db.query(
-            MF.provider,
-            func.sum(MF.spend).label("spend"),
-            func.sum(MF.revenue).label("revenue"),
-            func.sum(MF.clicks).label("clicks"),
-            func.sum(MF.impressions).label("impressions"),
-            func.sum(MF.conversions).label("conversions"),
-        )
-        .join(E, E.id == MF.entity_id)
-        .filter(E.workspace_id == workspace_id)
-        # Note: Finance includes ALL entities (active + inactive) because inactive campaigns still generated revenue
-        .filter(MF.event_date >= period_start)
-        .filter(MF.event_date < period_end)
-        .group_by(MF.provider)
+    # Initialize service
+    service = UnifiedMetricService(db)
+    
+    # Convert period to service inputs
+    time_range = DSLTimeRange(start=period_start, end=period_end)
+    filters = MetricFilters(
+        provider=None,  # Get all providers
+        level=None,
+        status=None,  # Include ALL entities (active + inactive) as per comment
+        entity_ids=None,
+        entity_name=None,
+        metric_filters=None
     )
     
-    ad_spend_by_provider = {
-        row.provider: {
-            "spend": float(row.spend or 0),
-            "revenue": float(row.revenue or 0),
-            "clicks": int(row.clicks or 0),
-            "impressions": int(row.impressions or 0),
-            "conversions": float(row.conversions or 0),
+    # Get breakdown by provider
+    breakdown_items = service.get_breakdown(
+        workspace_id=str(workspace_id),
+        metric="revenue",  # Use revenue as the primary metric for breakdown
+        time_range=time_range,
+        filters=filters,
+        breakdown_dimension="provider",
+        top_n=100,  # Get all providers
+        sort_order="desc"
+    )
+    
+    # Convert to expected format
+    ad_spend_by_provider = {}
+    for item in breakdown_items:
+        provider = item.label  # Provider name from breakdown
+        ad_spend_by_provider[provider] = {
+            "spend": float(item.spend or 0),
+            "revenue": float(item.revenue or 0),
+            "clicks": int(item.clicks or 0),
+            "impressions": int(item.impressions or 0),
+            "conversions": float(item.conversions or 0),
         }
-        for row in ad_spend_query.all()
-    }
     
     # ========================================================================
     # 2. AGGREGATE MANUAL COSTS BY CATEGORY
