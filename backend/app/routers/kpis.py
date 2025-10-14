@@ -9,6 +9,7 @@ Purpose:
 Design choices:
 - This endpoint returns exactly the data the homepage needs in one call.
 - We avoid N+1 calls from the UI and centralize the metric math here.
+- We handle both enum format (ProviderEnum.meta) and string format (meta) for provider filtering.
 """
 
 from datetime import date, timedelta
@@ -57,7 +58,11 @@ def get_workspace_kpis(
     only_active: bool = Query(default=True, description="If true, exclude non-active entities"),
 ):
     """
-    Aggregate KPI metrics across a workspace.
+    Aggregate KPI metrics across a workspace using UnifiedMetricService.
+    
+    REFACTORED: Now uses UnifiedMetricService for consistent calculations
+    across all endpoints (QA, KPI, entity performance, finance).
+    
     Why join Entity?
       - To scope by workspace (Entity has workspace_id)
       - To optionally filter by active status
@@ -66,135 +71,74 @@ def get_workspace_kpis(
       - Freshest data, append-only: ideal for real-time-ish dashboards.
       - PnL remains for EOD locks & heavy reports later.
     """
-    MF, E = models.MetricFact, models.Entity
+    # Import UnifiedMetricService
+    from app.services.unified_metric_service import UnifiedMetricService, MetricFilters
+    from app.dsl.schema import TimeRange as DSLTimeRange
+    
+    # Initialize service
+    service = UnifiedMetricService(db)
+    
+    # Convert request to service inputs
     start, end = _daterange(req.time_range)
-
-    # Base aggregate for current period
-    # Aggregate ALL base measures so derived metrics can be computed
-    base = (
-        db.query(
-            func.coalesce(func.sum(MF.spend), 0).label("spend"),
-            func.coalesce(func.sum(MF.revenue), 0).label("revenue"),
-            func.coalesce(func.sum(MF.clicks), 0).label("clicks"),
-            func.coalesce(func.sum(MF.impressions), 0).label("impressions"),
-            func.coalesce(func.sum(MF.conversions), 0).label("conversions"),
-            func.coalesce(func.sum(MF.leads), 0).label("leads"),
-            func.coalesce(func.sum(MF.installs), 0).label("installs"),
-            func.coalesce(func.sum(MF.purchases), 0).label("purchases"),
-            func.coalesce(func.sum(MF.visitors), 0).label("visitors"),
-            func.coalesce(func.sum(MF.profit), 0).label("profit"),
-        )
-        .join(E, E.id == MF.entity_id)
-        .filter(E.workspace_id == workspace_id)
-        .filter(MF.event_date.between(start, end))
-    )
+    time_range = DSLTimeRange(start=start, end=end)
+    
+    # Handle provider format conversion
+    provider_value = None
     if provider:
-        base = base.filter(MF.provider == provider)
-    if level:
-        base = base.filter(MF.level == level)
-    if only_active:
-        base = base.filter(E.status == "active")
-
-    totals_now = base.one()._asdict()
-
-    # Previous period (same length) if requested
-    totals_prev = None
-    if req.compare_to_previous:
-        length_days = (end - start).days + 1
-        prev_start = start - timedelta(days=length_days)
-        prev_end = start - timedelta(days=1)
-        prev = (
-            db.query(
-                func.coalesce(func.sum(MF.spend), 0).label("spend"),
-                func.coalesce(func.sum(MF.revenue), 0).label("revenue"),
-                func.coalesce(func.sum(MF.clicks), 0).label("clicks"),
-                func.coalesce(func.sum(MF.impressions), 0).label("impressions"),
-                func.coalesce(func.sum(MF.conversions), 0).label("conversions"),
-                func.coalesce(func.sum(MF.leads), 0).label("leads"),
-                func.coalesce(func.sum(MF.installs), 0).label("installs"),
-                func.coalesce(func.sum(MF.purchases), 0).label("purchases"),
-                func.coalesce(func.sum(MF.visitors), 0).label("visitors"),
-                func.coalesce(func.sum(MF.profit), 0).label("profit"),
-            )
-            .join(E, E.id == MF.entity_id)
-            .filter(E.workspace_id == workspace_id)
-            .filter(MF.event_date.between(prev_start, prev_end))
-        )
-        if provider:
-            prev = prev.filter(MF.provider == provider)
-        if level:
-            prev = prev.filter(MF.level == level)
-        if only_active:
-            prev = prev.filter(E.status == "active")
-        totals_prev = prev.one()._asdict()
-
-    # Daily sparkline by date (optional)
-    spark_by_day: dict[str, dict] = {}
+        if provider.startswith("ProviderEnum."):
+            provider_value = provider.split(".")[1]  # Extract "meta" from "ProviderEnum.meta"
+        else:
+            provider_value = provider
+    
+    # Build filters
+    filters = MetricFilters(
+        provider=provider_value,
+        level=level,
+        status="active" if only_active else None,  # Apply status filter based on only_active
+        entity_ids=None,
+        entity_name=None,
+        metric_filters=None
+    )
+    
+    # Get summary metrics
+    summary_result = service.get_summary(
+        workspace_id=workspace_id,
+        metrics=req.metrics,
+        time_range=time_range,
+        filters=filters,
+        compare_to_previous=req.compare_to_previous
+    )
+    
+    # Get sparkline data if requested
+    sparkline = []
     if req.sparkline:
-        sparkline_query = (
-            db.query(
-                MF.event_date.label("d"),
-                func.coalesce(func.sum(MF.spend), 0).label("spend"),
-                func.coalesce(func.sum(MF.revenue), 0).label("revenue"),
-                func.coalesce(func.sum(MF.clicks), 0).label("clicks"),
-                func.coalesce(func.sum(MF.impressions), 0).label("impressions"),
-                func.coalesce(func.sum(MF.conversions), 0).label("conversions"),
-                func.coalesce(func.sum(MF.leads), 0).label("leads"),
-                func.coalesce(func.sum(MF.installs), 0).label("installs"),
-                func.coalesce(func.sum(MF.purchases), 0).label("purchases"),
-                func.coalesce(func.sum(MF.visitors), 0).label("visitors"),
-                func.coalesce(func.sum(MF.profit), 0).label("profit"),
-            )
-            .join(E, E.id == MF.entity_id)
-            .filter(E.workspace_id == workspace_id)
-            .filter(MF.event_date.between(start, end))
+        timeseries_points = service.get_timeseries(
+            workspace_id=workspace_id,
+            metrics=req.metrics,
+            time_range=time_range,
+            filters=filters
         )
-        # Apply the same filters as the main query
-        if provider:
-            sparkline_query = sparkline_query.filter(MF.provider == provider)
-        if level:
-            sparkline_query = sparkline_query.filter(MF.level == level)
-        if only_active:
-            sparkline_query = sparkline_query.filter(E.status == "active")
         
-        day_rows = (
-            sparkline_query
-            .group_by(MF.event_date)
-            .order_by(MF.event_date)
-            .all()
-        )
-        for r in day_rows:
-            # Convert datetime to date string (YYYY-MM-DD format only)
-            date_key = r.d.strftime('%Y-%m-%d') if hasattr(r.d, 'strftime') else str(r.d)
-            spark_by_day[date_key] = {
-                "spend": r.spend, "revenue": r.revenue, "clicks": r.clicks,
-                "impressions": r.impressions, "conversions": r.conversions,
-                "leads": r.leads, "installs": r.installs, "purchases": r.purchases,
-                "visitors": r.visitors, "profit": r.profit
-            }
+        # Convert to expected format
+        sparkline = [
+            SparkPoint(
+                date=point.date,
+                value=point.value
+            )
+            for point in timeseries_points
+        ]
+    
+    # Convert service result to expected format
+    result = []
+    for metric_key in req.metrics:
+        metric_data = summary_result.metrics[metric_key]
+        
+        result.append(KpiValue(
+            key=metric_key,
+            value=metric_data.value,
+            prev=metric_data.previous,
+            delta_pct=metric_data.delta_pct,
+            sparkline=sparkline if req.sparkline else None
+        ))
 
-    # Build per-metric cards
-    out: List[KpiValue] = []
-    for key in req.metrics:
-        now_val = _derived(key, totals_now)
-        prev_val = _derived(key, totals_prev) if totals_prev else None
-        delta_pct = None
-        if prev_val not in (None, 0) and now_val is not None:
-            delta_pct = (now_val - prev_val) / prev_val
-
-        spark = None
-        if req.sparkline:
-            spark = []
-            cur = start
-            while cur <= end:
-                # Ensure date format matches the dictionary keys (YYYY-MM-DD)
-                d = cur.strftime('%Y-%m-%d') if hasattr(cur, 'strftime') else str(cur)
-                pieces = spark_by_day.get(d, {})
-                # Always use _derived() to handle both base and derived metrics correctly
-                spark_val = _derived(key, pieces)
-                spark.append(SparkPoint(date=d, value=spark_val))
-                cur += timedelta(days=1)
-
-        out.append(KpiValue(key=key, value=now_val, prev=prev_val, delta_pct=delta_pct, sparkline=spark))
-
-    return out
+    return result

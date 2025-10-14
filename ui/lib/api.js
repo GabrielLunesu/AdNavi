@@ -17,12 +17,13 @@ export async function fetchWorkspaceKpis({
   sparkline = true,
   provider = null,
   level = null,
-  onlyActive = true
+  onlyActive = false
 }) {
   const params = new URLSearchParams();
   if (provider) params.set("provider", provider);
   if (level) params.set("level", level);
   if (onlyActive) params.set("only_active", "true");
+  else params.set("only_active", "false");
 
   // Calculate time range based on offset (for "yesterday" case)
   let timeRange;

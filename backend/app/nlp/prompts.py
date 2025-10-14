@@ -838,6 +838,14 @@ FILTERS (optional, only if mentioned):
 - entity_name: string
 - metric_filters: [{"metric": "roas", "operator": ">", "value": 4}] (NEW - Phase 7)
 
+DEFAULT ENTITY BEHAVIOR (CRITICAL):
+- By default, queries include ALL entities (active + inactive) unless explicitly filtered
+- Only add status: "active" when user specifically asks for "active campaigns", "live ads", etc.
+- Examples:
+  * "What's my revenue?" → NO status filter (includes all entities)
+  * "Revenue from active campaigns" → status: "active"
+  * "Show me paused ads" → status: "paused"
+
 METRIC VALUE FILTERING (NEW - Phase 7):
 - For questions like "Show me campaigns with ROAS above 4"
 - Use metric_filters with operators: ">", ">=", "<", "<=", "=", "!="

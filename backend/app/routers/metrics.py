@@ -127,46 +127,50 @@ def get_metrics_summary(
     start_date: Optional[datetime] = Query(None, description="Start date filter"),
     end_date: Optional[datetime] = Query(None, description="End date filter")
 ):
-    """Get aggregated metrics summary."""
-    # Build the same query as list_metrics but aggregate
-    query = db.query(MetricFact).join(Entity).filter(
-        Entity.workspace_id == current_user.workspace_id
+    """Get aggregated metrics summary using UnifiedMetricService."""
+    # Import UnifiedMetricService
+    from app.services.unified_metric_service import UnifiedMetricService, MetricFilters
+    from app.dsl.schema import TimeRange as DSLTimeRange
+    
+    # Initialize service
+    service = UnifiedMetricService(db)
+    
+    # Convert filters to service inputs
+    time_range = None
+    if start_date or end_date:
+        time_range = DSLTimeRange(
+            start=start_date.date() if start_date else None,
+            end=end_date.date() if end_date else None
+        )
+    
+    filters = MetricFilters(
+        provider=provider,
+        level=level,
+        status=None,  # Include all entities by default
+        entity_ids=[str(entity_id)] if entity_id else None,
+        entity_name=None,
+        metric_filters=None
     )
     
-    # Apply same filters
-    if entity_id:
-        entity = db.query(Entity).filter(
-            Entity.id == entity_id,
-            Entity.workspace_id == current_user.workspace_id
-        ).first()
-        if not entity:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Entity not found"
-            )
-        query = query.filter(MetricFact.entity_id == entity_id)
+    # Get summary for all base metrics
+    metrics = ["spend", "impressions", "clicks", "conversions", "revenue"]
+    summary_result = service.get_summary(
+        workspace_id=str(current_user.workspace_id),
+        metrics=metrics,
+        time_range=time_range,
+        filters=filters,
+        compare_to_previous=False
+    )
     
-    if provider:
-        query = query.filter(MetricFact.provider == provider)
-    
-    if level:
-        query = query.filter(MetricFact.level == level)
-    
-    if start_date:
-        query = query.filter(MetricFact.event_date >= start_date)
-    
-    if end_date:
-        query = query.filter(MetricFact.event_date <= end_date)
-    
-    # Aggregate the metrics
-    result = query.with_entities(
-        func.sum(MetricFact.spend).label('total_spend'),
-        func.sum(MetricFact.impressions).label('total_impressions'),
-        func.sum(MetricFact.clicks).label('total_clicks'),
-        func.sum(MetricFact.conversions).label('total_conversions'),
-        func.sum(MetricFact.revenue).label('total_revenue'),
-        func.count(MetricFact.id).label('record_count')
-    ).first()
+    # Convert to expected format
+    result = type('Result', (), {
+        'total_spend': summary_result.metrics['spend'].value or 0,
+        'total_impressions': summary_result.metrics['impressions'].value or 0,
+        'total_clicks': summary_result.metrics['clicks'].value or 0,
+        'total_conversions': summary_result.metrics['conversions'].value or 0,
+        'total_revenue': summary_result.metrics['revenue'].value or 0,
+        'record_count': None  # Not available from UnifiedMetricService
+    })()
     
     # Calculate derived metrics
     total_spend = float(result.total_spend or 0)

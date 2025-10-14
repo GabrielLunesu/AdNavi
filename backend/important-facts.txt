@@ -1,5 +1,0 @@
-⚠️ Current Limitation:
-The User-Workspace relationship is still ONE-to-MANY:
-A user can only belong to ONE workspace
-A workspace can have MANY users
-This should be MANY-to-MANY so users can access multiple workspaces.

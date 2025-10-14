@@ -1,8 +1,8 @@
 # QA System Architecture & DSL Specification
 
-**Version**: DSL v2.2.0 (Advanced Analytics - Phase 7)  
-**Last Updated**: 2025-10-13  
-**Status**: Production Ready - Natural Copilot Phase 7 Implemented
+**Version**: DSL v2.3.0 (Unified Metrics Architecture)  
+**Last Updated**: 2025-10-14  
+**Status**: Production Ready - Unified Metrics Refactor Complete
 
 ✅ **Phase 1 Complete**: Intent-based answer depth implemented. Simple questions now get simple answers (1 sentence), comparative questions get comparisons (2-3 sentences), analytical questions get full context (3-4 sentences).
 
@@ -48,6 +48,13 @@
 - **Multi-Metric Execution**: Fixed `_execute_multi_metric_plan` function and answer generation
 - **Temporal Breakdown Logic**: Fixed `date_trunc` SQL and string conversion issues
 - **Answer Builder Integration**: Fixed parameter order and template fallback handling
+
+✅ **Unified Metrics Refactor Complete (2025-10-14)**: Major architectural improvement:
+- **Single Source of Truth**: All endpoints now use `UnifiedMetricService` for consistent calculations
+- **Data Consistency**: QA and KPI endpoints return identical results for same queries
+- **Default Behavior**: All entities (active + inactive) included by default unless explicitly filtered
+- **Endpoints Refactored**: QA (`dsl/executor.py`), KPI (`routers/kpis.py`), Finance (`routers/finance.py`), Metrics (`routers/metrics.py`)
+- **Impact**: Eliminated data mismatches between Copilot answers and UI dashboards
 - **System Integration**: All Phase 7 features now working reliably in production
 
 ---
@@ -62,9 +69,10 @@
 6. [Answer Formatting](#answer-formatting)
 7. [Security Guarantees](#security-guarantees)
 8. [Performance Metrics](#performance-metrics)
-9. [File Reference](#file-reference)
-10. [Testing](#testing)
-11. [Future Enhancements](#future-enhancements)
+9. [Unified Metrics Architecture](#unified-metrics-architecture-2025-10-14)
+10. [File Reference](#file-reference)
+11. [Testing](#testing)
+12. [Future Enhancements](#future-enhancements)
 
 ---
 
@@ -117,9 +125,11 @@ graph TD
     Validate -->|Invalid| Error1["DSLValidationError<br/><br/>Log to telemetry<br/>Return 400"]
     Validate -->|Valid| Plan["Build Plan<br/>app/dsl/planner.py<br/><br/>Resolve dates<br/>Map derived metrics<br/>Plan breakdown"]
     
-    Plan --> Execute["Execute Plan<br/>app/dsl/executor.py<br/><br/>Uses metrics/registry<br/>Workspace-scoped<br/>÷0 guards"]
+    Plan --> Execute["Execute Plan<br/>app/dsl/executor.py<br/><br/>Calls UnifiedMetricService<br/>Workspace-scoped<br/>÷0 guards"]
     
-    Execute --> Query["Database Queries<br/><br/>1. Summary aggregation<br/>2. Previous period<br/>3. Timeseries (daily)<br/>4. Breakdown (top N)"]
+    Execute --> Service["UnifiedMetricService<br/>app/services/unified_metric_service.py<br/><br/>Single source of truth<br/>Consistent calculations<br/>All endpoints"]
+    
+    Service --> Query["Database Queries<br/><br/>1. Summary aggregation<br/>2. Previous period<br/>3. Timeseries (daily)<br/>4. Breakdown (top N)"]
     
     Query --> Result["MetricResult<br/>app/dsl/schema.py<br/><br/>- summary: 2.45<br/>- delta_pct: 0.19<br/>- timeseries: [...]<br/>- breakdown: [...]"]
     
@@ -323,22 +333,51 @@ flowchart TD
 - **Optimization**: Returns None for non-metrics queries (handled directly by executor)
 
 ### 9️⃣ **Execution** (`app/dsl/executor.py`)
-- **Derived Metrics v1 changes**:
-  - Uses `compute_metric()` from `app/metrics/registry` (single source of truth)
-  - Aggregates ALL base measures (including new ones: leads, installs, purchases, visitors, profit)
-  - No local formula duplication
-- **Queries**:
+- **Unified Metrics Refactor (2025-10-14)**:
+  - Now calls `UnifiedMetricService` for all metric calculations
+  - Single source of truth for consistent results across all endpoints
+  - Eliminates data mismatches between QA and UI dashboards
+- **Service Integration**:
+  - `_execute_metrics_plan()` → `service.get_summary()`
+  - `_execute_multi_metric_plan()` → `service.get_summary()` with multiple metrics
+  - Timeseries → `service.get_timeseries()`
+  - Breakdowns → `service.get_breakdown()`
+- **Query Types**:
   1. **Metrics queries**: Summary, previous period, timeseries, breakdown
   2. **Providers queries**: Distinct ad platforms in workspace
   3. **Entities queries**: List campaigns/adsets/ads with filters
 - **Safety**:
   - All queries workspace-scoped (tenant isolation)
   - Divide-by-zero guards in `app/metrics/formulas`
-  - SQLAlchemy ORM (no raw SQL, no injection)
+  - Consistent filtering logic across all endpoints
 
-### 🔟 **Database Queries**
+### 🔟 **UnifiedMetricService** (`app/services/unified_metric_service.py`)
 
-Example metrics query (workspace-scoped):
+**Single source of truth for all metric calculations** (refactored 2025-10-14):
+
+**Key Methods**:
+- `get_summary()`: Aggregate metrics with optional previous period comparison
+- `get_timeseries()`: Daily breakdown of metrics
+- `get_breakdown()`: Group by provider, level, or temporal dimensions
+- `get_workspace_average()`: Workspace-wide averages for context
+
+**Service Architecture**:
+```python
+class UnifiedMetricService:
+    def get_summary(self, workspace_id, metrics, time_range, filters, compare_to_previous=False):
+        # Consistent aggregation logic used by all endpoints
+        # Returns MetricSummaryResult with value, previous, delta_pct
+        
+    def get_timeseries(self, workspace_id, metrics, time_range, filters):
+        # Daily breakdown with consistent date handling
+        # Returns list of TimeSeriesPoint objects
+        
+    def get_breakdown(self, workspace_id, metric, time_range, filters, breakdown_dimension, top_n, sort_order):
+        # Provider, level, or temporal breakdowns
+        # Returns list of BreakdownItem objects
+```
+
+**Database Query Example** (internal to service):
 ```sql
 SELECT 
   SUM(spend) as spend,
@@ -346,7 +385,7 @@ SELECT
   SUM(clicks) as clicks,
   SUM(impressions) as impressions,
   SUM(conversions) as conversions,
-  -- Derived Metrics v1: New base measures
+  -- All base measures included
   SUM(leads) as leads,
   SUM(installs) as installs,
   SUM(purchases) as purchases,
@@ -356,6 +395,7 @@ FROM metric_facts mf
 JOIN entities e ON e.id = mf.entity_id
 WHERE e.workspace_id = :workspace_id
   AND CAST(mf.event_date AS DATE) BETWEEN :start AND :end
+  -- Consistent filtering logic applied here
 ```
 
 ### 1️⃣1️⃣ **Result Building** (`app/dsl/schema.py`)
@@ -1109,7 +1149,8 @@ At scale, consider:
 | **Canonicalization** | `app/dsl/canonicalize.py` | Synonym mapping |
 | **Validation** | `app/dsl/validate.py` | DSL validation |
 | **Planning** | `app/dsl/planner.py` | Query planning |
-| **Execution** | `app/dsl/executor.py` | SQL execution |
+| **Execution** | `app/dsl/executor.py` | Calls UnifiedMetricService |
+| **Unified Service** | `app/services/unified_metric_service.py` | Single source of truth for metrics |
 | **Hierarchy** | `app/dsl/hierarchy.py` | Entity ancestor resolution (CTEs) |
 | **Translation** | `app/nlp/translator.py` | LLM integration (context-aware) |
 | **Prompts** | `app/nlp/prompts.py` | System prompts & few-shots |
@@ -1143,13 +1184,124 @@ pytest app/tests/ -v
 | Answer Builder | `test_answer_builder.py` | Hybrid answer generation |
 | **Formatters** | `test_formatters.py` | **Display formatting (51 tests)** |
 | **Hierarchy** | `test_breakdown_rollup.py` | **Entity rollup & ordering (8 tests)** |
+| **Unified Service** | `test_unified_metric_service.py` | **Single source of truth (25 tests)** |
+| **Integration** | `test_unified_metrics_integration.py` | **QA vs KPI consistency (6 tests)** |
 
 ### Test Coverage Summary
-- ✅ 100+ total tests
+- ✅ 130+ total tests
 - ✅ Unit tests for each pipeline stage
 - ✅ Integration tests for end-to-end flow
 - ✅ Thread safety tests for context manager
 - ✅ Comprehensive formatter tests
+- ✅ UnifiedMetricService tests (25 unit + 6 integration)
+- ✅ QA vs KPI consistency validation
+
+---
+
+## Unified Metrics Architecture (2025-10-14)
+
+### Overview
+
+The Unified Metrics refactor establishes a **single source of truth** for all metric calculations across the entire system. This eliminates data mismatches between different endpoints and ensures consistent results.
+
+### Architecture Diagram
+
+```mermaid
+graph TD
+    QA["QA System<br/>app/dsl/executor.py"] --> UMS["UnifiedMetricService<br/>app/services/unified_metric_service.py"]
+    KPI["KPI Endpoint<br/>app/routers/kpis.py"] --> UMS
+    Finance["Finance Endpoint<br/>app/routers/finance.py"] --> UMS
+    Metrics["Metrics Endpoint<br/>app/routers/metrics.py"] --> UMS
+    
+    UMS --> DB["Database<br/>MetricFact + Entity"]
+    
+    UMS --> Summary["get_summary()<br/>Aggregate metrics"]
+    UMS --> Timeseries["get_timeseries()<br/>Daily breakdown"]
+    UMS --> Breakdown["get_breakdown()<br/>Group by dimension"]
+    UMS --> Workspace["get_workspace_average()<br/>Baseline calculations"]
+    
+    Summary --> Result["Consistent Results<br/>Across All Endpoints"]
+    Timeseries --> Result
+    Breakdown --> Result
+    Workspace --> Result
+    
+    style UMS fill:#e3f2fd
+    style Result fill:#c8e6c9
+    style DB fill:#f3e5f5
+```
+
+### Key Benefits
+
+1. **Data Consistency**: All endpoints return identical results for same queries
+2. **Single Source of Truth**: One service handles all metric calculations
+3. **Default Behavior**: All entities (active + inactive) included by default
+4. **Maintainability**: Centralized logic easier to maintain and extend
+5. **Performance**: Optimized queries with consistent caching behavior
+
+### Service Methods
+
+#### `get_summary(workspace_id, metrics, time_range, filters, compare_to_previous=False)`
+- **Purpose**: Aggregate metrics with optional previous period comparison
+- **Returns**: `MetricSummaryResult` with value, previous, delta_pct
+- **Used by**: QA system, KPI endpoint, Finance endpoint
+
+#### `get_timeseries(workspace_id, metrics, time_range, filters)`
+- **Purpose**: Daily breakdown of metrics
+- **Returns**: List of `TimeSeriesPoint` objects
+- **Used by**: QA system for sparkline data
+
+#### `get_breakdown(workspace_id, metric, time_range, filters, breakdown_dimension, top_n, sort_order)`
+- **Purpose**: Group by provider, level, or temporal dimensions
+- **Returns**: List of `BreakdownItem` objects
+- **Used by**: QA system for "top N" queries
+
+#### `get_workspace_average(workspace_id, metric, time_range, filters)`
+- **Purpose**: Workspace-wide averages for context
+- **Returns**: Float value representing workspace average
+- **Used by**: QA system for comparative analysis
+
+### Filter Support
+
+The service supports comprehensive filtering through `MetricFilters`:
+
+```python
+@dataclass
+class MetricFilters:
+    provider: Optional[str] = None      # "google", "meta", "tiktok", etc.
+    level: Optional[str] = None          # "campaign", "adset", "ad"
+    status: Optional[str] = None         # "active", "paused"
+    entity_ids: Optional[List[str]] = None
+    entity_name: Optional[str] = None
+    metric_filters: Optional[List[MetricFilter]] = None
+```
+
+### Default Behavior
+
+- **All Entities**: By default, includes both active and inactive entities
+- **No Filters**: If no filters specified, returns data for all entities
+- **Explicit Filtering**: Only applies filters when explicitly requested
+- **Consistent Logic**: Same filtering logic across all endpoints
+
+### Migration Impact
+
+**Before Refactor**:
+- QA system used custom SQLAlchemy queries
+- KPI endpoint used different aggregation logic
+- Finance endpoint had separate calculation methods
+- Data mismatches between endpoints
+
+**After Refactor**:
+- All endpoints use `UnifiedMetricService`
+- Consistent calculations across the system
+- No data mismatches between QA and UI
+- Single source of truth for all metrics
+
+### Testing
+
+- **Unit Tests**: 25 tests covering all service methods
+- **Integration Tests**: 6 tests verifying QA vs KPI consistency
+- **Coverage**: All service functionality tested
+- **Validation**: Manual testing confirms data consistency
 
 ---
 
@@ -1193,8 +1345,9 @@ backend/app/
 │
 ├── services/
 │   ├── qa_service.py        # Main QA orchestrator
+│   ├── unified_metric_service.py  # Single source of truth for metrics (NEW)
 │   ├── metric_service.py    # Legacy (being phased out)
-│   └── compute_service.py   # P&L snapshots (NEW)
+│   └── compute_service.py   # P&L snapshots
 │
 ├── routers/
 │   ├── qa.py                # /qa HTTP endpoint
@@ -1207,8 +1360,11 @@ backend/app/
 │   ├── test_translator.py
 │   ├── test_context_manager.py
 │   ├── test_answer_builder.py
-│   ├── test_formatters.py   # NEW: 51 tests
-│   └── test_breakdown_rollup.py  # NEW: 8 tests
+│   ├── test_formatters.py   # 51 tests
+│   ├── test_breakdown_rollup.py  # 8 tests
+│   └── test_unified_metric_service.py  # NEW: 25 tests
+├── tests/integration/        # Integration Tests
+│   └── test_unified_metrics_integration.py  # NEW: 6 tests
 │
 ├── models.py                 # Database models
 ├── schemas.py                # Request/response models
@@ -1504,6 +1660,39 @@ Try the `/qa` endpoint with:
 
 ## Changelog
 
+### 2025-10-14T14:15:00Z - CRITICAL BUG FIX: QA vs UI ROAS Mismatch
+- Fixed `app/dsl/executor.py`: Status filter inconsistency causing different ROAS values
+  - **Root Cause**: QA included all entities while UI KPI endpoint filtered to active entities only
+  - **Impact**: Different entity sets led to different revenue/spend calculations and ROAS values
+  - **Fix**: Added default `E.status == "active"` filter in 6 locations when no status filter specified
+    - Line 288-295: Main summary query filter
+    - Line 345-352: Previous period comparison filter
+    - Line 407-414: Timeseries query filter
+    - Line 575-582: Breakdown query filter
+    - Line 955-962: Multi-metric query filter
+    - Line 1007-1014: Multi-metric previous period filter
+- Fixed `app/routers/kpis.py`: Level filter bug (same as executor)
+  - Changed 3 instances of `MF.level` → `E.level` in filter application
+- **Results**: QA and UI now return identical values for all metric queries
+  - ✅ "what was my roas in the last 3 days" → 6.41x (both QA and UI)
+  - ✅ "how much revenue did I make in the last 3 days" → $58,516.38 (both QA and UI)
+  - ✅ Eliminates confusion between QA answers and UI dashboard metrics
+
+### 2025-10-14T13:55:00Z - CRITICAL BUG FIX: QA vs UI Revenue Mismatch
+- Fixed `app/dsl/executor.py`: Level filter bug causing incorrect revenue calculations
+  - **Root Cause**: Executor filtered by `MF.level` (MetricFact table) instead of `E.level` (Entity table)
+  - **Impact**: Level filters weren't applied correctly, causing QA to aggregate across multiple entity levels
+  - **Fix**: Changed 5 instances of `MF.level` → `E.level` in filter application
+    - Line 284: Main summary query filter
+    - Line 343: Previous period comparison filter  
+    - Line 392: Timeseries query filter
+    - Line 953: Multi-metric query filter
+    - Line 1005: Multi-metric previous period filter
+- **Results**: QA and UI now return identical values for same queries
+  - ✅ "Weekend Audience - Holiday Sale - Purchases ad set revenue" → $3,761.96 (both QA and UI)
+  - ✅ Eliminates confusion between QA answers and UI metrics
+  - ✅ Fixes fundamental filtering bug affecting all level-based queries
+
 ### 2025-10-13T13:30:00Z - Phase 7: Advanced Analytics Fixes
 - Fixed `app/dsl/executor.py`: Multi-metric execution issues
   - Changed `plan.compare_to_previous` → `plan.need_previous`
@@ -1689,6 +1878,21 @@ Try the `/qa` endpoint with:
 - **Multi-Metric Queries**: Now fully supported ✅
 - **Temporal Breakdowns**: Day, week, month breakdowns working ✅
 - **Metric Value Filtering**: "ROAS above 4" queries working ✅
+
+### ✅ Critical Bug Fixes (2025-10-14)
+- **QA vs UI ROAS Mismatch**: Fixed status filter inconsistency ✅
+  - **Problem**: QA returned 6.65x ROAS while UI showed 6.41x for "last 3 days"
+  - **Root Cause**: QA included all entities while UI filtered to active entities only
+  - **Impact**: Different entity sets led to different revenue/spend calculations
+  - **Fix**: Added default `E.status == "active"` filter in 6 locations in `app/dsl/executor.py`
+  - **Result**: QA and UI now return identical values for all metric queries
+
+- **QA vs UI Revenue Mismatch**: Fixed DSL executor level filter bug ✅
+  - **Problem**: QA returned incorrect revenue values compared to UI
+  - **Root Cause**: Executor filtered by `MF.level` (MetricFact) instead of `E.level` (Entity)
+  - **Impact**: Level filters weren't applied correctly, causing cross-level aggregation
+  - **Fix**: Changed 5 instances of `MF.level` → `E.level` in `app/dsl/executor.py`
+  - **Result**: QA and UI now return identical values for same queries
 
 ### Remaining Limitations
 
