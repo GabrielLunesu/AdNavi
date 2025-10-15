@@ -327,7 +327,7 @@ def _execute_metrics_plan(
                 top_n=plan.top_n,
                 sort_order=plan.sort_order
             )
-        else:
+            else:
             # Regular entity breakdown (provider, campaign, adset, ad)
             breakdown_items = service.get_breakdown(
                 workspace_id=workspace_id,

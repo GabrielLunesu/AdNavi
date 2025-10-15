@@ -1,11 +1,11 @@
 #!/bin/bash
 # Simple QA Test Runner
 
-WORKSPACE_ID="9c76b246-faf1-42d6-9a5a-f564f7801b4e"
+WORKSPACE_ID="e4aee3b7-388e-428f-b5f5-a93e046b272f"
 API_URL="http://localhost:8000/qa/?workspace_id=$WORKSPACE_ID"
 COOKIE_FILE="../cookies.txt"
 TEST_RESULTS_DIR="test-results"
-OUTPUT_FILE="$TEST_RESULTS_DIR/qa_test_results-phase-5-9.md"
+OUTPUT_FILE="$TEST_RESULTS_DIR/qa_test_results-phase-6.md"
 
 # Create test-results directory if it doesn't exist
 mkdir -p "$TEST_RESULTS_DIR"
@@ -115,9 +115,36 @@ QUESTIONS=(
 
     # User generated Questions
     "wich ad had the lowest cpc last week?"
-    "What time on average do i get the best cpc?"
     "how much revenue would i have last week if my cpc was 0.20?"
-    ""
+    "best performing ad set in Holiday Sale campaign yesterday?"
+    "all ad sets above roas 4 in the last 3 days"
+    "which campaign has the highest ctr?"
+    "show me adsets with cpc below 1 dollar"
+    "worst performing ad in App Install campaign?"
+    "all campaigns with conversion rate above 5%"
+    "which adset spent the most money?"
+    "show me ads with revenue above 1000"
+    "best performing campaign by profit margin"
+    "all adsets with clicks above 500"
+    "which ad has the lowest cost per conversion?"
+    "show me campaigns with impressions over 10000"
+    "worst performing adset by roas"
+    "all ads with ctr above 3%"
+    "which campaign generated the most leads?"
+    "show me adsets with spend below 50 dollars"
+    "best performing ad by revenue per click"
+    "all campaigns with cpm under 10 dollars"
+    "which adset has the highest conversion rate?"
+    "show me ads with conversions above 20"
+    "worst performing campaign by cost per lead"
+    "all adsets with revenue above 5000"
+    "which ad has the best profit margin?"
+    "show me campaigns with clicks over 1000"
+    "best performing adset by average order value"
+    "all ads with spend above 200 dollars"
+    "which campaign has the lowest cost per acquisition?"
+    "show me adsets with impressions over 5000"
+
     
     # NEW Phase 5: Named Entity Filtering Tests
     "How is the Summer Sale campaign performing?"
