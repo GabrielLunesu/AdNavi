@@ -61,9 +61,9 @@ class Translator:
         # Returns: MetricQuery(metric="roas", time_range={"last_n_days": 7}, ...)
     
     Design:
-    - Uses OpenAI GPT-4o-mini for cost efficiency
+    - Uses OpenAI GPT-4o-mini for JSON mode
     - Temperature=0 for consistency
-    - JSON mode for structured outputs
+    - JSON mode for structured outputs with Pydantic validation
     - Canonicalization reduces LLM variance
     - Validation ensures safety
     
@@ -171,10 +171,10 @@ class Translator:
         final_question = f"{date_instruction}Question: {canon_question}"
         messages.append({"role": "user", "content": final_question})
         
-        # Step 5: Call OpenAI API
+        # Step 5: Call OpenAI API with JSON mode (fallback from structured outputs)
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4-turbo",
+                model="gpt-4o-mini",
                 messages=messages,
                 temperature=0,
                 response_format={"type": "json_object"},

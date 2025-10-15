@@ -345,9 +345,7 @@ class UnifiedMetricService:
         else:
             query = query.order_by(desc(self._get_order_expression(metric)))
         
-        query = query.limit(top_n)
-        
-        # Execute query
+        # Execute query to get all results first
         rows = query.all()
         
         # Build breakdown results
@@ -355,6 +353,11 @@ class UnifiedMetricService:
         for row in rows:
             totals = row._asdict()
             value = compute_metric(metric, totals)
+            
+            # Apply metric filters if specified
+            if filters.metric_filters:
+                if not self._passes_metric_filters(metric, value, filters.metric_filters):
+                    continue
             
             breakdown.append(MetricBreakdownItem(
                 label=str(row.group_name),
@@ -366,7 +369,8 @@ class UnifiedMetricService:
                 impressions=totals.get("impressions")
             ))
         
-        return breakdown
+        # Apply top_n limit after filtering
+        return breakdown[:top_n]
     
     def get_workspace_average(
         self,
@@ -566,6 +570,297 @@ class UnifiedMetricService:
     
     def _get_order_expression(self, metric: str):
         """Get SQL expression for ordering by metric."""
+        if metric == "roas":
+            return func.coalesce(func.sum(self.MF.revenue), 0) / func.nullif(func.coalesce(func.sum(self.MF.spend), 0), 0)
+        elif metric == "cpc":
+            return func.coalesce(func.sum(self.MF.spend), 0) / func.nullif(func.coalesce(func.sum(self.MF.clicks), 0), 0)
+        elif metric == "cpa":
+            return func.coalesce(func.sum(self.MF.spend), 0) / func.nullif(func.coalesce(func.sum(self.MF.conversions), 0), 0)
+        elif metric == "ctr":
+            return func.coalesce(func.sum(self.MF.clicks), 0) / func.nullif(func.coalesce(func.sum(self.MF.impressions), 0), 0)
+        elif metric == "cpm":
+            return (func.coalesce(func.sum(self.MF.spend), 0) / func.nullif(func.coalesce(func.sum(self.MF.impressions), 0), 0)) * 1000
+        elif metric == "spend":
+            return func.coalesce(func.sum(self.MF.spend), 0)
+        elif metric == "revenue":
+            return func.coalesce(func.sum(self.MF.revenue), 0)
+        elif metric == "clicks":
+            return func.coalesce(func.sum(self.MF.clicks), 0)
+        elif metric == "conversions":
+            return func.coalesce(func.sum(self.MF.conversions), 0)
+        else:
+            # Fallback to spend
+            return func.coalesce(func.sum(self.MF.spend), 0)
+    
+    def _passes_metric_filters(self, metric: str, value: Optional[float], metric_filters: List[Dict[str, Any]]) -> bool:
+        """
+        Check if a metric value passes the specified filters.
+        
+        Args:
+            metric: The metric name being checked
+            value: The calculated metric value
+            metric_filters: List of filter conditions
+            
+        Returns:
+            True if the value passes all filters, False otherwise
+            
+        Example:
+            >>> filters = [{"metric": "roas", "operator": ">", "value": 4}]
+            >>> service._passes_metric_filters("roas", 5.2, filters)
+            True
+        """
+        if value is None:
+            return False
+        
+        for filter_condition in metric_filters:
+            filter_metric = filter_condition.get("metric")
+            operator = filter_condition.get("operator")
+            filter_value = filter_condition.get("value")
+            
+            # Only apply filters for the current metric
+            if filter_metric != metric:
+                continue
+            
+            # Apply the filter condition
+            if operator == ">":
+                if not (value > filter_value):
+                    return False
+            elif operator == ">=":
+                if not (value >= filter_value):
+                    return False
+            elif operator == "<":
+                if not (value < filter_value):
+                    return False
+            elif operator == "<=":
+                if not (value <= filter_value):
+                    return False
+            elif operator == "=":
+                if not (value == filter_value):
+                    return False
+            elif operator == "!=":
+                if not (value != filter_value):
+                    return False
+            else:
+                logger.warning(f"[UNIFIED_METRICS] Unknown operator: {operator}")
+                continue
+        
+        return True
+    
+    def get_entity_list(
+        self,
+        workspace_id: str,
+        filters: MetricFilters,
+        level: Optional[str] = None,
+        limit: int = 50
+    ) -> List[Dict[str, Any]]:
+        """
+        Get list of entities matching filters.
+        
+        Args:
+            workspace_id: Workspace UUID for scoping
+            filters: Filtering criteria
+            level: Entity level to filter by (campaign, adset, ad)
+            limit: Maximum number of entities to return
+            
+        Returns:
+            List of entity dictionaries with name, status, level, provider
+            
+        Example:
+            >>> service = UnifiedMetricService(db)
+            >>> entities = service.get_entity_list(
+            ...     workspace_id="...",
+            ...     filters=MetricFilters(status="active"),
+            ...     level="campaign"
+            ... )
+            >>> print(entities[0]["name"])
+            Summer Sale Campaign
+        """
+        logger.info(f"[UNIFIED_METRICS] Getting entity list for level: {level}")
+        
+        # Build base query with provider from connection
+        query = (
+            self.db.query(
+                self.E.id,
+                self.E.name,
+                self.E.status,
+                self.E.level,
+                models.Connection.provider.label("provider")
+            )
+            .join(models.Connection, models.Connection.id == self.E.connection_id)
+            .filter(self.E.workspace_id == workspace_id)
+        )
+        
+        # Apply level filter if specified
+        if level:
+            query = query.filter(self.E.level == level)
+        
+        # Apply other filters
+        query = self._apply_entity_filters(query, filters)
+        
+        # Order by name and limit
+        query = query.order_by(self.E.name).limit(limit)
+        
+        # Execute query
+        rows = query.all()
+        
+        # Convert to dictionaries
+        entities = []
+        for row in rows:
+            entities.append({
+                "id": str(row.id),
+                "name": row.name,
+                "status": row.status,
+                "level": row.level,
+                "provider": row.provider
+            })
+        
+        return entities
+    
+    def get_time_based_breakdown(
+        self,
+        workspace_id: str,
+        metric: str,
+        time_range: TimeRange,
+        filters: MetricFilters,
+        breakdown_dimension: str,
+        top_n: int = 5,
+        sort_order: str = "desc"
+    ) -> List[MetricBreakdownItem]:
+        """
+        Get time-based breakdown results for a metric.
+        
+        Args:
+            workspace_id: Workspace UUID for scoping
+            metric: Metric name to calculate
+            time_range: Time range for calculation
+            filters: Filtering criteria
+            breakdown_dimension: Time dimension to group by (day, week, month)
+            top_n: Number of top results to return
+            sort_order: Sort order ("asc" or "desc")
+            
+        Returns:
+            List of breakdown items with time labels
+            
+        Example:
+            >>> service = UnifiedMetricService(db)
+            >>> breakdown = service.get_time_based_breakdown(
+            ...     workspace_id="...",
+            ...     metric="cpc",
+            ...     time_range=TimeRange(last_n_days=7),
+            ...     filters=MetricFilters(),
+            ...     breakdown_dimension="day"
+            ... )
+            >>> print(breakdown[0].label)
+            2025-10-15
+        """
+        logger.info(f"[UNIFIED_METRICS] Getting time-based breakdown for {metric} by {breakdown_dimension}")
+        
+        # Resolve time range
+        start_date, end_date = self._resolve_time_range(time_range)
+        
+        # Build time-based breakdown query
+        query = self._build_time_breakdown_query(
+            workspace_id, start_date, end_date, filters, breakdown_dimension
+        )
+        
+        # Apply ordering and limit
+        if sort_order == "asc":
+            query = query.order_by(asc(self._get_time_order_expression(metric, breakdown_dimension)))
+        else:
+            query = query.order_by(desc(self._get_time_order_expression(metric, breakdown_dimension)))
+        
+        # Execute query to get all results first
+        rows = query.all()
+        
+        # Build breakdown results
+        breakdown = []
+        for row in rows:
+            totals = row._asdict()
+            value = compute_metric(metric, totals)
+            
+            # Apply metric filters if specified
+            if filters.metric_filters:
+                if not self._passes_metric_filters(metric, value, filters.metric_filters):
+                    continue
+            
+            breakdown.append(MetricBreakdownItem(
+                label=str(row.group_name),
+                value=value,
+                spend=totals.get("spend"),
+                clicks=totals.get("clicks"),
+                conversions=totals.get("conversions"),
+                revenue=totals.get("revenue"),
+                impressions=totals.get("impressions")
+            ))
+        
+        # Apply top_n limit after filtering
+        return breakdown[:top_n]
+    
+    def _apply_entity_filters(self, query, filters: MetricFilters):
+        """Apply filters to entity queries (not metric queries)."""
+        # Provider filter (through connection)
+        if filters.provider:
+            provider_value = filters.normalize_provider()
+            query = query.filter(models.Connection.provider == provider_value)
+        
+        # Level filter
+        if filters.level:
+            query = query.filter(self.E.level == filters.level)
+        
+        # Status filter
+        if filters.status:
+            query = query.filter(self.E.status == filters.status)
+        
+        # Entity IDs filter
+        if filters.entity_ids:
+            query = query.filter(self.E.id.in_(filters.entity_ids))
+        
+        # Entity name filter (case-insensitive partial match)
+        if filters.entity_name:
+            pattern = f"%{filters.entity_name}%"
+            query = query.filter(self.E.name.ilike(pattern))
+        
+        return query
+    
+    def _build_time_breakdown_query(self, workspace_id: str, start_date: date, end_date: date, filters: MetricFilters, breakdown_dimension: str):
+        """Build query for time-based breakdown."""
+        if breakdown_dimension == "day":
+            group_expr = cast(self.MF.event_date, Date)
+            label_expr = cast(self.MF.event_date, Date)
+        elif breakdown_dimension == "week":
+            group_expr = func.date_trunc('week', self.MF.event_date)
+            label_expr = func.date_trunc('week', self.MF.event_date)
+        elif breakdown_dimension == "month":
+            group_expr = func.date_trunc('month', self.MF.event_date)
+            label_expr = func.date_trunc('month', self.MF.event_date)
+        else:
+            raise ValueError(f"Unsupported time breakdown dimension: {breakdown_dimension}")
+        
+        query = (
+            self.db.query(
+                label_expr.label("group_name"),
+                func.coalesce(func.sum(self.MF.spend), 0).label("spend"),
+                func.coalesce(func.sum(self.MF.revenue), 0).label("revenue"),
+                func.coalesce(func.sum(self.MF.clicks), 0).label("clicks"),
+                func.coalesce(func.sum(self.MF.impressions), 0).label("impressions"),
+                func.coalesce(func.sum(self.MF.conversions), 0).label("conversions"),
+                func.coalesce(func.sum(self.MF.leads), 0).label("leads"),
+                func.coalesce(func.sum(self.MF.installs), 0).label("installs"),
+                func.coalesce(func.sum(self.MF.purchases), 0).label("purchases"),
+                func.coalesce(func.sum(self.MF.visitors), 0).label("visitors"),
+                func.coalesce(func.sum(self.MF.profit), 0).label("profit"),
+            )
+            .join(self.E, self.E.id == self.MF.entity_id)
+            .filter(self.E.workspace_id == workspace_id)
+            .filter(cast(self.MF.event_date, Date).between(start_date, end_date))
+            .group_by(group_expr)
+        )
+        
+        return self._apply_filters(query, filters)
+    
+    def _get_time_order_expression(self, metric: str, breakdown_dimension: str):
+        """Get SQL expression for ordering by metric in time-based breakdowns."""
+        # Use the same logic as _get_order_expression but for time-based queries
         if metric == "roas":
             return func.coalesce(func.sum(self.MF.revenue), 0) / func.nullif(func.coalesce(func.sum(self.MF.spend), 0), 0)
         elif metric == "cpc":

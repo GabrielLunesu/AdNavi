@@ -174,39 +174,43 @@ def execute_plan(
     # Returns: {"entities": [{"name": "...", "status": "...", "level": "..."}, ...]}
     # Example question: "List my active campaigns"
     if query.query_type == "entities":
-        E = models.Entity
+        # Import UnifiedMetricService
+        from app.services.unified_metric_service import UnifiedMetricService, MetricFilters
         
-        # Base query: all entities in workspace
-        q_entities = (
-            db.query(E.name, E.status, E.level)
-            .filter(E.workspace_id == workspace_id)
+        # Initialize service
+        service = UnifiedMetricService(db)
+        
+        # Convert DSL filters to service filters
+        filters = MetricFilters(
+            provider=query.filters.provider,
+            level=query.filters.level,
+            status=query.filters.status,
+            entity_ids=query.filters.entity_ids,
+            entity_name=query.filters.entity_name,
+            metric_filters=query.filters.metric_filters
         )
         
-        # Apply filters from DSL
-        if query.filters.level:
-            q_entities = q_entities.filter(E.level == query.filters.level)
-        if query.filters.status:
-            q_entities = q_entities.filter(E.status == query.filters.status)
-        if query.filters.entity_ids:
-            q_entities = q_entities.filter(E.id.in_(query.filters.entity_ids))
-        
-        # NEW: Named entity filtering (case-insensitive partial match)
-        # WHY: Enables natural queries like "show me Holiday Sale campaign"
-        # HOW: Uses ILIKE for case-insensitive matching with wildcards
-        # Example: "holiday" matches "Holiday Sale - Purchases"
-        if query.filters.entity_name:
-            pattern = f"%{query.filters.entity_name}%"
-            q_entities = q_entities.filter(E.name.ilike(pattern))
-        
-        # Limit results by top_n
-        rows = q_entities.limit(query.top_n).all()
+        # Get entity list using service
+        entities = service.get_entity_list(
+            workspace_id=workspace_id,
+            filters=filters,
+            level=query.filters.level,
+            limit=query.top_n
+        )
         
         return {
             "entities": [
-                {"name": row.name, "status": row.status, "level": row.level} 
-                for row in rows
+                {"name": entity["name"], "status": entity["status"], "level": entity["level"]} 
+                for entity in entities
             ]
         }
+    
+    # COMPARISON: Execute comparison queries (NEW in Step 3)
+    if query.query_type == "comparison":
+        if not plan:
+            raise ValueError("Plan is required for comparison queries")
+        
+        return _execute_comparison_plan(db, workspace_id, plan, query)
     
     # METRICS: Execute the plan (existing v1.1 logic + multi-metric support)
     # This is the default/legacy behavior
@@ -312,15 +316,28 @@ def _execute_metrics_plan(
     
     if plan.breakdown:
         # Use UnifiedMetricService for consistent breakdown
-        breakdown_items = service.get_breakdown(
-            workspace_id=workspace_id,
-            metric=metric_name,
-            time_range=time_range,
-            filters=filters,
-            breakdown_dimension=plan.breakdown,
-            top_n=plan.top_n,
-            sort_order=plan.sort_order
-        )
+        # Check if it's a temporal breakdown (day, week, month)
+        if plan.breakdown in ["day", "week", "month"]:
+            breakdown_items = service.get_time_based_breakdown(
+                workspace_id=workspace_id,
+                metric=metric_name,
+                time_range=time_range,
+                filters=filters,
+                breakdown_dimension=plan.breakdown,
+                top_n=plan.top_n,
+                sort_order=plan.sort_order
+            )
+        else:
+            # Regular entity breakdown (provider, campaign, adset, ad)
+            breakdown_items = service.get_breakdown(
+                workspace_id=workspace_id,
+                metric=metric_name,
+                time_range=time_range,
+                filters=filters,
+                breakdown_dimension=plan.breakdown,
+                top_n=plan.top_n,
+                sort_order=plan.sort_order
+            )
         
         # Convert to expected format
         breakdown = [
@@ -461,15 +478,28 @@ def _execute_multi_metric_plan(
     
     if plan.breakdown:
         # Use UnifiedMetricService for consistent breakdown
-        breakdown_items = service.get_breakdown(
-            workspace_id=workspace_id,
-            metric=metrics[0],  # Use first metric for breakdown
-            time_range=time_range,
-            filters=filters,
-            breakdown_dimension=plan.breakdown,
-            top_n=plan.top_n,
-            sort_order=plan.sort_order
-        )
+        # Check if it's a temporal breakdown (day, week, month)
+        if plan.breakdown in ["day", "week", "month"]:
+            breakdown_items = service.get_time_based_breakdown(
+                workspace_id=workspace_id,
+                metric=metrics[0],  # Use first metric for breakdown
+                time_range=time_range,
+                filters=filters,
+                breakdown_dimension=plan.breakdown,
+                top_n=plan.top_n,
+                sort_order=plan.sort_order
+            )
+        else:
+            # Regular entity breakdown (provider, campaign, adset, ad)
+            breakdown_items = service.get_breakdown(
+                workspace_id=workspace_id,
+                metric=metrics[0],  # Use first metric for breakdown
+                time_range=time_range,
+                filters=filters,
+                breakdown_dimension=plan.breakdown,
+                top_n=plan.top_n,
+                sort_order=plan.sort_order
+            )
         
         # Convert to expected format
         breakdown = [
@@ -491,4 +521,137 @@ def _execute_multi_metric_plan(
         "timeseries": timeseries,
         "breakdown": breakdown,
         "query_type": "multi_metrics"
+    }
+
+
+def _execute_comparison_plan(
+    db: Session,
+    workspace_id: str,
+    plan: Plan,
+    query: MetricQuery
+) -> Dict[str, Any]:
+    """
+    Execute a comparison query plan using UnifiedMetricService.
+    
+    NEW in Step 3: Handles comparison queries between entities, providers, or time periods.
+    
+    Args:
+        db: SQLAlchemy database session
+        workspace_id: Workspace UUID for scoping
+        plan: Execution plan with dates, filters
+        query: Original MetricQuery with comparison fields
+        
+    Returns:
+        Dict with comparison results
+        
+    Example:
+        >>> query = MetricQuery(
+        ...     query_type="comparison",
+        ...     comparison_type="entity_vs_entity",
+        ...     comparison_entities=["Holiday Sale", "App Install"],
+        ...     comparison_metrics=["roas", "revenue"]
+        ... )
+        >>> result = _execute_comparison_plan(db, workspace_id, plan, query)
+        >>> print(result["comparison"])
+        [{"entity": "Holiday Sale", "roas": 5.2, "revenue": 1000}, ...]
+    """
+    from typing import Dict, Any, List
+    
+    logger.info(f"[COMPARISON] Executing comparison plan for type: {query.comparison_type}")
+    
+    # Import UnifiedMetricService
+    from app.services.unified_metric_service import UnifiedMetricService, MetricFilters
+    
+    # Initialize service
+    service = UnifiedMetricService(db)
+    
+    # Convert plan to service inputs
+    time_range = TimeRange(start=plan.start, end=plan.end)
+    filters = MetricFilters(
+        provider=plan.filters.get("provider"),
+        level=plan.filters.get("level"),
+        status=plan.filters.get("status"),
+        entity_ids=plan.filters.get("entity_ids"),
+        entity_name=plan.filters.get("entity_name"),
+        metric_filters=plan.filters.get("metric_filters")
+    )
+    
+    # Get comparison metrics
+    metrics = query.comparison_metrics or ["roas"]  # Default to ROAS if not specified
+    
+    comparison_results = []
+    
+    if query.comparison_type == "entity_vs_entity":
+        # Compare specific entities
+        entities = query.comparison_entities or []
+        
+        for entity_name in entities:
+            # Create entity-specific filters
+            entity_filters = MetricFilters(
+                provider=filters.provider,
+                level=filters.level,
+                status=filters.status,
+                entity_ids=filters.entity_ids,
+                entity_name=entity_name,  # Filter by specific entity
+                metric_filters=filters.metric_filters
+            )
+            
+            # Get summary for this entity
+            summary_result = service.get_summary(
+                workspace_id=workspace_id,
+                metrics=metrics,
+                time_range=time_range,
+                filters=entity_filters,
+                compare_to_previous=plan.need_previous
+            )
+            
+            # Build comparison result
+            entity_result = {"entity": entity_name}
+            for metric_name in metrics:
+                metric_data = summary_result.metrics[metric_name]
+                entity_result[metric_name] = metric_data.value
+            
+            comparison_results.append(entity_result)
+    
+    elif query.comparison_type == "provider_vs_provider":
+        # Compare providers
+        providers = ["google", "meta", "tiktok", "other"]  # All providers
+        
+        for provider in providers:
+            # Create provider-specific filters
+            provider_filters = MetricFilters(
+                provider=provider,
+                level=filters.level,
+                status=filters.status,
+                entity_ids=filters.entity_ids,
+                entity_name=filters.entity_name,
+                metric_filters=filters.metric_filters
+            )
+            
+            # Get summary for this provider
+            summary_result = service.get_summary(
+                workspace_id=workspace_id,
+                metrics=metrics,
+                time_range=time_range,
+                filters=provider_filters,
+                compare_to_previous=plan.need_previous
+            )
+            
+            # Build comparison result
+            provider_result = {"provider": provider}
+            for metric_name in metrics:
+                metric_data = summary_result.metrics[metric_name]
+                provider_result[metric_name] = metric_data.value
+            
+            comparison_results.append(provider_result)
+    
+    else:
+        raise ValueError(f"Unsupported comparison type: {query.comparison_type}")
+    
+    logger.info(f"[COMPARISON] Completed execution for {len(comparison_results)} items")
+    return {
+        "comparison": comparison_results,
+        "comparison_type": query.comparison_type,
+        "metrics": metrics,
+        "query_type": "comparison"
     }

@@ -99,7 +99,7 @@ def build_plan(query: MetricQuery) -> Optional[Plan]:
     DSL v1.2 changes:
     - Returns None for non-metrics queries (providers, entities)
     - These queries are handled directly in the executor
-    - Only metrics queries need a plan with time ranges and derived metric logic
+    - Only metrics and comparison queries need a plan with time ranges and derived metric logic
     
     Args:
         query: Validated DSL query
@@ -127,9 +127,21 @@ def build_plan(query: MetricQuery) -> Optional[Plan]:
         >>> q2 = MetricQuery(query_type=QueryType.PROVIDERS)
         >>> build_plan(q2)
         None
+        >>> 
+        >>> # Comparison query: returns Plan
+        >>> q3 = MetricQuery(
+        ...     query_type=QueryType.COMPARISON,
+        ...     comparison_type="entity_vs_entity",
+        ...     comparison_entities=["Holiday Sale", "App Install"],
+        ...     comparison_metrics=["roas", "revenue"],
+        ...     time_range=TimeRange(last_n_days=7)
+        ... )
+        >>> plan = build_plan(q3)
+        >>> plan.base_measures
+        ['revenue', 'spend', 'revenue', 'spend']
     
     Logic:
-    1. Check query_type: if not metrics, return None (executor handles it)
+    1. Check query_type: if not metrics or comparison, return None (executor handles it)
     2. Resolve time range (relative → absolute dates)
     3. Determine if metric is derived (roas/cpa/cvr) or base
     4. Map derived metrics to required base measures
@@ -138,19 +150,27 @@ def build_plan(query: MetricQuery) -> Optional[Plan]:
     """
     # DSL v1.2: Non-metrics queries don't need a plan
     # Providers and entities queries are handled directly in executor
-    if query.query_type != "metrics":
+    # Step 3: Comparison queries also need a plan
+    if query.query_type not in ["metrics", "comparison"]:
         return None
     
     # Metrics queries require a metric field
-    if not query.metric:
+    if query.query_type == "metrics" and not query.metric:
         raise ValueError("metric field is required for metrics queries")
+    
+    # Comparison queries require comparison_metrics field
+    if query.query_type == "comparison" and not query.comparison_metrics:
+        raise ValueError("comparison_metrics field is required for comparison queries")
     
     # Phase 7: Handle multi-metric queries
     # Normalize metric to list for consistent processing
-    if isinstance(query.metric, str):
-        metrics = [query.metric]
-    else:
-        metrics = query.metric
+    if query.query_type == "metrics":
+        if isinstance(query.metric, str):
+            metrics = [query.metric]
+        else:
+            metrics = query.metric
+    else:  # comparison query
+        metrics = query.comparison_metrics
     
     # Step 1: Resolve time range to absolute dates
     # For metrics queries, use default if not specified

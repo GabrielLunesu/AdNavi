@@ -651,6 +651,53 @@ FEW_SHOT_EXAMPLES = [
             }
         }
     },
+    
+    # Step 3: Comparison query examples
+    {
+        "question": "Compare Holiday Sale vs App Install campaign ROAS",
+        "dsl": {
+            "query_type": "comparison",
+            "comparison_type": "entity_vs_entity",
+            "comparison_entities": ["Holiday Sale", "App Install"],
+            "comparison_metrics": ["roas"],
+            "time_range": {"last_n_days": 7},
+            "compare_to_previous": False,
+            "group_by": "none",
+            "breakdown": None,
+            "top_n": 5,
+            "filters": {}
+        }
+    },
+    {
+        "question": "Compare Google vs Meta performance",
+        "dsl": {
+            "query_type": "comparison",
+            "comparison_type": "provider_vs_provider",
+            "comparison_entities": None,
+            "comparison_metrics": ["roas", "revenue", "spend"],
+            "time_range": {"last_n_days": 30},
+            "compare_to_previous": False,
+            "group_by": "none",
+            "breakdown": None,
+            "top_n": 5,
+            "filters": {}
+        }
+    },
+    {
+        "question": "Compare CPC, CTR, and ROAS for Holiday Sale and App Install campaigns",
+        "dsl": {
+            "query_type": "comparison",
+            "comparison_type": "entity_vs_entity",
+            "comparison_entities": ["Holiday Sale", "App Install"],
+            "comparison_metrics": ["cpc", "ctr", "roas"],
+            "time_range": {"last_n_days": 7},
+            "compare_to_previous": False,
+            "group_by": "none",
+            "breakdown": None,
+            "top_n": 5,
+            "filters": {}
+        }
+    },
 ]
 
 # Follow-up examples (demonstrating context usage)

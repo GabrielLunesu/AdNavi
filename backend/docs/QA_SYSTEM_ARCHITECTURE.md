@@ -49,6 +49,13 @@
 - **Temporal Breakdown Logic**: Fixed `date_trunc` SQL and string conversion issues
 - **Answer Builder Integration**: Fixed parameter order and template fallback handling
 
+✅ **Phase 8 Complete**: Technical Debt Resolution (2025-10-14):
+- **Step 1: Breakdown Filtering**: Fixed metric filtering and top_n limits in UnifiedMetricService
+- **Step 2: Entity Listing & Time-based Helpers**: Added get_entity_list and get_time_based_breakdown methods
+- **Step 3: Comparison Queries**: Extended DSL schema with comparison_type, comparison_entities, comparison_metrics
+- **Step 4: Structured Outputs**: Implemented JSON mode with improved error handling for OpenAI API calls
+- **Impact**: All technical debt items resolved, system stability improved
+
 ✅ **Unified Metrics Refactor Complete (2025-10-14)**: Major architectural improvement:
 - **Single Source of Truth**: All endpoints now use `UnifiedMetricService` for consistent calculations
 - **Data Consistency**: QA and KPI endpoints return identical results for same queries
