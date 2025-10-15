@@ -31,15 +31,18 @@ class QueryType(str, Enum):
     - METRICS: Aggregate metrics data (spend, revenue, ROAS, etc.)
     - PROVIDERS: List distinct ad platforms (providers) in workspace
     - ENTITIES: List entities (campaigns, adsets, ads) with filters
+    - COMPARISON: Compare metrics between entities or time periods
     
     Example questions by type:
     - metrics: "What's my ROAS this week?"
     - providers: "Which platforms am I advertising on?"
     - entities: "List my active campaigns"
+    - comparison: "Compare Holiday Sale vs App Install campaign ROAS"
     """
     METRICS = "metrics"
     PROVIDERS = "providers"
     ENTITIES = "entities"
+    COMPARISON = "comparison"
 
 # Metric types: base metrics (directly stored) and derived metrics (computed)
 # Derived Metrics v1: Extended with new base measures and derived metrics
@@ -346,6 +349,22 @@ class MetricQuery(BaseModel):
     thresholds: Optional[Thresholds] = Field(
         default=None,
         description="Optional significance guards for breakdowns (min spend/clicks/conversions)"
+    )
+    
+    # Comparison query fields (NEW in Step 3)
+    comparison_type: Optional[Literal["entity_vs_entity", "time_vs_time", "provider_vs_provider"]] = Field(
+        default=None,
+        description="Type of comparison for comparison queries"
+    )
+    
+    comparison_entities: Optional[List[str]] = Field(
+        default=None,
+        description="List of entity names to compare (for entity_vs_entity comparisons)"
+    )
+    
+    comparison_metrics: Optional[List[Metric]] = Field(
+        default=None,
+        description="List of metrics to compare (for multi-metric comparisons)"
     )
     
     # NEW in Phase 1.1

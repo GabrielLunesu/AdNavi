@@ -651,6 +651,53 @@ FEW_SHOT_EXAMPLES = [
             }
         }
     },
+    
+    # Step 3: Comparison query examples
+    {
+        "question": "Compare Holiday Sale vs App Install campaign ROAS",
+        "dsl": {
+            "query_type": "comparison",
+            "comparison_type": "entity_vs_entity",
+            "comparison_entities": ["Holiday Sale", "App Install"],
+            "comparison_metrics": ["roas"],
+            "time_range": {"last_n_days": 7},
+            "compare_to_previous": False,
+            "group_by": "none",
+            "breakdown": None,
+            "top_n": 5,
+            "filters": {}
+        }
+    },
+    {
+        "question": "Compare Google vs Meta performance",
+        "dsl": {
+            "query_type": "comparison",
+            "comparison_type": "provider_vs_provider",
+            "comparison_entities": None,
+            "comparison_metrics": ["roas", "revenue", "spend"],
+            "time_range": {"last_n_days": 30},
+            "compare_to_previous": False,
+            "group_by": "none",
+            "breakdown": None,
+            "top_n": 5,
+            "filters": {}
+        }
+    },
+    {
+        "question": "Compare CPC, CTR, and ROAS for Holiday Sale and App Install campaigns",
+        "dsl": {
+            "query_type": "comparison",
+            "comparison_type": "entity_vs_entity",
+            "comparison_entities": ["Holiday Sale", "App Install"],
+            "comparison_metrics": ["cpc", "ctr", "roas"],
+            "time_range": {"last_n_days": 7},
+            "compare_to_previous": False,
+            "group_by": "none",
+            "breakdown": None,
+            "top_n": 5,
+            "filters": {}
+        }
+    },
 ]
 
 # Follow-up examples (demonstrating context usage)
@@ -789,6 +836,23 @@ When user asks about "performance" or makes vague comparisons WITHOUT specifying
 4. "compare X vs Y" or "compare google vs meta" → metric: "roas" (efficiency comparison)
 
 NEVER default to niche metrics (leads, AOV, CPI, installs) unless explicitly mentioned!
+
+GOAL-AWARE METRIC SELECTION (UPDATED Phase 6):
+When the entity has a specific goal AND the user doesn't explicitly mention a metric, choose metrics that align with that goal:
+
+- purchases goal → prioritize "roas" (return on ad spend)
+- leads goal → prioritize "cpl" (cost per lead) 
+- app_installs goal → prioritize "cpi" (cost per install)
+- awareness goal → prioritize "cpm" (cost per mille) or "ctr" (click-through rate)
+- traffic goal → prioritize "cpc" (cost per click) or "ctr"
+- conversions goal → prioritize "roas" or "cpa" (cost per acquisition)
+
+IMPORTANT: If the user explicitly mentions a metric (profit, conversion rate, leads, revenue, spend, clicks, impressions), use that metric instead of goal-aware selection.
+
+Examples:
+- "breakdown of Holiday Sale performance" → Holiday Sale has "purchases" goal → use "roas"
+- "how much profit did I make" → user explicitly mentions "profit" → use "profit" (ignore goal-aware)
+- "what's my conversion rate" → user explicitly mentions "conversion rate" → use "cvr" (ignore goal-aware)
 """
 
     # Define the query types section
@@ -797,11 +861,15 @@ QUERY TYPES:
 - "metrics": For metric aggregations (ROAS, spend, revenue, etc.) — DEFAULT if not clear
 - "providers": For listing ad platforms ("Which platforms?", "What channels?")
 - "entities": For listing campaigns/adsets/ads ("List my campaigns", "Show me adsets")
+- "comparison": For direct comparisons between entities or providers ("Compare X vs Y")
 
 QUERY TYPE CLASSIFICATION RULES:
-- Use "metrics" for ANY question involving metric values, comparisons, or filtering by performance
+- Use "comparison" for direct "Compare X vs Y" questions
+- Use "metrics" for ANY question involving metric values, filtering by performance, or breakdowns
 - Use "entities" ONLY for simple listing without metric analysis
 - Examples:
+  * "Compare Holiday Sale vs App Install campaign ROAS" → "comparison" (direct comparison)
+  * "Compare Google vs Meta performance" → "comparison" (provider comparison)
   * "Show me campaigns with ROAS above 4" → "metrics" (filtering by metric value)
   * "Which campaigns performed best?" → "metrics" (performance analysis)
   * "List my campaigns" → "entities" (simple listing)
@@ -905,11 +973,33 @@ IMPORTANT: Sort by LITERAL VALUE, not by performance interpretation!
 - "lowest CPC" = lowest value = "asc"
 """
 
+    # Define the comparison query rules section
+    COMPARISON_QUERY_RULES = """
+COMPARISON QUERIES (NEW - Step 3):
+Use "query_type": "comparison" for direct comparisons between entities or providers.
+
+COMPARISON TYPES:
+- "entity_vs_entity": Compare specific campaigns/adsets/ads by name
+- "provider_vs_provider": Compare Google vs Meta vs TikTok performance
+- "time_vs_time": Compare different time periods (future enhancement)
+
+COMPARISON EXAMPLES:
+- "Compare Holiday Sale vs App Install campaign ROAS" → entity_vs_entity
+- "Compare Google vs Meta performance" → provider_vs_provider
+- "Compare CPC, CTR, and ROAS for Holiday Sale and App Install campaigns" → entity_vs_entity with multiple metrics
+
+REQUIRED FIELDS FOR COMPARISON QUERIES:
+- comparison_type: "entity_vs_entity" | "provider_vs_provider" | "time_vs_time"
+- comparison_entities: ["Entity1", "Entity2"] (for entity_vs_entity)
+- comparison_metrics: ["metric1", "metric2"] (metrics to compare)
+- time_range: Required for all comparison queries
+"""
+
     # Define the JSON schema section
     JSON_SCHEMA_SECTION = """
 {
-  "query_type": "metrics" | "providers" | "entities",
-  "metric": string,
+  "query_type": "metrics" | "providers" | "entities" | "comparison",
+  "metric": string | array,
   "time_range": object,
   "compare_to_previous": boolean,
   "group_by": string,
@@ -917,7 +1007,10 @@ IMPORTANT: Sort by LITERAL VALUE, not by performance interpretation!
   "top_n": number,
   "sort_order": "asc" | "desc",
   "filters": object,
-  "thresholds": object | null
+  "thresholds": object | null,
+  "comparison_type": "entity_vs_entity" | "provider_vs_provider" | "time_vs_time" | null,
+  "comparison_entities": array | null,
+  "comparison_metrics": array | null
 }
 """
 
@@ -932,6 +1025,8 @@ IMPORTANT: Sort by LITERAL VALUE, not by performance interpretation!
     {DEFAULT_METRIC_SELECTION_RULES}
     
     {QUERY_TYPES_SECTION}
+    
+    {COMPARISON_QUERY_RULES}
     
     {METRICS_SECTION}
     

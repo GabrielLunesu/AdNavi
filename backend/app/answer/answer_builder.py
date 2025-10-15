@@ -332,12 +332,17 @@ class AnswerBuilder:
                     "intent": intent.value, 
                     "tense": tense.value, 
                     "timeframe": timeframe_desc,
-                    "performer_intent": performer_intent.value
+                    "performer_intent": performer_intent.value,
+                    "dsl_breakdown": dsl.breakdown,
+                    "dsl_top_n": dsl.top_n
                 }
             )
             
             # Step 2: Extract context and build prompt based on query type and intent
-            if dsl.query_type == "metrics":
+            if dsl.query_type == "comparison":
+                # Handle comparison queries
+                return self._build_comparison_answer(dsl, result, timeframe_display, question, log_latency)
+            elif dsl.query_type == "metrics":
                 # Phase 7: Handle multi-metric queries
                 if isinstance(result, dict) and result.get("query_type") == "multi_metrics":
                     return self._build_multi_metric_answer(dsl, result, timeframe_display, question, log_latency)
@@ -382,6 +387,10 @@ class AnswerBuilder:
                     system_prompt = COMPARATIVE_ANSWER_PROMPT
                     user_prompt = self._build_comparative_prompt(filtered_context, question)
                     
+                elif intent == AnswerIntent.LIST:
+                    # LIST: Include all breakdown items, not just top performer
+                    return self._build_list_answer(dsl, result, timeframe_display, question, log_latency)
+                    
                 else:  # ANALYTICAL
                     # ANALYTICAL: Include everything (full rich context)
                     # Add timeframe_display to rich context
@@ -404,10 +413,10 @@ class AnswerBuilder:
                 user_prompt = self._build_user_prompt(dsl, facts)
             
             # Step 2: Call GPT-4o-mini
-            # WHY gpt-4o-mini: Cost-effective, good at instruction-following
+            # WHY gpt-4o: Better reasoning and instruction-following
             # WHY temperature=0.3: Some naturalness, but still deterministic
             response = self.client.chat.completions.create(
-                model="gpt-4o-mini",
+                model="gpt-4o",
                 temperature=0.3,  # Slightly creative for natural flow, but controlled
                 messages=[
                     {"role": "system", "content": system_prompt},
@@ -964,9 +973,9 @@ INSTRUCTIONS:
 Answer:"""
             
             # Call LLM
-            client = OpenAI(api_key=get_settings().openai_api_key)
+            client = OpenAI(api_key=get_settings().OPENAI_API_KEY)
             response = client.chat.completions.create(
-                model="gpt-4o-mini",
+                model="gpt-4o",
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
@@ -1022,4 +1031,194 @@ Answer:"""
         timeframe_text = f" {timeframe_display}" if timeframe_display else ""
         
         return f"Here are your metrics{timeframe_text}:\n\n{metrics_text}"
+
+    def _build_comparison_answer(
+        self,
+        dsl: MetricQuery,
+        result: Dict[str, Any],
+        timeframe_display: str,
+        question: str,
+        log_latency: bool = False
+    ) -> tuple[str, Optional[int]]:
+        """
+        Build answer for comparison queries.
+        
+        Args:
+            dsl: The MetricQuery with comparison fields
+            result: Comparison results dict
+            timeframe_display: Human-friendly timeframe
+            question: Original user question
+            log_latency: Whether to track latency
+            
+        Returns:
+            Tuple of (answer_text, latency_ms)
+        """
+        start_time = time.time() if log_latency else None
+        
+        try:
+            comparison_data = result.get("comparison", [])
+            comparison_type = result.get("comparison_type", "unknown")
+            metrics = result.get("metrics", [])
+            
+            if not comparison_data:
+                return "It looks like there are currently no entities to compare, as the count is 0. Let me know if you need help with anything else!", None
+            
+            # Convert Decimal values to float for JSON serialization
+            def convert_decimals(obj):
+                if isinstance(obj, dict):
+                    return {k: convert_decimals(v) for k, v in obj.items()}
+                elif isinstance(obj, list):
+                    return [convert_decimals(item) for item in obj]
+                elif hasattr(obj, '__class__') and obj.__class__.__name__ == 'Decimal':
+                    return float(obj)
+                else:
+                    return obj
+            
+            # Build context for GPT
+            context = {
+                "comparison_type": comparison_type,
+                "metrics": metrics,
+                "timeframe": timeframe_display,
+                "comparison_data": convert_decimals(comparison_data)
+            }
+            
+            # Build prompt
+            prompt = f"""The user asked: "{question}"
+
+Provide a natural comparison answer based on the data below.
+
+COMPARISON DATA:
+{json.dumps(context, indent=2)}
+
+INSTRUCTIONS:
+1. Compare the entities/providers based on the requested metrics
+2. Use the timeframe_display for timeframe context
+3. Keep it conversational and natural
+4. Highlight which entity/provider performed better for each metric
+5. Format numbers appropriately (percentages, ratios, etc.)
+6. Keep the answer concise but informative
+
+Answer:"""
+            
+            # Call GPT
+            client = OpenAI(api_key=get_settings().OPENAI_API_KEY)
+            response = client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": "You are a helpful marketing analytics assistant."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.3,
+                max_tokens=300
+            )
+            
+            answer = response.choices[0].message.content.strip()
+            
+            if log_latency:
+                latency_ms = int((time.time() - start_time) * 1000)
+                return answer, latency_ms
+            else:
+                return answer, None
+                
+        except Exception as e:
+            logger.error(f"[COMPARISON_ANSWER] Failed to build comparison answer: {e}")
+            raise AnswerBuilderError(f"Failed to build comparison answer: {e}")
+
+    def _build_list_answer(
+        self,
+        dsl: MetricQuery,
+        result: Dict[str, Any],
+        timeframe_display: str,
+        question: str,
+        log_latency: bool = False
+    ) -> tuple[str, Optional[int]]:
+        """
+        Build answer for list queries.
+        
+        Args:
+            dsl: The MetricQuery with breakdown fields
+            result: Metric results with breakdown data
+            timeframe_display: Human-friendly timeframe
+            question: Original user question
+            log_latency: Whether to track latency
+            
+        Returns:
+            Tuple of (answer_text, latency_ms)
+        """
+        start_time = time.time() if log_latency else None
+        
+        try:
+            # Handle both dict and MetricResult objects
+            if isinstance(result, dict):
+                breakdown = result.get("breakdown", [])
+            else:
+                breakdown = result.breakdown or []
+            metric_name = dsl.metric
+            top_n = dsl.top_n or 5
+            
+            if not breakdown:
+                return f"No data available for {timeframe_display if timeframe_display else 'the selected period'}.", None
+            
+            # Convert Decimal values to float for JSON serialization
+            def convert_decimals(obj):
+                if isinstance(obj, dict):
+                    return {k: convert_decimals(v) for k, v in obj.items()}
+                elif isinstance(obj, list):
+                    return [convert_decimals(item) for item in obj]
+                elif hasattr(obj, '__class__') and obj.__class__.__name__ == 'Decimal':
+                    return float(obj)
+                else:
+                    return obj
+            
+            # Build context for GPT
+            context = {
+                "metric_name": metric_name,
+                "timeframe": timeframe_display,
+                "top_n": top_n,
+                "breakdown": convert_decimals(breakdown),
+                "total_items": len(breakdown)
+            }
+            
+            # Build prompt
+            prompt = f"""The user asked: "{question}"
+
+Provide a natural list answer based on the breakdown data below.
+
+BREAKDOWN DATA:
+{json.dumps(context, indent=2)}
+
+INSTRUCTIONS:
+1. List ALL items in the breakdown (not just the top performer)
+2. Use the timeframe_display for timeframe context
+3. Keep it conversational and natural
+4. Format numbers appropriately (currency, percentages, etc.)
+5. Include the metric value for each item
+6. Mention the total count if relevant
+7. Keep the answer concise but comprehensive
+
+Answer:"""
+            
+            # Call GPT
+            client = OpenAI(api_key=get_settings().OPENAI_API_KEY)
+            response = client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": "You are a helpful marketing analytics assistant."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.3,
+                max_tokens=500
+            )
+            
+            answer = response.choices[0].message.content.strip()
+            
+            if log_latency:
+                latency_ms = int((time.time() - start_time) * 1000)
+                return answer, latency_ms
+            else:
+                return answer, None
+                
+        except Exception as e:
+            logger.error(f"[LIST_ANSWER] Failed to build list answer: {e}")
+            raise AnswerBuilderError(f"Failed to build list answer: {e}")
 

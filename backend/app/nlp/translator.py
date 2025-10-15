@@ -61,9 +61,9 @@ class Translator:
         # Returns: MetricQuery(metric="roas", time_range={"last_n_days": 7}, ...)
     
     Design:
-    - Uses OpenAI GPT-4o-mini for cost efficiency
+    - Uses OpenAI GPT-4o-mini for JSON mode
     - Temperature=0 for consistency
-    - JSON mode for structured outputs
+    - JSON mode for structured outputs with Pydantic validation
     - Canonicalization reduces LLM variance
     - Validation ensures safety
     
@@ -95,10 +95,11 @@ class Translator:
         self.date_parser = DateRangeParser()
 
     def to_dsl(
-        self, 
+        self,
         question: str,
         log_latency: bool = False,
-        context: Optional[List[Dict[str, Any]]] = None
+        context: Optional[List[Dict[str, Any]]] = None,
+        entity_catalog: Optional[List[Dict[str, Any]]] = None
     ) -> tuple[MetricQuery, Optional[int]]:
         """
         Translate a natural language question into a validated DSL query.
@@ -108,6 +109,8 @@ class Translator:
             log_latency: Whether to track translation latency
             context: Optional conversation history for follow-up resolution
                      List of {"question": str, "dsl": dict, "result": dict}
+            entity_goals: Optional mapping of entity names to their goals
+                          Dict of {"entity_name": "goal"} for goal-aware metric selection
             
         Returns:
             Tuple of (MetricQuery, latency_ms)
@@ -160,6 +163,21 @@ class Translator:
         if parsed_date_range:
             date_instruction = f"IMPORTANT: A date range has been pre-parsed for this question. You MUST use the following time_range object in your response:\n"
             date_instruction += f"```json\n{json.dumps(parsed_date_range, default=str)}\n```\n"
+        
+        # Add entity catalog for entity recognition and goal-aware metric selection
+        entity_catalog_instruction = ""
+        if entity_catalog:
+            entity_catalog_instruction = "ENTITY CATALOG:\n"
+            for entry in entity_catalog:
+                entry_line = f"- {entry['level']}: {entry['name']}"
+                if entry.get("provider"):
+                    entry_line += f" (provider: {entry['provider']})"
+                if entry.get("goal"):
+                    entry_line += f" (goal: {entry['goal']})"
+                entity_catalog_instruction += entry_line + "\n"
+            entity_catalog_instruction += "\nWhen matching entity names, choose the closest entry from this catalog.\n"
+            entity_catalog_instruction += "IMPORTANT: If the user explicitly mentions a specific metric, use that metric.\n"
+            entity_catalog_instruction += "Only use goal-aware metric selection when no specific metric is mentioned.\n\n"
 
         messages = [
             {"role": "system", "content": system_prompt},
@@ -168,13 +186,13 @@ class Translator:
         if context_summary:
             messages.append({"role": "system", "content": context_summary})
         
-        final_question = f"{date_instruction}Question: {canon_question}"
+        final_question = f"{entity_catalog_instruction}{date_instruction}Question: {canon_question}"
         messages.append({"role": "user", "content": final_question})
         
-        # Step 5: Call OpenAI API
+        # Step 5: Call OpenAI API with JSON mode (fallback from structured outputs)
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4-turbo",
+                model="gpt-4o",
                 messages=messages,
                 temperature=0,
                 response_format={"type": "json_object"},

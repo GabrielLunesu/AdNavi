@@ -168,9 +168,11 @@ def get_pnl_statement(
     
     # Ad platform rows
     for provider, data in ad_spend_by_provider.items():
+        # Convert enum string to readable name
+        provider_name = provider.replace("ProviderEnum.", "").capitalize()
         rows.append(schemas.PnLRow(
             id=f"ads-{provider}",
-            category=f"Ad Spend - {provider.capitalize()}",
+            category=f"Ad Spend - {provider_name}",
             actual_dollar=data["spend"],
             planned_dollar=None,  # TODO: Budget feature
             variance_pct=None,
@@ -217,13 +219,13 @@ def get_pnl_statement(
         # Aggregate previous ad spend
         prev_ad_query = (
             db.query(
-                func.sum(MF.spend).label("spend"),
-                func.sum(MF.revenue).label("revenue"),
+                func.sum(models.MetricFact.spend).label("spend"),
+                func.sum(models.MetricFact.revenue).label("revenue"),
             )
-            .join(E, E.id == MF.entity_id)
-            .filter(E.workspace_id == workspace_id)
-            .filter(MF.event_date >= prev_start)
-            .filter(MF.event_date < prev_end)
+            .join(models.Entity, models.Entity.id == models.MetricFact.entity_id)
+            .filter(models.Entity.workspace_id == workspace_id)
+            .filter(models.MetricFact.event_date >= prev_start)
+            .filter(models.MetricFact.event_date < prev_end)
         ).one()
         
         prev_ad_spend = float(prev_ad_query.spend or 0)
