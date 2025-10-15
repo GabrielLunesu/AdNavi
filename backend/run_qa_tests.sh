@@ -1,7 +1,7 @@
 #!/bin/bash
 # Simple QA Test Runner
 
-WORKSPACE_ID="e4aee3b7-388e-428f-b5f5-a93e046b272f"
+WORKSPACE_ID="4449fa5d-746d-4aa0-b446-28df32deb1e6"
 API_URL="http://localhost:8000/qa/?workspace_id=$WORKSPACE_ID"
 COOKIE_FILE="../cookies.txt"
 TEST_RESULTS_DIR="test-results"

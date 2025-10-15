@@ -677,17 +677,18 @@ class UnifiedMetricService:
         """
         logger.info(f"[UNIFIED_METRICS] Getting entity list for level: {level}")
         
-        # Build base query with provider from connection
+        # Build base query with provider from MetricFact (distinct to avoid duplicates)
         query = (
             self.db.query(
                 self.E.id,
                 self.E.name,
                 self.E.status,
                 self.E.level,
-                models.Connection.provider.label("provider")
+                models.MetricFact.provider.label("provider")
             )
-            .join(models.Connection, models.Connection.id == self.E.connection_id)
+            .join(models.MetricFact, models.MetricFact.entity_id == self.E.id)
             .filter(self.E.workspace_id == workspace_id)
+            .distinct()
         )
         
         # Apply level filter if specified
@@ -796,12 +797,36 @@ class UnifiedMetricService:
         # Apply top_n limit after filtering
         return breakdown[:top_n]
     
+    def get_entity_goals(self, workspace_id: str, entity_names: List[str]) -> Dict[str, str]:
+        """
+        Get goals for entities by name.
+        
+        Args:
+            workspace_id: Workspace UUID for scoping
+            entity_names: List of entity names to look up
+            
+        Returns:
+            Dict mapping entity names to their goals (or None if not found)
+        """
+        if not entity_names:
+            return {}
+        
+        # Build query to find entities by name
+        entities = (
+            self.db.query(self.E.name, self.E.goal)
+            .filter(self.E.workspace_id == workspace_id)
+            .filter(self.E.name.in_(entity_names))
+            .all()
+        )
+        
+        return {entity.name: entity.goal.value if entity.goal else None for entity in entities}
+    
     def _apply_entity_filters(self, query, filters: MetricFilters):
         """Apply filters to entity queries (not metric queries)."""
-        # Provider filter (through connection)
+        # Provider filter (from MetricFact)
         if filters.provider:
             provider_value = filters.normalize_provider()
-            query = query.filter(models.Connection.provider == provider_value)
+            query = query.filter(models.MetricFact.provider == provider_value)
         
         # Level filter
         if filters.level:

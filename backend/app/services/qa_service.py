@@ -146,12 +146,19 @@ class QAService:
                 workspace_id
             )
             
-            # Step 2: Translate to DSL with context awareness
+            # Step 1.5: Build entity catalog for LLM to choose from
+            # WHY: Let LLM handle entity recognition without hardcoded patterns
+            entity_catalog = self._build_entity_catalog(workspace_id, limit=50)
+            logger.info(f"[ENTITY_CATALOG] Built catalog with {len(entity_catalog)} entities")
+            
+            # Step 2: Translate to DSL with context awareness and entity catalog
             # WHY context: LLM can resolve pronouns ("that", "this", "which one")
+            # WHY catalog: LLM can choose appropriate entities without hardcoded patterns
             dsl, translation_latency = self.translator.to_dsl(
                 question, 
                 log_latency=True,
-                context=context  # NEW: Pass conversation history
+                context=context,  # NEW: Pass conversation history
+                entity_catalog=entity_catalog  # NEW: Pass entity catalog for entity recognition
             )
             
             # Step 3: Plan execution (may return None for non-metrics queries)
@@ -623,3 +630,46 @@ class QAService:
             summary.append(context_item)
         
         return summary
+    
+    def _build_entity_catalog(self, workspace_id: str, limit: int = 50) -> List[Dict[str, Any]]:
+        """
+        Build a compact catalog of entities for the LLM to choose from.
+        
+        Args:
+            workspace_id: Workspace UUID for scoping
+            limit: Maximum number of entities to include
+            
+        Returns:
+            List of entity dictionaries with name, level, provider, goal
+        """
+        from app.services.unified_metric_service import UnifiedMetricService, MetricFilters
+        
+        service = UnifiedMetricService(self.db)
+        filters = MetricFilters()  # Empty filters to get all entities
+        entities = service.get_entity_list(workspace_id, filters=filters, limit=limit)
+        
+        catalog = []
+        for entity in entities:
+            catalog.append({
+                "name": entity.get("name", ""),
+                "level": entity.get("level", ""),
+                "provider": entity.get("provider"),
+                "goal": entity.get("goal"),
+            })
+        
+        return catalog
+    
+    def _extract_entity_names(self, question: str, workspace_id: str) -> List[str]:
+        """
+        Skip entity extraction - let LLM handle entity recognition using catalog.
+        
+        This approach:
+        - Removes hardcoded patterns
+        - Works with any naming convention
+        - Lets LLM handle entity recognition
+        - No database calls for entity extraction
+        """
+        # Don't extract entity names at all
+        # Let the translator/LLM figure out entity names from context
+        # The LLM will put entity names in dsl.filters.entity_name
+        return []

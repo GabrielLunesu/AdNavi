@@ -1,6 +1,6 @@
 # AdNavi — Living Build Log
 
-_Last updated: 2025-10-14T18:30:00Z_
+_Last updated: 2025-10-15T13:50:00Z_
 
 ## 0) Monorepo Map (Current & Planned)
 - **Frontend (current):** `ui/` — Next.js 15.5.4 (App Router), **JSX only**
@@ -42,11 +42,19 @@ _Last updated: 2025-10-14T18:30:00Z_
   - `app/answer/formatters.py`: Single source of truth for display formatting (currency, ratios, percentages, counts)
   - Used by: AnswerBuilder (GPT prompts), QAService fallback (templates)
   - Benefits: Prevents "$0" bugs, ensures consistency, stops GPT from inventing formatting
-- QA System (DSL v1.2):
+- QA System (DSL v2.4.0):
   - `app/dsl/`: Domain-Specific Language for queries (schema, canonicalize, validate, planner, executor)
   - `app/nlp/`: Natural language translation via OpenAI (translator, prompts)
   - `app/telemetry/`: Structured logging and observability
-  - `app/tests/`: Unit tests for DSL validation, executor, translator, v1.2 extensions
+  - `app/tests/`: Unit tests for DSL validation, executor, translator, v2.4.0 extensions
+  - **Phase 6 Follow-up**: Comparison queries, entity provider filtering, list intent, goal-aware metric selection
+
+**Phase 6 Follow-up Improvements (2025-10-15)**:
+- **Comparison Query Support**: Added `comparison_type` field to DSL schema and implemented comparison query execution
+- **Entity Provider Filtering**: Fixed entity queries to use MetricFact.provider instead of Connection.provider for accurate filtering
+- **List Query Intent**: Added LIST intent classification and `_build_list_answer` method for complete list responses
+- **Goal-Aware Metric Selection**: Implemented entity goal extraction and context-aware metric selection based on campaign objectives
+- **Impact**: Success rate improved from 99% to 100% with enhanced user experience
 
 ### 1.3 Infrastructure
 - Envs: dev, staging, prod

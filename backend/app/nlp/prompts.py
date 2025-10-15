@@ -836,6 +836,23 @@ When user asks about "performance" or makes vague comparisons WITHOUT specifying
 4. "compare X vs Y" or "compare google vs meta" → metric: "roas" (efficiency comparison)
 
 NEVER default to niche metrics (leads, AOV, CPI, installs) unless explicitly mentioned!
+
+GOAL-AWARE METRIC SELECTION (UPDATED Phase 6):
+When the entity has a specific goal AND the user doesn't explicitly mention a metric, choose metrics that align with that goal:
+
+- purchases goal → prioritize "roas" (return on ad spend)
+- leads goal → prioritize "cpl" (cost per lead) 
+- app_installs goal → prioritize "cpi" (cost per install)
+- awareness goal → prioritize "cpm" (cost per mille) or "ctr" (click-through rate)
+- traffic goal → prioritize "cpc" (cost per click) or "ctr"
+- conversions goal → prioritize "roas" or "cpa" (cost per acquisition)
+
+IMPORTANT: If the user explicitly mentions a metric (profit, conversion rate, leads, revenue, spend, clicks, impressions), use that metric instead of goal-aware selection.
+
+Examples:
+- "breakdown of Holiday Sale performance" → Holiday Sale has "purchases" goal → use "roas"
+- "how much profit did I make" → user explicitly mentions "profit" → use "profit" (ignore goal-aware)
+- "what's my conversion rate" → user explicitly mentions "conversion rate" → use "cvr" (ignore goal-aware)
 """
 
     # Define the query types section

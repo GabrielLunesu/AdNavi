@@ -163,12 +163,13 @@ def execute_plan(
     # Example question: "Which platforms am I advertising on?"
     if query.query_type == "providers":
         rows = (
-            db.query(models.Connection.provider)
-            .filter(models.Connection.workspace_id == workspace_id)
+            db.query(models.MetricFact.provider)
+            .join(models.Entity, models.Entity.id == models.MetricFact.entity_id)
+            .filter(models.Entity.workspace_id == workspace_id)
             .distinct()
             .all()
         )
-        return {"providers": [row.provider for row in rows]}
+        return {"providers": [row.provider.value for row in rows]}
     
     # ENTITIES: List entities (campaigns/adsets/ads) with optional filters
     # Returns: {"entities": [{"name": "...", "status": "...", "level": "..."}, ...]}
@@ -327,7 +328,7 @@ def _execute_metrics_plan(
                 top_n=plan.top_n,
                 sort_order=plan.sort_order
             )
-            else:
+        else:
             # Regular entity breakdown (provider, campaign, adset, ad)
             breakdown_items = service.get_breakdown(
                 workspace_id=workspace_id,

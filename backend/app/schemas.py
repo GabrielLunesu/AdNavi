@@ -4,7 +4,7 @@ from datetime import datetime, date
 from uuid import UUID
 from typing import Optional, List, Literal, Union, Any
 from pydantic import BaseModel, EmailStr, constr, Field, field_serializer
-from .models import RoleEnum, ProviderEnum, LevelEnum, KindEnum, ComputeRunTypeEnum
+from .models import RoleEnum, ProviderEnum, LevelEnum, KindEnum, ComputeRunTypeEnum, GoalEnum
 
 
 class UserCreate(BaseModel):
@@ -315,6 +315,7 @@ class EntityOut(BaseModel):
     workspace_id: UUID = Field(description="Associated workspace ID")
     connection_id: Optional[UUID] = Field(description="Associated connection ID")
     parent_id: Optional[UUID] = Field(description="Parent entity ID")
+    goal: Optional[GoalEnum] = Field(description="Campaign objective (for campaigns)")
     
     model_config = {"from_attributes": True}
 

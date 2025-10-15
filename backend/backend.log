@@ -1,0 +1,1194 @@
+INFO:     Will watch for changes in these directories: ['/Users/gabriellunesu/Git/AdNavi/backend/app']
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [20969] using WatchFiles
+🚀 Starting AdNavi API Server...
+📊 Features:
+   ✅ Complete Swagger Documentation
+   ✅ Authentication Endpoints
+   ✅ Workspace Management
+   ✅ Connection Management (Ad Platforms)
+   ✅ Entity Management (Campaigns/Ads)
+   ✅ Performance Metrics
+   ✅ P&L Analytics
+
+📖 Documentation will be available at:
+   🌐 Swagger UI:  http://localhost:8000/docs
+   📚 ReDoc:       http://localhost:8000/redoc
+   🔧 Admin Panel: http://localhost:8000/admin
+
+Process SpawnProcess-1:
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/uvicorn/_subprocess.py", line 80, in subprocess_started
+    target(sockets=sockets)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/uvicorn/server.py", line 65, in run
+    return asyncio.run(self.serve(sockets=sockets))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/runners.py", line 190, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "uvloop/loop.pyx", line 1517, in uvloop.loop.Loop.run_until_complete
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/uvicorn/server.py", line 69, in serve
+    await self._serve(sockets)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/uvicorn/server.py", line 76, in _serve
+    config.load()
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/uvicorn/config.py", line 434, in load
+    self.loaded_app = import_from_string(self.app)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/uvicorn/importer.py", line 19, in import_from_string
+    module = importlib.import_module(module_str)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/importlib/__init__.py", line 126, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1204, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1176, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1147, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "/Users/gabriellunesu/Git/AdNavi/backend/app/main.py", line 23, in <module>
+    from .routers import qa as qa_router
+  File "/Users/gabriellunesu/Git/AdNavi/backend/app/routers/qa.py", line 23, in <module>
+    from app.services.qa_service import QAService
+  File "/Users/gabriellunesu/Git/AdNavi/backend/app/services/qa_service.py", line 35, in <module>
+    from app.dsl.executor import execute_plan, get_available_platforms
+  File "/Users/gabriellunesu/Git/AdNavi/backend/app/dsl/executor.py", line 330
+    else:
+    ^^^^
+SyntaxError: invalid syntax
+WARNING:  WatchFiles detected changes in 'app/dsl/executor.py'. Reloading...
+INFO:     Started server process [21015]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+Failed to log QA run: (builtins.TypeError) Object of type date is not JSON serializable
+[SQL: INSERT INTO qa_query_logs (id, workspace_id, user_id, question_text, dsl_json, created_at, duration_ms) VALUES (%(id)s::UUID, %(workspace_id)s::UUID, %(user_id)s::UUID, %(question_text)s, %(dsl_json)s, %(created_at)s, %(duration_ms)s)]
+[parameters: [{'duration_ms': 5011, 'user_id': '986bbfc5-81e6-4876-a904-ef29b2e242fa', 'dsl_json': {'query_type': <QueryType.COMPARISON: 'comparison'>, 'metric': No ... (866 characters truncated) ...  'workspace_id': 'e4aee3b7-388e-428f-b5f5-a93e046b272f', 'question_text': 'Compare CTR and conversion rate for Google vs Meta campaigns in September'}]]
+INFO:     127.0.0.1:56234 - "POST /qa/?workspace_id=e4aee3b7-388e-428f-b5f5-a93e046b272f HTTP/1.1" 200 OK
+Failed to log QA run: (builtins.TypeError) Object of type date is not JSON serializable
+[SQL: INSERT INTO qa_query_logs (id, workspace_id, user_id, question_text, dsl_json, created_at, duration_ms) VALUES (%(id)s::UUID, %(workspace_id)s::UUID, %(user_id)s::UUID, %(question_text)s, %(dsl_json)s, %(created_at)s, %(duration_ms)s)]
+[parameters: [{'duration_ms': 11270, 'user_id': '986bbfc5-81e6-4876-a904-ef29b2e242fa', 'dsl_json': {'query_type': <QueryType.COMPARISON: 'comparison'>, 'metric': N ... (869 characters truncated) ...  'workspace_id': 'e4aee3b7-388e-428f-b5f5-a93e046b272f', 'question_text': 'Compare CTR and conversion rate for Google vs Meta campaigns in September'}]]
+INFO:     127.0.0.1:56242 - "POST /qa/?workspace_id=e4aee3b7-388e-428f-b5f5-a93e046b272f HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56256 - "POST /qa/?workspace_id=e4aee3b7-388e-428f-b5f5-a93e046b272f HTTP/1.1" 200 OK
+Failed to log QA run: (psycopg2.errors.ForeignKeyViolation) insert or update on table "qa_query_logs" violates foreign key constraint "qa_query_logs_workspace_id_fkey"
+DETAIL:  Key (workspace_id)=(e4aee3b7-388e-428f-b5f5-a93e046b272f) is not present in table "workspaces".
+
+[SQL: INSERT INTO qa_query_logs (id, workspace_id, user_id, question_text, dsl_json, created_at, duration_ms) VALUES (%(id)s::UUID, %(workspace_id)s::UUID, %(user_id)s::UUID, %(question_text)s, %(dsl_json)s, %(created_at)s, %(duration_ms)s)]
+[parameters: {'id': UUID('d13f2286-9c0f-4347-86d9-415fec2c7c5c'), 'workspace_id': 'e4aee3b7-388e-428f-b5f5-a93e046b272f', 'user_id': 'f20e77cf-3b3e-4642-99ca-3ed2e40b5e8a', 'question_text': 'Which platforms am I advertising on?', 'dsl_json': '{"query_type": "providers", "metric": null, "time_range": null, "compare_to_previous": false, "group_by": "none", "breakdown": null, "top_n": 5, "sor ... (306 characters truncated) ... ame_description": null, "answer_text": "It looks like you\\u2019re not currently running ads on any platforms.", "success": true, "latency_ms": 2783}', 'created_at': datetime.datetime(2025, 10, 15, 13, 46, 32, 842304), 'duration_ms': 2783}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj)
+INFO:     127.0.0.1:56276 - "POST /qa/?workspace_id=e4aee3b7-388e-428f-b5f5-a93e046b272f HTTP/1.1" 200 OK
+Failed to log QA run: (psycopg2.errors.ForeignKeyViolation) insert or update on table "qa_query_logs" violates foreign key constraint "qa_query_logs_workspace_id_fkey"
+DETAIL:  Key (workspace_id)=(e4aee3b7-388e-428f-b5f5-a93e046b272f) is not present in table "workspaces".
+
+[SQL: INSERT INTO qa_query_logs (id, workspace_id, user_id, question_text, dsl_json, created_at, duration_ms) VALUES (%(id)s::UUID, %(workspace_id)s::UUID, %(user_id)s::UUID, %(question_text)s, %(dsl_json)s, %(created_at)s, %(duration_ms)s)]
+[parameters: {'id': UUID('3208aba5-5ddc-4fcf-8860-e31bf5dab045'), 'workspace_id': 'e4aee3b7-388e-428f-b5f5-a93e046b272f', 'user_id': 'f20e77cf-3b3e-4642-99ca-3ed2e40b5e8a', 'question_text': 'Which platforms am I advertising on?', 'dsl_json': '{"query_type": "providers", "metric": null, "time_range": null, "compare_to_previous": false, "group_by": "none", "breakdown": null, "top_n": 5, "sor ... (384 characters truncated) ... e any active ad platforms, as the count is at 0. Let me know if you need assistance with setting up campaigns!", "success": true, "latency_ms": 2118}', 'created_at': datetime.datetime(2025, 10, 15, 13, 46, 37, 596812), 'duration_ms': 2118}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj)
+INFO:     127.0.0.1:56283 - "POST /qa/?workspace_id=e4aee3b7-388e-428f-b5f5-a93e046b272f HTTP/1.1" 200 OK
+WARNING:  WatchFiles detected changes in 'app/dsl/executor.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [21015]
+INFO:     Started server process [21314]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+Failed to log QA run: (psycopg2.errors.ForeignKeyViolation) insert or update on table "qa_query_logs" violates foreign key constraint "qa_query_logs_workspace_id_fkey"
+DETAIL:  Key (workspace_id)=(e4aee3b7-388e-428f-b5f5-a93e046b272f) is not present in table "workspaces".
+
+[SQL: INSERT INTO qa_query_logs (id, workspace_id, user_id, question_text, dsl_json, created_at, duration_ms) VALUES (%(id)s::UUID, %(workspace_id)s::UUID, %(user_id)s::UUID, %(question_text)s, %(dsl_json)s, %(created_at)s, %(duration_ms)s)]
+[parameters: {'id': UUID('5a16322b-9b9e-4747-b9b9-017f6ac83c98'), 'workspace_id': 'e4aee3b7-388e-428f-b5f5-a93e046b272f', 'user_id': 'f20e77cf-3b3e-4642-99ca-3ed2e40b5e8a', 'question_text': 'Which platforms am I advertising on?', 'dsl_json': '{"query_type": "providers", "metric": null, "time_range": null, "compare_to_previous": false, "group_by": "none", "breakdown": null, "top_n": 5, "sor ... (321 characters truncated) ... ": null, "answer_text": "It looks like you currently don\'t have any platforms running ads, as the count is 0.", "success": true, "latency_ms": 2034}', 'created_at': datetime.datetime(2025, 10, 15, 13, 46, 48, 126302), 'duration_ms': 2034}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj)
+INFO:     127.0.0.1:56294 - "POST /qa/?workspace_id=e4aee3b7-388e-428f-b5f5-a93e046b272f HTTP/1.1" 200 OK
+WARNING:  WatchFiles detected changes in 'app/dsl/executor.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for connections to close. (CTRL+C to force quit)
+Failed to log QA run: (psycopg2.errors.ForeignKeyViolation) insert or update on table "qa_query_logs" violates foreign key constraint "qa_query_logs_workspace_id_fkey"
+DETAIL:  Key (workspace_id)=(e4aee3b7-388e-428f-b5f5-a93e046b272f) is not present in table "workspaces".
+
+[SQL: INSERT INTO qa_query_logs (id, workspace_id, user_id, question_text, dsl_json, created_at, duration_ms) VALUES (%(id)s::UUID, %(workspace_id)s::UUID, %(user_id)s::UUID, %(question_text)s, %(dsl_json)s, %(created_at)s, %(duration_ms)s)]
+[parameters: {'id': UUID('5f654a52-d401-472a-b4de-31a9054204ad'), 'workspace_id': 'e4aee3b7-388e-428f-b5f5-a93e046b272f', 'user_id': 'f20e77cf-3b3e-4642-99ca-3ed2e40b5e8a', 'question_text': 'Which platforms am I advertising on?', 'dsl_json': '{"query_type": "providers", "metric": null, "time_range": null, "compare_to_previous": false, "group_by": "none", "breakdown": null, "top_n": 5, "sor ... (372 characters truncated) ... rrently no platforms running ads, and the count is at zero. Let me know if you need help setting up campaigns!", "success": true, "latency_ms": 3414}', 'created_at': datetime.datetime(2025, 10, 15, 13, 46, 54, 245429), 'duration_ms': 3414}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj)
+INFO:     127.0.0.1:56302 - "POST /qa/?workspace_id=e4aee3b7-388e-428f-b5f5-a93e046b272f HTTP/1.1" 200 OK
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [21314]
+INFO:     Started server process [21376]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:56330 - "GET /entities/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56338 - "GET /entities/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56342 - "GET /entities/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56346 - "GET /entities/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56351 - "GET /entities/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56356 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+Failed to log QA run: (builtins.TypeError) Object of type date is not JSON serializable
+[SQL: INSERT INTO qa_query_logs (id, workspace_id, user_id, question_text, dsl_json, created_at, duration_ms) VALUES (%(id)s::UUID, %(workspace_id)s::UUID, %(user_id)s::UUID, %(question_text)s, %(dsl_json)s, %(created_at)s, %(duration_ms)s)]
+[parameters: [{'created_at': datetime.datetime(2025, 10, 15, 13, 47, 46, 329529), 'dsl_json': {'query_type': <QueryType.COMPARISON: 'comparison'>, 'metric': None, ' ... (867 characters truncated) ...  'question_text': 'Compare CTR and conversion rate for Google vs Meta campaigns in September', 'workspace_id': '4449fa5d-746d-4aa0-b446-28df32deb1e6'}]]
+INFO:     127.0.0.1:56364 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+Failed to log QA run: (builtins.TypeError) Object of type date is not JSON serializable
+[SQL: INSERT INTO qa_query_logs (id, workspace_id, user_id, question_text, dsl_json, created_at, duration_ms) VALUES (%(id)s::UUID, %(workspace_id)s::UUID, %(user_id)s::UUID, %(question_text)s, %(dsl_json)s, %(created_at)s, %(duration_ms)s)]
+[parameters: [{'created_at': datetime.datetime(2025, 10, 15, 13, 47, 52, 80448), 'dsl_json': {'query_type': <QueryType.COMPARISON: 'comparison'>, 'metric': None, 't ... (866 characters truncated) ...  'question_text': 'Compare CTR and conversion rate for Google vs Meta campaigns in September', 'workspace_id': '4449fa5d-746d-4aa0-b446-28df32deb1e6'}]]
+INFO:     127.0.0.1:56372 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+Failed to log QA run: (builtins.TypeError) Object of type date is not JSON serializable
+[SQL: INSERT INTO qa_query_logs (id, workspace_id, user_id, question_text, dsl_json, created_at, duration_ms) VALUES (%(id)s::UUID, %(workspace_id)s::UUID, %(user_id)s::UUID, %(question_text)s, %(dsl_json)s, %(created_at)s, %(duration_ms)s)]
+[parameters: [{'created_at': datetime.datetime(2025, 10, 15, 13, 48, 0, 560000), 'dsl_json': {'query_type': <QueryType.METRICS: 'metrics'>, 'metric': 'ctr', 'time_r ... (736 characters truncated) ... 4642-99ca-3ed2e40b5e8a', 'question_text': 'What is my CTR for Google campaigns in September?', 'workspace_id': '4449fa5d-746d-4aa0-b446-28df32deb1e6'}]]
+INFO:     127.0.0.1:56381 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+Failed to log QA run: (builtins.TypeError) Object of type date is not JSON serializable
+[SQL: INSERT INTO qa_query_logs (id, workspace_id, user_id, question_text, dsl_json, created_at, duration_ms) VALUES (%(id)s::UUID, %(workspace_id)s::UUID, %(user_id)s::UUID, %(question_text)s, %(dsl_json)s, %(created_at)s, %(duration_ms)s)]
+[parameters: [{'created_at': datetime.datetime(2025, 10, 15, 13, 48, 6, 365709), 'dsl_json': {'query_type': <QueryType.METRICS: 'metrics'>, 'metric': 'ctr', 'time_r ... (728 characters truncated) ... e-4642-99ca-3ed2e40b5e8a', 'question_text': 'What is my CTR for Meta campaigns in September?', 'workspace_id': '4449fa5d-746d-4aa0-b446-28df32deb1e6'}]]
+INFO:     127.0.0.1:56387 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+Failed to log QA run: (builtins.TypeError) Object of type date is not JSON serializable
+[SQL: INSERT INTO qa_query_logs (id, workspace_id, user_id, question_text, dsl_json, created_at, duration_ms) VALUES (%(id)s::UUID, %(workspace_id)s::UUID, %(user_id)s::UUID, %(question_text)s, %(dsl_json)s, %(created_at)s, %(duration_ms)s)]
+[parameters: [{'created_at': datetime.datetime(2025, 10, 15, 13, 48, 14, 194446), 'dsl_json': {'query_type': <QueryType.COMPARISON: 'comparison'>, 'metric': None, ' ... (877 characters truncated) ...  'question_text': 'Compare CTR and conversion rate for Google vs Meta campaigns in September', 'workspace_id': '4449fa5d-746d-4aa0-b446-28df32deb1e6'}]]
+INFO:     127.0.0.1:56393 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+WARNING:  WatchFiles detected changes in 'app/answer/answer_builder.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [21376]
+INFO:     Started server process [21969]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/answer/answer_builder.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [21969]
+INFO:     Started server process [22021]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+[COMPARISON_ANSWER] Failed to build comparison answer: Object of type Decimal is not JSON serializable
+Answer generation failed: Failed to build comparison answer: Object of type Decimal is not JSON serializable
+Traceback (most recent call last):
+  File "/Users/gabriellunesu/Git/AdNavi/backend/app/answer/answer_builder.py", line 1074, in _build_comparison_answer
+    {json.dumps(context, indent=2)}
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/json/__init__.py", line 238, in dumps
+    **kw).encode(obj)
+          ^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/json/encoder.py", line 202, in encode
+    chunks = list(chunks)
+             ^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/json/encoder.py", line 432, in _iterencode
+    yield from _iterencode_dict(o, _current_indent_level)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/json/encoder.py", line 406, in _iterencode_dict
+    yield from chunks
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/json/encoder.py", line 326, in _iterencode_list
+    yield from chunks
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/json/encoder.py", line 406, in _iterencode_dict
+    yield from chunks
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/json/encoder.py", line 439, in _iterencode
+    o = _default(o)
+        ^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/json/encoder.py", line 180, in default
+    raise TypeError(f'Object of type {o.__class__.__name__} '
+TypeError: Object of type Decimal is not JSON serializable
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/gabriellunesu/Git/AdNavi/backend/app/answer/answer_builder.py", line 342, in build_answer
+    return self._build_comparison_answer(dsl, result, timeframe_display, question, log_latency)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gabriellunesu/Git/AdNavi/backend/app/answer/answer_builder.py", line 1108, in _build_comparison_answer
+    raise AnswerBuilderError(f"Failed to build comparison answer: {e}")
+app.answer.answer_builder.AnswerBuilderError: Failed to build comparison answer: Object of type Decimal is not JSON serializable
+Failed to log QA run: (builtins.TypeError) Object of type date is not JSON serializable
+[SQL: INSERT INTO qa_query_logs (id, workspace_id, user_id, question_text, dsl_json, created_at, duration_ms) VALUES (%(id)s::UUID, %(workspace_id)s::UUID, %(user_id)s::UUID, %(question_text)s, %(dsl_json)s, %(created_at)s, %(duration_ms)s)]
+[parameters: [{'created_at': datetime.datetime(2025, 10, 15, 13, 48, 50, 522864), 'dsl_json': {'query_type': <QueryType.COMPARISON: 'comparison'>, 'metric': None, ' ... (801 characters truncated) ...  'workspace_id': '4449fa5d-746d-4aa0-b446-28df32deb1e6', 'question_text': 'Compare CTR and conversion rate for Google vs Meta campaigns in September'}]]
+⚠️  Answer builder failed, using template fallback: Answer generation failed: Failed to build comparison answer: Object of type Decimal is not JSON serializable
+INFO:     127.0.0.1:56416 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+WARNING:  WatchFiles detected changes in 'app/answer/answer_builder.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [22021]
+INFO:     Started server process [22113]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+[COMPARISON_ANSWER] Failed to build comparison answer: 'Settings' object has no attribute 'openai_api_key'
+Answer generation failed: Failed to build comparison answer: 'Settings' object has no attribute 'openai_api_key'
+Traceback (most recent call last):
+  File "/Users/gabriellunesu/Git/AdNavi/backend/app/answer/answer_builder.py", line 1098, in _build_comparison_answer
+    client = OpenAI(api_key=get_settings().openai_api_key)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pydantic/main.py", line 856, in __getattr__
+    raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+AttributeError: 'Settings' object has no attribute 'openai_api_key'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/gabriellunesu/Git/AdNavi/backend/app/answer/answer_builder.py", line 342, in build_answer
+    return self._build_comparison_answer(dsl, result, timeframe_display, question, log_latency)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gabriellunesu/Git/AdNavi/backend/app/answer/answer_builder.py", line 1119, in _build_comparison_answer
+    raise AnswerBuilderError(f"Failed to build comparison answer: {e}")
+app.answer.answer_builder.AnswerBuilderError: Failed to build comparison answer: 'Settings' object has no attribute 'openai_api_key'
+Failed to log QA run: (builtins.TypeError) Object of type date is not JSON serializable
+[SQL: INSERT INTO qa_query_logs (id, workspace_id, user_id, question_text, dsl_json, created_at, duration_ms) VALUES (%(id)s::UUID, %(workspace_id)s::UUID, %(user_id)s::UUID, %(question_text)s, %(dsl_json)s, %(created_at)s, %(duration_ms)s)]
+[parameters: [{'user_id': 'f20e77cf-3b3e-4642-99ca-3ed2e40b5e8a', 'dsl_json': {'query_type': <QueryType.COMPARISON: 'comparison'>, 'metric': None, 'time_range': {'l ... (801 characters truncated) ... mber', 'workspace_id': '4449fa5d-746d-4aa0-b446-28df32deb1e6', 'duration_ms': 3325, 'created_at': datetime.datetime(2025, 10, 15, 13, 48, 59, 907285)}]]
+⚠️  Answer builder failed, using template fallback: Answer generation failed: Failed to build comparison answer: 'Settings' object has no attribute 'openai_api_key'
+INFO:     127.0.0.1:56427 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+WARNING:  WatchFiles detected changes in 'app/answer/answer_builder.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [22113]
+INFO:     Started server process [22175]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/answer/answer_builder.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [22175]
+INFO:     Started server process [22180]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+Failed to log QA run: (builtins.TypeError) Object of type date is not JSON serializable
+[SQL: INSERT INTO qa_query_logs (id, workspace_id, user_id, question_text, dsl_json, created_at, duration_ms) VALUES (%(id)s::UUID, %(workspace_id)s::UUID, %(user_id)s::UUID, %(question_text)s, %(dsl_json)s, %(created_at)s, %(duration_ms)s)]
+[parameters: [{'duration_ms': 6344, 'workspace_id': '4449fa5d-746d-4aa0-b446-28df32deb1e6', 'dsl_json': {'query_type': <QueryType.COMPARISON: 'comparison'>, 'metric ... (1541 characters truncated) ... text': 'Compare CTR and conversion rate for Google vs Meta campaigns in September', 'created_at': datetime.datetime(2025, 10, 15, 13, 49, 15, 665480)}]]
+INFO:     127.0.0.1:56447 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56454 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56467 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56475 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56482 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56490 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56497 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56504 - "GET /entities/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56510 - "GET /entities/ HTTP/1.1" 200 OK
+WARNING:  WatchFiles detected changes in 'app/services/unified_metric_service.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [22180]
+INFO:     Started server process [22576]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/services/unified_metric_service.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [22576]
+INFO:     Started server process [22583]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+QA Error: type object 'Entity' has no attribute 'provider'
+Traceback (most recent call last):
+  File "/Users/gabriellunesu/Git/AdNavi/backend/app/routers/qa.py", line 83, in ask_question
+    result = service.answer(
+             ^^^^^^^^^^^^^^^
+  File "/Users/gabriellunesu/Git/AdNavi/backend/app/services/qa_service.py", line 209, in answer
+    result = execute_plan(
+             ^^^^^^^^^^^^^
+  File "/Users/gabriellunesu/Git/AdNavi/backend/app/dsl/executor.py", line 195, in execute_plan
+    entities = service.get_entity_list(
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gabriellunesu/Git/AdNavi/backend/app/services/unified_metric_service.py", line 687, in get_entity_list
+    self.E.provider.label("provider")
+    ^^^^^^^^^^^^^^^
+AttributeError: type object 'Entity' has no attribute 'provider'
+
+INFO:     127.0.0.1:56537 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 500 Internal Server Error
+WARNING:  WatchFiles detected changes in 'app/services/unified_metric_service.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [22583]
+INFO:     Started server process [22673]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/services/unified_metric_service.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [22673]
+INFO:     Started server process [22681]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:56564 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56571 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56578 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+WARNING:  WatchFiles detected changes in 'app/services/unified_metric_service.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [22681]
+INFO:     Started server process [22803]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:56588 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56600 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56608 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56624 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56637 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56646 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56655 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+WARNING:  WatchFiles detected changes in 'app/answer/intent_classifier.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [22803]
+INFO:     Started server process [23127]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/answer/intent_classifier.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [23127]
+INFO:     Started server process [23148]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/answer/intent_classifier.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [23148]
+INFO:     Started server process [23168]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/answer/answer_builder.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [23168]
+INFO:     Started server process [23189]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/answer/answer_builder.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [23189]
+INFO:     Started server process [23196]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/answer/answer_builder.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [23196]
+INFO:     Started server process [23198]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:56689 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56698 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56708 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+WARNING:  WatchFiles detected changes in 'app/answer/answer_builder.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [23198]
+INFO:     Started server process [23345]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:56718 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+WARNING:  WatchFiles detected changes in 'app/answer/intent_classifier.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [23345]
+INFO:     Started server process [23452]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+[LIST_ANSWER] Failed to build list answer: 'MetricResult' object has no attribute 'get'
+Answer generation failed: Failed to build list answer: 'MetricResult' object has no attribute 'get'
+Traceback (most recent call last):
+  File "/Users/gabriellunesu/Git/AdNavi/backend/app/answer/answer_builder.py", line 1151, in _build_list_answer
+    breakdown = result.get("breakdown", [])
+                ^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pydantic/main.py", line 856, in __getattr__
+    raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+AttributeError: 'MetricResult' object has no attribute 'get'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/gabriellunesu/Git/AdNavi/backend/app/answer/answer_builder.py", line 392, in build_answer
+    return self._build_list_answer(dsl, result, timeframe_display, question, log_latency)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gabriellunesu/Git/AdNavi/backend/app/answer/answer_builder.py", line 1219, in _build_list_answer
+    raise AnswerBuilderError(f"Failed to build list answer: {e}")
+app.answer.answer_builder.AnswerBuilderError: Failed to build list answer: 'MetricResult' object has no attribute 'get'
+⚠️  Answer builder failed, using template fallback: Answer generation failed: Failed to build list answer: 'MetricResult' object has no attribute 'get'
+INFO:     127.0.0.1:56752 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+WARNING:  WatchFiles detected changes in 'app/answer/answer_builder.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [23452]
+INFO:     Started server process [23647]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:56778 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56787 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56802 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56810 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56819 - "GET /entities/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56828 - "GET /entities/ HTTP/1.1" 200 OK
+WARNING:  WatchFiles detected changes in 'app/schemas.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [23647]
+Process SpawnProcess-24:
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/uvicorn/_subprocess.py", line 80, in subprocess_started
+    target(sockets=sockets)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/uvicorn/server.py", line 65, in run
+    return asyncio.run(self.serve(sockets=sockets))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/runners.py", line 190, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "uvloop/loop.pyx", line 1517, in uvloop.loop.Loop.run_until_complete
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/uvicorn/server.py", line 69, in serve
+    await self._serve(sockets)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/uvicorn/server.py", line 76, in _serve
+    config.load()
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/uvicorn/config.py", line 434, in load
+    self.loaded_app = import_from_string(self.app)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/uvicorn/importer.py", line 19, in import_from_string
+    module = importlib.import_module(module_str)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/importlib/__init__.py", line 126, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1204, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1176, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1147, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "/Users/gabriellunesu/Git/AdNavi/backend/app/main.py", line 16, in <module>
+    from .routers import auth as auth_router
+  File "/Users/gabriellunesu/Git/AdNavi/backend/app/routers/auth.py", line 6, in <module>
+    from .. import schemas
+  File "/Users/gabriellunesu/Git/AdNavi/backend/app/schemas.py", line 307, in <module>
+    class EntityOut(BaseModel):
+  File "/Users/gabriellunesu/Git/AdNavi/backend/app/schemas.py", line 318, in EntityOut
+    goal: Optional[GoalEnum] = Field(description="Campaign objective (for campaigns)")
+                   ^^^^^^^^
+NameError: name 'GoalEnum' is not defined
+WARNING:  WatchFiles detected changes in 'app/schemas.py'. Reloading...
+INFO:     Started server process [24037]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:56851 - "GET /entities/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56859 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+WARNING:  WatchFiles detected changes in 'app/nlp/prompts.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [24037]
+INFO:     Started server process [24147]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:56877 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+WARNING:  WatchFiles detected changes in 'app/services/unified_metric_service.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [24147]
+INFO:     Started server process [24277]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/services/qa_service.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [24277]
+INFO:     Started server process [24319]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/services/qa_service.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [24319]
+INFO:     Started server process [24357]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/nlp/translator.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [24357]
+INFO:     Started server process [24362]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/nlp/translator.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [24362]
+INFO:     Started server process [24363]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/nlp/translator.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [24363]
+INFO:     Started server process [24383]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/nlp/translator.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [24383]
+INFO:     Started server process [24388]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:56940 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+WARNING:  WatchFiles detected changes in 'app/services/qa_service.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [24388]
+INFO:     Started server process [24517]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/services/qa_service.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [24517]
+INFO:     Started server process [24621]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/services/qa_service.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [24621]
+INFO:     Started server process [24633]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/services/qa_service.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [24633]
+INFO:     Started server process [24656]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/services/qa_service.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [24656]
+INFO:     Started server process [24667]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/services/qa_service.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [24667]
+INFO:     Started server process [24677]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:57002 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57019 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57027 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57151 - "GET /entities/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57156 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57161 - "GET /entities/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57164 - "GET /redoc HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57164 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57174 - "POST /auth/login HTTP/1.1" 422 Unprocessable Entity
+INFO:     127.0.0.1:57184 - "POST /auth/login HTTP/1.1" 422 Unprocessable Entity
+(trapped) error reading bcrypt version
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/passlib/handlers/bcrypt.py", line 620, in _load_backend_mixin
+    version = _bcrypt.__about__.__version__
+              ^^^^^^^^^^^^^^^^^
+AttributeError: module 'bcrypt' has no attribute '__about__'
+INFO:     127.0.0.1:57219 - "POST /auth/login HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57229 - "POST /auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57234 - "GET /entities/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57239 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57250 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57259 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57267 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+WARNING:  WatchFiles detected changes in 'app/services/unified_metric_service.py', 'app/answer/intent_classifier.py', 'app/services/qa_service.py', 'app/answer/answer_builder.py', 'app/nlp/translator.py', 'app/schemas.py', 'app/nlp/prompts.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [24677]
+INFO:     Started server process [25530]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:57716 - "GET /health HTTP/1.1" 200 OK
+WARNING:  WatchFiles detected changes in 'app/services/qa_service.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [25530]
+INFO:     Started server process [27736]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/services/qa_service.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [27736]
+INFO:     Started server process [27745]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/nlp/translator.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [27745]
+INFO:     Started server process [27756]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/nlp/translator.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [27756]
+INFO:     Started server process [27762]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/nlp/translator.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [27762]
+INFO:     Started server process [27765]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+(trapped) error reading bcrypt version
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/passlib/handlers/bcrypt.py", line 620, in _load_backend_mixin
+    version = _bcrypt.__about__.__version__
+              ^^^^^^^^^^^^^^^^^
+AttributeError: module 'bcrypt' has no attribute '__about__'
+INFO:     127.0.0.1:57755 - "POST /auth/login HTTP/1.1" 200 OK
+QA Error: UnifiedMetricService.get_entity_list() missing 1 required positional argument: 'filters'
+Traceback (most recent call last):
+  File "/Users/gabriellunesu/Git/AdNavi/backend/app/routers/qa.py", line 83, in ask_question
+    result = service.answer(
+             ^^^^^^^^^^^^^^^
+  File "/Users/gabriellunesu/Git/AdNavi/backend/app/services/qa_service.py", line 151, in answer
+    entity_catalog = self._build_entity_catalog(workspace_id, limit=50)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gabriellunesu/Git/AdNavi/backend/app/services/qa_service.py", line 648, in _build_entity_catalog
+    entities = service.get_entity_list(workspace_id, limit=limit)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: UnifiedMetricService.get_entity_list() missing 1 required positional argument: 'filters'
+
+INFO:     127.0.0.1:57767 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 500 Internal Server Error
+QA Error: UnifiedMetricService.get_entity_list() missing 1 required positional argument: 'filters'
+Traceback (most recent call last):
+  File "/Users/gabriellunesu/Git/AdNavi/backend/app/routers/qa.py", line 83, in ask_question
+    result = service.answer(
+             ^^^^^^^^^^^^^^^
+  File "/Users/gabriellunesu/Git/AdNavi/backend/app/services/qa_service.py", line 151, in answer
+    entity_catalog = self._build_entity_catalog(workspace_id, limit=50)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gabriellunesu/Git/AdNavi/backend/app/services/qa_service.py", line 648, in _build_entity_catalog
+    entities = service.get_entity_list(workspace_id, limit=limit)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: UnifiedMetricService.get_entity_list() missing 1 required positional argument: 'filters'
+
+INFO:     127.0.0.1:57775 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 500 Internal Server Error
+WARNING:  WatchFiles detected changes in 'app/services/qa_service.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [27765]
+INFO:     Started server process [27857]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+QA Error: cannot import name 'MetricFilters' from 'app.schemas' (/Users/gabriellunesu/Git/AdNavi/backend/app/schemas.py)
+Traceback (most recent call last):
+  File "/Users/gabriellunesu/Git/AdNavi/backend/app/routers/qa.py", line 83, in ask_question
+    result = service.answer(
+             ^^^^^^^^^^^^^^^
+  File "/Users/gabriellunesu/Git/AdNavi/backend/app/services/qa_service.py", line 151, in answer
+    entity_catalog = self._build_entity_catalog(workspace_id, limit=50)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gabriellunesu/Git/AdNavi/backend/app/services/qa_service.py", line 647, in _build_entity_catalog
+    from app.schemas import MetricFilters
+ImportError: cannot import name 'MetricFilters' from 'app.schemas' (/Users/gabriellunesu/Git/AdNavi/backend/app/schemas.py)
+
+INFO:     127.0.0.1:57787 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 500 Internal Server Error
+QA Error: cannot import name 'MetricFilters' from 'app.schemas' (/Users/gabriellunesu/Git/AdNavi/backend/app/schemas.py)
+Traceback (most recent call last):
+  File "/Users/gabriellunesu/Git/AdNavi/backend/app/routers/qa.py", line 83, in ask_question
+    result = service.answer(
+             ^^^^^^^^^^^^^^^
+  File "/Users/gabriellunesu/Git/AdNavi/backend/app/services/qa_service.py", line 151, in answer
+    entity_catalog = self._build_entity_catalog(workspace_id, limit=50)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gabriellunesu/Git/AdNavi/backend/app/services/qa_service.py", line 647, in _build_entity_catalog
+    from app.schemas import MetricFilters
+ImportError: cannot import name 'MetricFilters' from 'app.schemas' (/Users/gabriellunesu/Git/AdNavi/backend/app/schemas.py)
+
+INFO:     127.0.0.1:57797 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 500 Internal Server Error
+WARNING:  WatchFiles detected changes in 'app/services/qa_service.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [27857]
+INFO:     Started server process [27956]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:57810 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57825 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57834 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+Answer generation failed: unsupported operand type(s) for -: 'NoneType' and 'float'
+Traceback (most recent call last):
+  File "/Users/gabriellunesu/Git/AdNavi/backend/app/answer/answer_builder.py", line 351, in build_answer
+    context = extract_rich_context(
+              ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gabriellunesu/Git/AdNavi/backend/app/answer/context_extractor.py", line 135, in extract_rich_context
+    context.workspace_comparison = _extract_workspace_comparison(
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gabriellunesu/Git/AdNavi/backend/app/answer/context_extractor.py", line 254, in _extract_workspace_comparison
+    deviation_pct = (value - workspace_avg) / workspace_avg
+                     ~~~~~~^~~~~~~~~~~~~~~
+TypeError: unsupported operand type(s) for -: 'NoneType' and 'float'
+⚠️  Answer builder failed, using template fallback: Answer generation failed: unsupported operand type(s) for -: 'NoneType' and 'float'
+INFO:     127.0.0.1:57850 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+Failed to log QA run: (builtins.TypeError) Object of type date is not JSON serializable
+[SQL: INSERT INTO qa_query_logs (id, workspace_id, user_id, question_text, dsl_json, created_at, duration_ms) VALUES (%(id)s::UUID, %(workspace_id)s::UUID, %(user_id)s::UUID, %(question_text)s, %(dsl_json)s, %(created_at)s, %(duration_ms)s)]
+[parameters: [{'user_id': 'f20e77cf-3b3e-4642-99ca-3ed2e40b5e8a', 'question_text': 'show me Q4_2025 campaign performance', 'dsl_json': {'query_type': <QueryType.MET ... (836 characters truncated) ... 5305}, 'created_at': datetime.datetime(2025, 10, 15, 14, 18, 22, 681975), 'duration_ms': 5305, 'workspace_id': '4449fa5d-746d-4aa0-b446-28df32deb1e6'}]]
+INFO:     127.0.0.1:57860 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57873 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57880 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57894 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57902 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+(trapped) error reading bcrypt version
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/passlib/handlers/bcrypt.py", line 620, in _load_backend_mixin
+    version = _bcrypt.__about__.__version__
+              ^^^^^^^^^^^^^^^^^
+AttributeError: module 'bcrypt' has no attribute '__about__'
+INFO:     127.0.0.1:57909 - "POST /auth/login HTTP/1.1" 200 OK
+Failed to log QA run: (builtins.TypeError) Object of type date is not JSON serializable
+[SQL: INSERT INTO qa_query_logs (id, workspace_id, user_id, question_text, dsl_json, created_at, duration_ms) VALUES (%(id)s::UUID, %(workspace_id)s::UUID, %(user_id)s::UUID, %(question_text)s, %(dsl_json)s, %(created_at)s, %(duration_ms)s)]
+[parameters: [{'user_id': 'f20e77cf-3b3e-4642-99ca-3ed2e40b5e8a', 'question_text': "What's my CPC this month?", 'dsl_json': {'query_type': <QueryType.METRICS: 'metr ... (636 characters truncated) ... 5408}, 'created_at': datetime.datetime(2025, 10, 15, 14, 18, 58, 557350), 'duration_ms': 5408, 'workspace_id': '4449fa5d-746d-4aa0-b446-28df32deb1e6'}]]
+INFO:     127.0.0.1:57911 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+Failed to log QA run: (builtins.TypeError) Object of type date is not JSON serializable
+[SQL: INSERT INTO qa_query_logs (id, workspace_id, user_id, question_text, dsl_json, created_at, duration_ms) VALUES (%(id)s::UUID, %(workspace_id)s::UUID, %(user_id)s::UUID, %(question_text)s, %(dsl_json)s, %(created_at)s, %(duration_ms)s)]
+[parameters: [{'user_id': 'f20e77cf-3b3e-4642-99ca-3ed2e40b5e8a', 'question_text': 'How much did I spend this month?', 'dsl_json': {'query_type': <QueryType.METRICS ... (655 characters truncated) ...  2996}, 'created_at': datetime.datetime(2025, 10, 15, 14, 19, 2, 242433), 'duration_ms': 2996, 'workspace_id': '4449fa5d-746d-4aa0-b446-28df32deb1e6'}]]
+INFO:     127.0.0.1:57917 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+Failed to log QA run: (builtins.TypeError) Object of type date is not JSON serializable
+[SQL: INSERT INTO qa_query_logs (id, workspace_id, user_id, question_text, dsl_json, created_at, duration_ms) VALUES (%(id)s::UUID, %(workspace_id)s::UUID, %(user_id)s::UUID, %(question_text)s, %(dsl_json)s, %(created_at)s, %(duration_ms)s)]
+[parameters: [{'user_id': 'f20e77cf-3b3e-4642-99ca-3ed2e40b5e8a', 'question_text': "What's my ROAS this week?", 'dsl_json': {'query_type': <QueryType.METRICS: 'metr ... (624 characters truncated) ... : 3051}, 'created_at': datetime.datetime(2025, 10, 15, 14, 19, 6, 34800), 'duration_ms': 3051, 'workspace_id': '4449fa5d-746d-4aa0-b446-28df32deb1e6'}]]
+INFO:     127.0.0.1:57923 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57927 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57931 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57939 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57943 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+Failed to log QA run: (builtins.TypeError) Object of type date is not JSON serializable
+[SQL: INSERT INTO qa_query_logs (id, workspace_id, user_id, question_text, dsl_json, created_at, duration_ms) VALUES (%(id)s::UUID, %(workspace_id)s::UUID, %(user_id)s::UUID, %(question_text)s, %(dsl_json)s, %(created_at)s, %(duration_ms)s)]
+[parameters: [{'user_id': 'f20e77cf-3b3e-4642-99ca-3ed2e40b5e8a', 'question_text': 'How many leads did I generate this month?', 'dsl_json': {'query_type': <QueryTyp ... (679 characters truncated) ... 4116}, 'created_at': datetime.datetime(2025, 10, 15, 14, 19, 28, 215493), 'duration_ms': 4116, 'workspace_id': '4449fa5d-746d-4aa0-b446-28df32deb1e6'}]]
+INFO:     127.0.0.1:57950 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+Failed to log QA run: (builtins.TypeError) Object of type date is not JSON serializable
+[SQL: INSERT INTO qa_query_logs (id, workspace_id, user_id, question_text, dsl_json, created_at, duration_ms) VALUES (%(id)s::UUID, %(workspace_id)s::UUID, %(user_id)s::UUID, %(question_text)s, %(dsl_json)s, %(created_at)s, %(duration_ms)s)]
+[parameters: [{'user_id': 'f20e77cf-3b3e-4642-99ca-3ed2e40b5e8a', 'question_text': 'What is my cost per lead this month?', 'dsl_json': {'query_type': <QueryType.MET ... (668 characters truncated) ...  4147}, 'created_at': datetime.datetime(2025, 10, 15, 14, 19, 33, 46414), 'duration_ms': 4147, 'workspace_id': '4449fa5d-746d-4aa0-b446-28df32deb1e6'}]]
+INFO:     127.0.0.1:57955 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57959 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57963 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57967 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57971 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57976 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57980 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57984 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57988 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57995 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58001 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+WARNING:  WatchFiles detected changes in 'app/nlp/translator.py', 'app/services/qa_service.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for connections to close. (CTRL+C to force quit)
+INFO:     127.0.0.1:58006 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [27956]
+INFO:     Started server process [28912]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:58016 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58021 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58027 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58031 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58038 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+Failed to log QA run: (builtins.TypeError) Object of type date is not JSON serializable
+[SQL: INSERT INTO qa_query_logs (id, workspace_id, user_id, question_text, dsl_json, created_at, duration_ms) VALUES (%(id)s::UUID, %(workspace_id)s::UUID, %(user_id)s::UUID, %(question_text)s, %(dsl_json)s, %(created_at)s, %(duration_ms)s)]
+[parameters: [{'created_at': datetime.datetime(2025, 10, 15, 14, 21, 9, 864939), 'user_id': 'f20e77cf-3b3e-4642-99ca-3ed2e40b5e8a', 'duration_ms': 3365, 'workspace_ ... (659 characters truncated) ... h?', 'timeframe_description': 'this month', 'answer_text': 'Your revenue is $898,335.06 from October 01 to 15.', 'success': True, 'latency_ms': 3365}}]]
+INFO:     127.0.0.1:58043 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58047 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58059 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58068 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 500 Internal Server Error
+WARNING:  WatchFiles detected changes in 'app/nlp/prompts.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for connections to close. (CTRL+C to force quit)
+INFO:     127.0.0.1:58073 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [28912]
+WARNING:  WatchFiles detected changes in 'app/nlp/translator.py'. Reloading...
+INFO:     Started server process [29715]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/answer/answer_builder.py'. Reloading...
+INFO:     Started server process [29720]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Started server process [29723]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/answer/answer_builder.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for connections to close. (CTRL+C to force quit)
+INFO:     127.0.0.1:58186 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [29723]
+INFO:     Started server process [29767]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:58211 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58226 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58246 - "GET /health HTTP/1.1" 200 OK
+(trapped) error reading bcrypt version
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/passlib/handlers/bcrypt.py", line 620, in _load_backend_mixin
+    version = _bcrypt.__about__.__version__
+              ^^^^^^^^^^^^^^^^^
+AttributeError: module 'bcrypt' has no attribute '__about__'
+INFO:     127.0.0.1:58251 - "POST /auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58260 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58242 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58269 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58273 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58278 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58285 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58288 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58294 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58298 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58306 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+Answer generation failed: unsupported operand type(s) for -: 'NoneType' and 'float'
+Traceback (most recent call last):
+  File "/Users/gabriellunesu/Git/AdNavi/backend/app/answer/answer_builder.py", line 351, in build_answer
+    context = extract_rich_context(
+              ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gabriellunesu/Git/AdNavi/backend/app/answer/context_extractor.py", line 135, in extract_rich_context
+    context.workspace_comparison = _extract_workspace_comparison(
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gabriellunesu/Git/AdNavi/backend/app/answer/context_extractor.py", line 254, in _extract_workspace_comparison
+    deviation_pct = (value - workspace_avg) / workspace_avg
+                     ~~~~~~^~~~~~~~~~~~~~~
+TypeError: unsupported operand type(s) for -: 'NoneType' and 'float'
+⚠️  Answer builder failed, using template fallback: Answer generation failed: unsupported operand type(s) for -: 'NoneType' and 'float'
+INFO:     127.0.0.1:58313 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58316 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58325 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58330 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58335 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58349 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58347 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58357 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58363 - "POST /auth/login HTTP/1.1" 200 OK
+Failed to log QA run: (builtins.TypeError) Object of type date is not JSON serializable
+[SQL: INSERT INTO qa_query_logs (id, workspace_id, user_id, question_text, dsl_json, created_at, duration_ms) VALUES (%(id)s::UUID, %(workspace_id)s::UUID, %(user_id)s::UUID, %(question_text)s, %(dsl_json)s, %(created_at)s, %(duration_ms)s)]
+[parameters: [{'workspace_id': '4449fa5d-746d-4aa0-b446-28df32deb1e6', 'created_at': datetime.datetime(2025, 10, 15, 14, 24, 46, 183777), 'user_id': 'f20e77cf-3b3e- ... (636 characters truncated) ... : 'Your CPC is $0.45 from October 01 to 15.', 'success': True, 'latency_ms': 2054}, 'question_text': "What's my CPC this month?", 'duration_ms': 2054}]]
+INFO:     127.0.0.1:58368 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58365 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58376 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+Failed to log QA run: (builtins.TypeError) Object of type date is not JSON serializable
+[SQL: INSERT INTO qa_query_logs (id, workspace_id, user_id, question_text, dsl_json, created_at, duration_ms) VALUES (%(id)s::UUID, %(workspace_id)s::UUID, %(user_id)s::UUID, %(question_text)s, %(dsl_json)s, %(created_at)s, %(duration_ms)s)]
+[parameters: [{'workspace_id': '4449fa5d-746d-4aa0-b446-28df32deb1e6', 'created_at': datetime.datetime(2025, 10, 15, 14, 24, 50, 305192), 'user_id': 'f20e77cf-3b3e- ... (656 characters truncated) ... t $145,570.10 from October 01 to 15.', 'success': True, 'latency_ms': 3107}, 'question_text': 'How much did I spend this month?', 'duration_ms': 3107}]]
+INFO:     127.0.0.1:58374 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58382 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+Failed to log QA run: (builtins.TypeError) Object of type date is not JSON serializable
+[SQL: INSERT INTO qa_query_logs (id, workspace_id, user_id, question_text, dsl_json, created_at, duration_ms) VALUES (%(id)s::UUID, %(workspace_id)s::UUID, %(user_id)s::UUID, %(question_text)s, %(dsl_json)s, %(created_at)s, %(duration_ms)s)]
+[parameters: [{'workspace_id': '4449fa5d-746d-4aa0-b446-28df32deb1e6', 'created_at': datetime.datetime(2025, 10, 15, 14, 24, 53, 228007), 'user_id': 'f20e77cf-3b3e- ... (626 characters truncated) ... nswer_text': 'Your ROAS is 5.71× this week.', 'success': True, 'latency_ms': 2192}, 'question_text': "What's my ROAS this week?", 'duration_ms': 2192}]]
+INFO:     127.0.0.1:58384 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58393 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58391 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58399 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58411 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58415 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58403 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+Failed to log QA run: (builtins.TypeError) Object of type date is not JSON serializable
+[SQL: INSERT INTO qa_query_logs (id, workspace_id, user_id, question_text, dsl_json, created_at, duration_ms) VALUES (%(id)s::UUID, %(workspace_id)s::UUID, %(user_id)s::UUID, %(question_text)s, %(dsl_json)s, %(created_at)s, %(duration_ms)s)]
+[parameters: [{'workspace_id': '4449fa5d-746d-4aa0-b446-28df32deb1e6', 'created_at': datetime.datetime(2025, 10, 15, 14, 25, 8, 529129), 'user_id': 'f20e77cf-3b3e-4 ... (678 characters truncated) ... eads from October 01 to 15.', 'success': True, 'latency_ms': 2874}, 'question_text': 'How many leads did I generate this month?', 'duration_ms': 2874}]]
+INFO:     127.0.0.1:58419 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58422 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+Failed to log QA run: (builtins.TypeError) Object of type date is not JSON serializable
+[SQL: INSERT INTO qa_query_logs (id, workspace_id, user_id, question_text, dsl_json, created_at, duration_ms) VALUES (%(id)s::UUID, %(workspace_id)s::UUID, %(user_id)s::UUID, %(question_text)s, %(dsl_json)s, %(created_at)s, %(duration_ms)s)]
+[parameters: [{'workspace_id': '4449fa5d-746d-4aa0-b446-28df32deb1e6', 'created_at': datetime.datetime(2025, 10, 15, 14, 25, 11, 441671), 'user_id': 'f20e77cf-3b3e- ... (669 characters truncated) ... is $14.01 from October 01 to 15.', 'success': True, 'latency_ms': 2199}, 'question_text': 'What is my cost per lead this month?', 'duration_ms': 2199}]]
+INFO:     127.0.0.1:58426 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58434 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58431 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58440 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58442 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58451 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58448 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58460 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58457 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58465 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58468 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+WARNING:  WatchFiles detected changes in 'app/answer/answer_builder.py', 'app/nlp/prompts.py', 'app/nlp/translator.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for connections to close. (CTRL+C to force quit)
+INFO:     127.0.0.1:58474 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58477 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [29767]
+INFO:     Started server process [30895]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+(trapped) error reading bcrypt version
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/passlib/handlers/bcrypt.py", line 620, in _load_backend_mixin
+    version = _bcrypt.__about__.__version__
+              ^^^^^^^^^^^^^^^^^
+AttributeError: module 'bcrypt' has no attribute '__about__'
+INFO:     127.0.0.1:58492 - "POST /auth/login HTTP/1.1" 200 OK
+Failed to log QA run: (builtins.TypeError) Object of type date is not JSON serializable
+[SQL: INSERT INTO qa_query_logs (id, workspace_id, user_id, question_text, dsl_json, created_at, duration_ms) VALUES (%(id)s::UUID, %(workspace_id)s::UUID, %(user_id)s::UUID, %(question_text)s, %(dsl_json)s, %(created_at)s, %(duration_ms)s)]
+[parameters: [{'user_id': 'f20e77cf-3b3e-4642-99ca-3ed2e40b5e8a', 'workspace_id': '4449fa5d-746d-4aa0-b446-28df32deb1e6', 'duration_ms': 2006, 'created_at': datetim ... (635 characters truncated) ... month', 'answer_text': 'Your CPC is $0.45 from October 01 to 15.', 'success': True, 'latency_ms': 2006}, 'question_text': "What's my CPC this month?"}]]
+INFO:     127.0.0.1:58504 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58490 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+Failed to log QA run: (builtins.TypeError) Object of type date is not JSON serializable
+[SQL: INSERT INTO qa_query_logs (id, workspace_id, user_id, question_text, dsl_json, created_at, duration_ms) VALUES (%(id)s::UUID, %(workspace_id)s::UUID, %(user_id)s::UUID, %(question_text)s, %(dsl_json)s, %(created_at)s, %(duration_ms)s)]
+[parameters: [{'user_id': 'f20e77cf-3b3e-4642-99ca-3ed2e40b5e8a', 'workspace_id': '4449fa5d-746d-4aa0-b446-28df32deb1e6', 'duration_ms': 3365, 'created_at': datetim ... (656 characters truncated) ... swer_text': 'You spent $145,570.10 from October 01 to 15.', 'success': True, 'latency_ms': 3365}, 'question_text': 'How much did I spend this month?'}]]
+INFO:     127.0.0.1:58510 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58513 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58494 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+Failed to log QA run: (builtins.TypeError) Object of type date is not JSON serializable
+[SQL: INSERT INTO qa_query_logs (id, workspace_id, user_id, question_text, dsl_json, created_at, duration_ms) VALUES (%(id)s::UUID, %(workspace_id)s::UUID, %(user_id)s::UUID, %(question_text)s, %(dsl_json)s, %(created_at)s, %(duration_ms)s)]
+[parameters: [{'user_id': 'f20e77cf-3b3e-4642-99ca-3ed2e40b5e8a', 'workspace_id': '4449fa5d-746d-4aa0-b446-28df32deb1e6', 'duration_ms': 2604, 'created_at': datetim ... (626 characters truncated) ... ion': 'this week', 'answer_text': 'Your ROAS is 5.71× this week.', 'success': True, 'latency_ms': 2604}, 'question_text': "What's my ROAS this week?"}]]
+INFO:     127.0.0.1:58518 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58529 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58525 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58522 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58541 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58535 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58538 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58550 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58554 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58547 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58558 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58563 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58566 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+Failed to log QA run: (builtins.TypeError) Object of type date is not JSON serializable
+[SQL: INSERT INTO qa_query_logs (id, workspace_id, user_id, question_text, dsl_json, created_at, duration_ms) VALUES (%(id)s::UUID, %(workspace_id)s::UUID, %(user_id)s::UUID, %(question_text)s, %(dsl_json)s, %(created_at)s, %(duration_ms)s)]
+[parameters: [{'user_id': 'f20e77cf-3b3e-4642-99ca-3ed2e40b5e8a', 'workspace_id': '4449fa5d-746d-4aa0-b446-28df32deb1e6', 'duration_ms': 2740, 'created_at': datetim ... (678 characters truncated) ... ou generated 10,388 leads from October 01 to 15.', 'success': True, 'latency_ms': 2740}, 'question_text': 'How many leads did I generate this month?'}]]
+INFO:     127.0.0.1:58572 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+Failed to log QA run: (builtins.TypeError) Object of type date is not JSON serializable
+[SQL: INSERT INTO qa_query_logs (id, workspace_id, user_id, question_text, dsl_json, created_at, duration_ms) VALUES (%(id)s::UUID, %(workspace_id)s::UUID, %(user_id)s::UUID, %(question_text)s, %(dsl_json)s, %(created_at)s, %(duration_ms)s)]
+[parameters: [{'user_id': 'f20e77cf-3b3e-4642-99ca-3ed2e40b5e8a', 'workspace_id': '4449fa5d-746d-4aa0-b446-28df32deb1e6', 'duration_ms': 2269, 'created_at': datetim ... (668 characters truncated) ...  'Your cost per lead is $14.01 from October 01 to 15.', 'success': True, 'latency_ms': 2269}, 'question_text': 'What is my cost per lead this month?'}]]
+INFO:     127.0.0.1:58583 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58580 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58576 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58589 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58599 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58597 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58613 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58623 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58626 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58636 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58633 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58645 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58642 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58650 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58652 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58661 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58658 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58666 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58669 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58675 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58681 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58685 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58692 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58689 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58698 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58702 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58705 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58713 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58709 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58720 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58723 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+Failed to log QA run: (builtins.TypeError) Object of type date is not JSON serializable
+[SQL: INSERT INTO qa_query_logs (id, workspace_id, user_id, question_text, dsl_json, created_at, duration_ms) VALUES (%(id)s::UUID, %(workspace_id)s::UUID, %(user_id)s::UUID, %(question_text)s, %(dsl_json)s, %(created_at)s, %(duration_ms)s)]
+[parameters: [{'user_id': 'f20e77cf-3b3e-4642-99ca-3ed2e40b5e8a', 'workspace_id': '4449fa5d-746d-4aa0-b446-28df32deb1e6', 'duration_ms': 2049, 'created_at': datetim ... (660 characters truncated) ... _text': 'Your revenue is $898,335.06 from October 01 to 15.', 'success': True, 'latency_ms': 2049}, 'question_text': 'what is my revenue this month?'}]]
+INFO:     127.0.0.1:58733 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58740 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58736 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58745 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58748 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58753 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:58756 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58763 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58759 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58768 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58772 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58778 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58781 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58786 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58790 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58793 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58798 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58803 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58808 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58811 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58816 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+[MULTI_METRIC_ANSWER] Failed to generate answer: Object of type Decimal is not JSON serializable
+Failed to log QA run: (builtins.TypeError) Object of type date is not JSON serializable
+[SQL: INSERT INTO qa_query_logs (id, workspace_id, user_id, question_text, dsl_json, created_at, duration_ms) VALUES (%(id)s::UUID, %(workspace_id)s::UUID, %(user_id)s::UUID, %(question_text)s, %(dsl_json)s, %(created_at)s, %(duration_ms)s)]
+[parameters: [{'user_id': 'f20e77cf-3b3e-4642-99ca-3ed2e40b5e8a', 'workspace_id': '4449fa5d-746d-4aa0-b446-28df32deb1e6', 'duration_ms': 1747, 'created_at': datetim ... (852 characters truncated) ... \n• ROAS: 7.04×', 'success': True, 'latency_ms': 1747}, 'question_text': "What's the spend, revenue, and ROAS for all Google campaigns in September?"}]]
+INFO:     127.0.0.1:58820 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+[MULTI_METRIC_ANSWER] Failed to generate answer: Object of type Decimal is not JSON serializable
+INFO:     127.0.0.1:58826 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58823 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+[MULTI_METRIC_ANSWER] Failed to generate answer: Object of type Decimal is not JSON serializable
+INFO:     127.0.0.1:58830 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58833 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58841 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+Failed to log QA run: (builtins.TypeError) Object of type date is not JSON serializable
+[SQL: INSERT INTO qa_query_logs (id, workspace_id, user_id, question_text, dsl_json, created_at, duration_ms) VALUES (%(id)s::UUID, %(workspace_id)s::UUID, %(user_id)s::UUID, %(question_text)s, %(dsl_json)s, %(created_at)s, %(duration_ms)s)]
+[parameters: [{'user_id': 'f20e77cf-3b3e-4642-99ca-3ed2e40b5e8a', 'workspace_id': '4449fa5d-746d-4aa0-b446-28df32deb1e6', 'duration_ms': 6824, 'created_at': datetim ... (1386 characters truncated) ... ess': True, 'latency_ms': 6824}, 'question_text': 'Compare spend and revenue between Morning Audience and Evening Audience adsets this month to date'}]]
+INFO:     127.0.0.1:58836 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+[MULTI_METRIC_ANSWER] Failed to generate answer: Object of type Decimal is not JSON serializable
+INFO:     127.0.0.1:58850 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58847 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+[MULTI_METRIC_ANSWER] Failed to generate answer: Object of type Decimal is not JSON serializable
+INFO:     127.0.0.1:58854 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58857 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58861 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:58864 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+[MULTI_METRIC_ANSWER] Failed to generate answer: Object of type Decimal is not JSON serializable
+Failed to log QA run: (builtins.TypeError) Object of type date is not JSON serializable
+[SQL: INSERT INTO qa_query_logs (id, workspace_id, user_id, question_text, dsl_json, created_at, duration_ms) VALUES (%(id)s::UUID, %(workspace_id)s::UUID, %(user_id)s::UUID, %(question_text)s, %(dsl_json)s, %(created_at)s, %(duration_ms)s)]
+[parameters: [{'user_id': 'f20e77cf-3b3e-4642-99ca-3ed2e40b5e8a', 'workspace_id': '4449fa5d-746d-4aa0-b446-28df32deb1e6', 'duration_ms': 2047, 'created_at': datetim ... (853 characters truncated) ... .39', 'success': True, 'latency_ms': 2047}, 'question_text': "What's the revenue, ROAS, and cost per lead for lead gen campaigns this month to date?"}]]
+INFO:     127.0.0.1:58868 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58871 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58878 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58883 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58875 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+[MULTI_METRIC_ANSWER] Failed to generate answer: Object of type Decimal is not JSON serializable
+INFO:     127.0.0.1:58889 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58887 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58897 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58894 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+[MULTI_METRIC_ANSWER] Failed to generate answer: Object of type Decimal is not JSON serializable
+Failed to log QA run: (builtins.TypeError) Object of type date is not JSON serializable
+[SQL: INSERT INTO qa_query_logs (id, workspace_id, user_id, question_text, dsl_json, created_at, duration_ms) VALUES (%(id)s::UUID, %(workspace_id)s::UUID, %(user_id)s::UUID, %(question_text)s, %(dsl_json)s, %(created_at)s, %(duration_ms)s)]
+[parameters: [{'user_id': 'f20e77cf-3b3e-4642-99ca-3ed2e40b5e8a', 'workspace_id': '4449fa5d-746d-4aa0-b446-28df32deb1e6', 'duration_ms': 2224, 'created_at': datetim ... (863 characters truncated) ... IONS: 7,260', 'success': True, 'latency_ms': 2224}, 'question_text': "What's the CTR, CPC, and conversions for Weekend Audience adsets in September?"}]]
+INFO:     127.0.0.1:58906 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58902 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+[MULTI_METRIC_ANSWER] Failed to generate answer: Object of type Decimal is not JSON serializable
+Failed to log QA run: (builtins.TypeError) Object of type date is not JSON serializable
+[SQL: INSERT INTO qa_query_logs (id, workspace_id, user_id, question_text, dsl_json, created_at, duration_ms) VALUES (%(id)s::UUID, %(workspace_id)s::UUID, %(user_id)s::UUID, %(question_text)s, %(dsl_json)s, %(created_at)s, %(duration_ms)s)]
+[parameters: [{'user_id': 'f20e77cf-3b3e-4642-99ca-3ed2e40b5e8a', 'workspace_id': '4449fa5d-746d-4aa0-b446-28df32deb1e6', 'duration_ms': 1607, 'created_at': datetim ... (884 characters truncated) ... ,833.86', 'success': True, 'latency_ms': 1607}, 'question_text': 'Give me spend, revenue, ROAS, and profit for all Meta campaigns this month to date'}]]
+INFO:     127.0.0.1:58912 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58918 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58915 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58923 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58928 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58932 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58936 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58939 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58943 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58947 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58951 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58955 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58960 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58964 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58970 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58979 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58994 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59004 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59009 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59014 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59018 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59022 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59026 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59033 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59044 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59055 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59059 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59063 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59067 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59071 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59077 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59081 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59086 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59090 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59094 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59099 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59105 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59111 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+[MULTI_METRIC_ANSWER] Failed to generate answer: Object of type Decimal is not JSON serializable
+Failed to log QA run: (builtins.TypeError) Object of type date is not JSON serializable
+[SQL: INSERT INTO qa_query_logs (id, workspace_id, user_id, question_text, dsl_json, created_at, duration_ms) VALUES (%(id)s::UUID, %(workspace_id)s::UUID, %(user_id)s::UUID, %(question_text)s, %(dsl_json)s, %(created_at)s, %(duration_ms)s)]
+[parameters: [{'user_id': 'f20e77cf-3b3e-4642-99ca-3ed2e40b5e8a', 'workspace_id': '4449fa5d-746d-4aa0-b446-28df32deb1e6', 'duration_ms': 1909, 'created_at': datetim ... (852 characters truncated) ... \n• ROAS: 7.04×', 'success': True, 'latency_ms': 1909}, 'question_text': "What's the spend, revenue, and ROAS for all Google campaigns in September?"}]]
+INFO:     127.0.0.1:59117 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+[MULTI_METRIC_ANSWER] Failed to generate answer: Object of type Decimal is not JSON serializable
+INFO:     127.0.0.1:59120 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+[MULTI_METRIC_ANSWER] Failed to generate answer: Object of type Decimal is not JSON serializable
+INFO:     127.0.0.1:59124 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+Failed to log QA run: (builtins.TypeError) Object of type date is not JSON serializable
+[SQL: INSERT INTO qa_query_logs (id, workspace_id, user_id, question_text, dsl_json, created_at, duration_ms) VALUES (%(id)s::UUID, %(workspace_id)s::UUID, %(user_id)s::UUID, %(question_text)s, %(dsl_json)s, %(created_at)s, %(duration_ms)s)]
+[parameters: [{'user_id': 'f20e77cf-3b3e-4642-99ca-3ed2e40b5e8a', 'workspace_id': '4449fa5d-746d-4aa0-b446-28df32deb1e6', 'duration_ms': 5613, 'created_at': datetim ... (1466 characters truncated) ... ess': True, 'latency_ms': 5613}, 'question_text': 'Compare spend and revenue between Morning Audience and Evening Audience adsets this month to date'}]]
+INFO:     127.0.0.1:59127 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+[MULTI_METRIC_ANSWER] Failed to generate answer: Object of type Decimal is not JSON serializable
+INFO:     127.0.0.1:59131 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+[MULTI_METRIC_ANSWER] Failed to generate answer: Object of type Decimal is not JSON serializable
+INFO:     127.0.0.1:59134 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59138 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 400 Bad Request
+[MULTI_METRIC_ANSWER] Failed to generate answer: Object of type Decimal is not JSON serializable
+Failed to log QA run: (builtins.TypeError) Object of type date is not JSON serializable
+[SQL: INSERT INTO qa_query_logs (id, workspace_id, user_id, question_text, dsl_json, created_at, duration_ms) VALUES (%(id)s::UUID, %(workspace_id)s::UUID, %(user_id)s::UUID, %(question_text)s, %(dsl_json)s, %(created_at)s, %(duration_ms)s)]
+[parameters: [{'user_id': 'f20e77cf-3b3e-4642-99ca-3ed2e40b5e8a', 'workspace_id': '4449fa5d-746d-4aa0-b446-28df32deb1e6', 'duration_ms': 1904, 'created_at': datetim ... (853 characters truncated) ... .39', 'success': True, 'latency_ms': 1904}, 'question_text': "What's the revenue, ROAS, and cost per lead for lead gen campaigns this month to date?"}]]
+INFO:     127.0.0.1:59143 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59146 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+[MULTI_METRIC_ANSWER] Failed to generate answer: Object of type Decimal is not JSON serializable
+INFO:     127.0.0.1:59150 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59160 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+[MULTI_METRIC_ANSWER] Failed to generate answer: Object of type Decimal is not JSON serializable
+Failed to log QA run: (builtins.TypeError) Object of type date is not JSON serializable
+[SQL: INSERT INTO qa_query_logs (id, workspace_id, user_id, question_text, dsl_json, created_at, duration_ms) VALUES (%(id)s::UUID, %(workspace_id)s::UUID, %(user_id)s::UUID, %(question_text)s, %(dsl_json)s, %(created_at)s, %(duration_ms)s)]
+[parameters: [{'user_id': 'f20e77cf-3b3e-4642-99ca-3ed2e40b5e8a', 'workspace_id': '4449fa5d-746d-4aa0-b446-28df32deb1e6', 'duration_ms': 1903, 'created_at': datetim ... (862 characters truncated) ... IONS: 7,260', 'success': True, 'latency_ms': 1903}, 'question_text': "What's the CTR, CPC, and conversions for Weekend Audience adsets in September?"}]]
+INFO:     127.0.0.1:59165 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+[MULTI_METRIC_ANSWER] Failed to generate answer: Object of type Decimal is not JSON serializable
+Failed to log QA run: (builtins.TypeError) Object of type date is not JSON serializable
+[SQL: INSERT INTO qa_query_logs (id, workspace_id, user_id, question_text, dsl_json, created_at, duration_ms) VALUES (%(id)s::UUID, %(workspace_id)s::UUID, %(user_id)s::UUID, %(question_text)s, %(dsl_json)s, %(created_at)s, %(duration_ms)s)]
+[parameters: [{'user_id': 'f20e77cf-3b3e-4642-99ca-3ed2e40b5e8a', 'workspace_id': '4449fa5d-746d-4aa0-b446-28df32deb1e6', 'duration_ms': 1447, 'created_at': datetim ... (885 characters truncated) ... ,833.86', 'success': True, 'latency_ms': 1447}, 'question_text': 'Give me spend, revenue, ROAS, and profit for all Meta campaigns this month to date'}]]
+INFO:     127.0.0.1:59168 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59172 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+WARNING:  WatchFiles detected changes in 'app/services/unified_metric_service.py', 'app/services/qa_service.py', 'app/answer/answer_builder.py', 'app/schemas.py', 'app/nlp/translator.py', 'app/nlp/prompts.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [30895]
+INFO:     Started server process [36891]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.

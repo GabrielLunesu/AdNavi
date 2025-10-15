@@ -35,6 +35,7 @@ class AnswerIntent(str, Enum):
     SIMPLE = "simple"          # Just give me the number
     COMPARATIVE = "comparative" # Compare to something
     ANALYTICAL = "analytical"   # Explain the why/how
+    LIST = "list"              # Give me a list of items
 
 
 def classify_intent(question: str, query: MetricQuery) -> AnswerIntent:
@@ -80,6 +81,12 @@ def classify_intent(question: str, query: MetricQuery) -> AnswerIntent:
     - User explicitly asking for understanding, not just data
     - Example: "why is my roas low", "explain the trend", "analyze campaign performance"
     
+    LIST Intent - Give me a list of items:
+    - Question contains list keywords ("list", "show me all", "give me", "top", "all")
+    - DSL has breakdown AND top_n > 1
+    - User wants to see multiple items, not just the top performer
+    - Example: "give me a list of top 5 campaigns", "show me all adsets", "list campaigns with high ROAS"
+    
     References:
     - Docs: backend/docs/ROADMAP_TO_NATURAL_COPILOT.md
     - Tests: app/tests/test_intent_classifier.py
@@ -100,13 +107,33 @@ def classify_intent(question: str, query: MetricQuery) -> AnswerIntent:
     if any(kw in question_lower for kw in analytical_keywords):
         return AnswerIntent.ANALYTICAL
     
+    # LIST: Asking for a list of items (check BEFORE comparative)
+    # These users want to see multiple items, not just the top performer
+    list_keywords = [
+        "list", "show me all", "give me", "top", "all",
+        "every", "each", "entire", "complete"
+    ]
+    
+    # Check for list keywords in question
+    has_list_keywords = any(kw in question_lower for kw in list_keywords)
+    
+    # Check DSL for list signals (breakdown with top_n > 1)
+    has_list_in_dsl = (
+        query.breakdown is not None and 
+        query.top_n is not None and 
+        query.top_n > 1
+    )
+    
+    if has_list_keywords and has_list_in_dsl:
+        return AnswerIntent.LIST
+    
     # COMPARATIVE: Asking to compare things
     # These users want context and comparison, not just a single number
     comparative_keywords = [
         "compare", "comparison", "vs", "versus",
         "better", "worse", "best", "worst",
         "higher", "lower", "more", "less",
-        "top", "bottom", "rank", "ranking",
+        "bottom", "rank", "ranking",
         "which", "who", "what campaign", "what platform"
     ]
     
