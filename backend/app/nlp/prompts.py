@@ -844,11 +844,15 @@ QUERY TYPES:
 - "metrics": For metric aggregations (ROAS, spend, revenue, etc.) — DEFAULT if not clear
 - "providers": For listing ad platforms ("Which platforms?", "What channels?")
 - "entities": For listing campaigns/adsets/ads ("List my campaigns", "Show me adsets")
+- "comparison": For direct comparisons between entities or providers ("Compare X vs Y")
 
 QUERY TYPE CLASSIFICATION RULES:
-- Use "metrics" for ANY question involving metric values, comparisons, or filtering by performance
+- Use "comparison" for direct "Compare X vs Y" questions
+- Use "metrics" for ANY question involving metric values, filtering by performance, or breakdowns
 - Use "entities" ONLY for simple listing without metric analysis
 - Examples:
+  * "Compare Holiday Sale vs App Install campaign ROAS" → "comparison" (direct comparison)
+  * "Compare Google vs Meta performance" → "comparison" (provider comparison)
   * "Show me campaigns with ROAS above 4" → "metrics" (filtering by metric value)
   * "Which campaigns performed best?" → "metrics" (performance analysis)
   * "List my campaigns" → "entities" (simple listing)
@@ -952,11 +956,33 @@ IMPORTANT: Sort by LITERAL VALUE, not by performance interpretation!
 - "lowest CPC" = lowest value = "asc"
 """
 
+    # Define the comparison query rules section
+    COMPARISON_QUERY_RULES = """
+COMPARISON QUERIES (NEW - Step 3):
+Use "query_type": "comparison" for direct comparisons between entities or providers.
+
+COMPARISON TYPES:
+- "entity_vs_entity": Compare specific campaigns/adsets/ads by name
+- "provider_vs_provider": Compare Google vs Meta vs TikTok performance
+- "time_vs_time": Compare different time periods (future enhancement)
+
+COMPARISON EXAMPLES:
+- "Compare Holiday Sale vs App Install campaign ROAS" → entity_vs_entity
+- "Compare Google vs Meta performance" → provider_vs_provider
+- "Compare CPC, CTR, and ROAS for Holiday Sale and App Install campaigns" → entity_vs_entity with multiple metrics
+
+REQUIRED FIELDS FOR COMPARISON QUERIES:
+- comparison_type: "entity_vs_entity" | "provider_vs_provider" | "time_vs_time"
+- comparison_entities: ["Entity1", "Entity2"] (for entity_vs_entity)
+- comparison_metrics: ["metric1", "metric2"] (metrics to compare)
+- time_range: Required for all comparison queries
+"""
+
     # Define the JSON schema section
     JSON_SCHEMA_SECTION = """
 {
-  "query_type": "metrics" | "providers" | "entities",
-  "metric": string,
+  "query_type": "metrics" | "providers" | "entities" | "comparison",
+  "metric": string | array,
   "time_range": object,
   "compare_to_previous": boolean,
   "group_by": string,
@@ -964,7 +990,10 @@ IMPORTANT: Sort by LITERAL VALUE, not by performance interpretation!
   "top_n": number,
   "sort_order": "asc" | "desc",
   "filters": object,
-  "thresholds": object | null
+  "thresholds": object | null,
+  "comparison_type": "entity_vs_entity" | "provider_vs_provider" | "time_vs_time" | null,
+  "comparison_entities": array | null,
+  "comparison_metrics": array | null
 }
 """
 
@@ -979,6 +1008,8 @@ IMPORTANT: Sort by LITERAL VALUE, not by performance interpretation!
     {DEFAULT_METRIC_SELECTION_RULES}
     
     {QUERY_TYPES_SECTION}
+    
+    {COMPARISON_QUERY_RULES}
     
     {METRICS_SECTION}
     
