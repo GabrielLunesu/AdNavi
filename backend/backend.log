@@ -1192,3 +1192,414 @@ INFO:     Finished server process [30895]
 INFO:     Started server process [36891]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
+INFO:     127.0.0.1:59629 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59629 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59629 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59633 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59635 - "OPTIONS /workspaces/4449fa5d-746d-4aa0-b446-28df32deb1e6/info HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59629 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59635 - "OPTIONS /workspaces/4449fa5d-746d-4aa0-b446-28df32deb1e6/finance/pnl?granularity=month&period_start=2025-09-30&period_end=2025-10-31&compare=true HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59638 - "OPTIONS /workspaces/4449fa5d-746d-4aa0-b446-28df32deb1e6/finance/costs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59629 - "GET /workspaces/4449fa5d-746d-4aa0-b446-28df32deb1e6/finance/pnl?granularity=month&period_start=2025-09-30&period_end=2025-10-31&compare=true HTTP/1.1" 500 Internal Server Error
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/uvicorn/protocols/http/httptools_impl.py", line 401, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/uvicorn/middleware/proxy_headers.py", line 70, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/fastapi/applications.py", line 1054, in __call__
+    await super().__call__(scope, receive, send)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/applications.py", line 113, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/middleware/errors.py", line 187, in __call__
+    raise exc
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/middleware/errors.py", line 165, in __call__
+    await self.app(scope, receive, _send)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/middleware/cors.py", line 93, in __call__
+    await self.simple_response(scope, receive, send, request_headers=headers)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/middleware/cors.py", line 144, in simple_response
+    await self.app(scope, receive, send)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/middleware/sessions.py", line 85, in __call__
+    await self.app(scope, receive, send_wrapper)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/middleware/exceptions.py", line 62, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/_exception_handler.py", line 62, in wrapped_app
+    raise exc
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/_exception_handler.py", line 51, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/routing.py", line 715, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/routing.py", line 735, in app
+    await route.handle(scope, receive, send)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/routing.py", line 288, in handle
+    await self.app(scope, receive, send)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/routing.py", line 76, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/_exception_handler.py", line 62, in wrapped_app
+    raise exc
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/_exception_handler.py", line 51, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/routing.py", line 73, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/fastapi/routing.py", line 301, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/fastapi/routing.py", line 214, in run_endpoint_function
+    return await run_in_threadpool(dependant.call, **values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/concurrency.py", line 39, in run_in_threadpool
+    return await anyio.to_thread.run_sync(func, *args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/anyio/to_thread.py", line 33, in run_sync
+    return await get_asynclib().run_sync_in_worker_thread(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/anyio/_backends/_asyncio.py", line 877, in run_sync_in_worker_thread
+    return await future
+           ^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/anyio/_backends/_asyncio.py", line 807, in run
+    result = context.run(func, *args)
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gabriellunesu/Git/AdNavi/backend/app/routers/finance.py", line 220, in get_pnl_statement
+    func.sum(MF.spend).label("spend"),
+             ^^
+NameError: name 'MF' is not defined
+INFO:     127.0.0.1:59633 - "GET /workspaces/4449fa5d-746d-4aa0-b446-28df32deb1e6/info HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59640 - "GET /workspaces/4449fa5d-746d-4aa0-b446-28df32deb1e6/finance/costs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59640 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59638 - "OPTIONS /entity-performance/list?timeframe=7d&sort_by=roas&sort_dir=desc&page=1&page_size=8&entity_level=campaign&status=active HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59635 - "OPTIONS /entity-performance/list?timeframe=7d&sort_by=roas&sort_dir=desc&page=1&page_size=8&entity_level=campaign&status=active HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59640 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59640 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59633 - "GET /entity-performance/list?timeframe=7d&sort_by=roas&sort_dir=desc&page=1&page_size=8&entity_level=campaign&status=active HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59640 - "GET /workspaces/4449fa5d-746d-4aa0-b446-28df32deb1e6/info HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59649 - "GET /entity-performance/list?timeframe=7d&sort_by=roas&sort_dir=desc&page=1&page_size=8&entity_level=campaign&status=active HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59651 - "OPTIONS /entity-performance/list?timeframe=7d&sort_by=roas&sort_dir=desc&page=1&page_size=8&entity_level=campaign&status=paused HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59653 - "GET /entity-performance/list?timeframe=7d&sort_by=roas&sort_dir=desc&page=1&page_size=8&entity_level=campaign&status=paused HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59651 - "OPTIONS /entity-performance/list?timeframe=7d&sort_by=roas&sort_dir=desc&page=1&page_size=8&entity_level=campaign HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59653 - "GET /entity-performance/list?timeframe=7d&sort_by=roas&sort_dir=desc&page=1&page_size=8&entity_level=campaign HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59653 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59653 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59653 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59663 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59663 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59653 - "GET /workspaces/4449fa5d-746d-4aa0-b446-28df32deb1e6/info HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59665 - "GET /workspaces/4449fa5d-746d-4aa0-b446-28df32deb1e6/finance/costs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59663 - "GET /workspaces/4449fa5d-746d-4aa0-b446-28df32deb1e6/finance/pnl?granularity=month&period_start=2025-09-30&period_end=2025-10-31&compare=true HTTP/1.1" 500 Internal Server Error
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/uvicorn/protocols/http/httptools_impl.py", line 401, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/uvicorn/middleware/proxy_headers.py", line 70, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/fastapi/applications.py", line 1054, in __call__
+    await super().__call__(scope, receive, send)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/applications.py", line 113, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/middleware/errors.py", line 187, in __call__
+    raise exc
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/middleware/errors.py", line 165, in __call__
+    await self.app(scope, receive, _send)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/middleware/cors.py", line 93, in __call__
+    await self.simple_response(scope, receive, send, request_headers=headers)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/middleware/cors.py", line 144, in simple_response
+    await self.app(scope, receive, send)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/middleware/sessions.py", line 85, in __call__
+    await self.app(scope, receive, send_wrapper)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/middleware/exceptions.py", line 62, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/_exception_handler.py", line 62, in wrapped_app
+    raise exc
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/_exception_handler.py", line 51, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/routing.py", line 715, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/routing.py", line 735, in app
+    await route.handle(scope, receive, send)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/routing.py", line 288, in handle
+    await self.app(scope, receive, send)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/routing.py", line 76, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/_exception_handler.py", line 62, in wrapped_app
+    raise exc
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/_exception_handler.py", line 51, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/routing.py", line 73, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/fastapi/routing.py", line 301, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/fastapi/routing.py", line 214, in run_endpoint_function
+    return await run_in_threadpool(dependant.call, **values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/concurrency.py", line 39, in run_in_threadpool
+    return await anyio.to_thread.run_sync(func, *args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/anyio/to_thread.py", line 33, in run_sync
+    return await get_asynclib().run_sync_in_worker_thread(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/anyio/_backends/_asyncio.py", line 877, in run_sync_in_worker_thread
+    return await future
+           ^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/anyio/_backends/_asyncio.py", line 807, in run
+    result = context.run(func, *args)
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gabriellunesu/Git/AdNavi/backend/app/routers/finance.py", line 220, in get_pnl_statement
+    func.sum(MF.spend).label("spend"),
+             ^^
+NameError: name 'MF' is not defined
+INFO:     127.0.0.1:59665 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59665 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59653 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59653 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59668 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59653 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59674 - "OPTIONS /workspaces/4449fa5d-746d-4aa0-b446-28df32deb1e6/kpis?only_active=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59675 - "OPTIONS /workspaces/4449fa5d-746d-4aa0-b446-28df32deb1e6/kpis?only_active=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59668 - "GET /workspaces/4449fa5d-746d-4aa0-b446-28df32deb1e6/info HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59653 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59671 - "POST /workspaces/4449fa5d-746d-4aa0-b446-28df32deb1e6/kpis?only_active=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59671 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59671 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59653 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59671 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59653 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59675 - "OPTIONS /workspaces/4449fa5d-746d-4aa0-b446-28df32deb1e6/providers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59674 - "OPTIONS /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59675 - "OPTIONS /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59674 - "OPTIONS /workspaces/4449fa5d-746d-4aa0-b446-28df32deb1e6/providers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59692 - "OPTIONS /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59696 - "OPTIONS /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59671 - "GET /workspaces/4449fa5d-746d-4aa0-b446-28df32deb1e6/info HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59653 - "POST /workspaces/4449fa5d-746d-4aa0-b446-28df32deb1e6/kpis?only_active=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59688 - "POST /workspaces/4449fa5d-746d-4aa0-b446-28df32deb1e6/kpis?only_active=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59671 - "GET /workspaces/4449fa5d-746d-4aa0-b446-28df32deb1e6/providers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59668 - "POST /workspaces/4449fa5d-746d-4aa0-b446-28df32deb1e6/kpis?only_active=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59653 - "POST /workspaces/4449fa5d-746d-4aa0-b446-28df32deb1e6/kpis?only_active=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59693 - "POST /workspaces/4449fa5d-746d-4aa0-b446-28df32deb1e6/kpis?only_active=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59694 - "POST /workspaces/4449fa5d-746d-4aa0-b446-28df32deb1e6/kpis?only_active=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59693 - "GET /workspaces/4449fa5d-746d-4aa0-b446-28df32deb1e6/providers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59668 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59688 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59653 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59671 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59708 - "OPTIONS /workspaces/4449fa5d-746d-4aa0-b446-28df32deb1e6/kpis?provider=tiktok&only_active=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59712 - "OPTIONS /workspaces/4449fa5d-746d-4aa0-b446-28df32deb1e6/kpis?provider=tiktok&only_active=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59715 - "OPTIONS /workspaces/4449fa5d-746d-4aa0-b446-28df32deb1e6/kpis?provider=tiktok&only_active=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59722 - "POST /workspaces/4449fa5d-746d-4aa0-b446-28df32deb1e6/kpis?provider=tiktok&only_active=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59718 - "POST /workspaces/4449fa5d-746d-4aa0-b446-28df32deb1e6/kpis?provider=tiktok&only_active=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59720 - "POST /workspaces/4449fa5d-746d-4aa0-b446-28df32deb1e6/kpis?provider=tiktok&only_active=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59713 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59716 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59749 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59749 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59749 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59751 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59749 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59751 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59749 - "GET /workspaces/4449fa5d-746d-4aa0-b446-28df32deb1e6/info HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59751 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59754 - "POST /workspaces/4449fa5d-746d-4aa0-b446-28df32deb1e6/kpis?only_active=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59756 - "POST /workspaces/4449fa5d-746d-4aa0-b446-28df32deb1e6/kpis?only_active=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59756 - "POST /qa/?workspace_id=4449fa5d-746d-4aa0-b446-28df32deb1e6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59771 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59771 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59771 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59773 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59771 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59773 - "GET /workspaces/4449fa5d-746d-4aa0-b446-28df32deb1e6/info HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59775 - "POST /workspaces/4449fa5d-746d-4aa0-b446-28df32deb1e6/kpis?only_active=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59771 - "GET /workspaces/4449fa5d-746d-4aa0-b446-28df32deb1e6/providers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59793 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59793 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59793 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59797 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59793 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59797 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59810 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59810 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59810 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59812 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59812 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59810 - "GET /workspaces/4449fa5d-746d-4aa0-b446-28df32deb1e6/info HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59817 - "GET /workspaces/4449fa5d-746d-4aa0-b446-28df32deb1e6/finance/costs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59812 - "GET /workspaces/4449fa5d-746d-4aa0-b446-28df32deb1e6/finance/pnl?granularity=month&period_start=2025-09-30&period_end=2025-10-31&compare=true HTTP/1.1" 500 Internal Server Error
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/uvicorn/protocols/http/httptools_impl.py", line 401, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/uvicorn/middleware/proxy_headers.py", line 70, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/fastapi/applications.py", line 1054, in __call__
+    await super().__call__(scope, receive, send)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/applications.py", line 113, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/middleware/errors.py", line 187, in __call__
+    raise exc
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/middleware/errors.py", line 165, in __call__
+    await self.app(scope, receive, _send)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/middleware/cors.py", line 93, in __call__
+    await self.simple_response(scope, receive, send, request_headers=headers)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/middleware/cors.py", line 144, in simple_response
+    await self.app(scope, receive, send)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/middleware/sessions.py", line 85, in __call__
+    await self.app(scope, receive, send_wrapper)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/middleware/exceptions.py", line 62, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/_exception_handler.py", line 62, in wrapped_app
+    raise exc
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/_exception_handler.py", line 51, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/routing.py", line 715, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/routing.py", line 735, in app
+    await route.handle(scope, receive, send)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/routing.py", line 288, in handle
+    await self.app(scope, receive, send)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/routing.py", line 76, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/_exception_handler.py", line 62, in wrapped_app
+    raise exc
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/_exception_handler.py", line 51, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/routing.py", line 73, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/fastapi/routing.py", line 301, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/fastapi/routing.py", line 214, in run_endpoint_function
+    return await run_in_threadpool(dependant.call, **values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/concurrency.py", line 39, in run_in_threadpool
+    return await anyio.to_thread.run_sync(func, *args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/anyio/to_thread.py", line 33, in run_sync
+    return await get_asynclib().run_sync_in_worker_thread(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/anyio/_backends/_asyncio.py", line 877, in run_sync_in_worker_thread
+    return await future
+           ^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/anyio/_backends/_asyncio.py", line 807, in run
+    result = context.run(func, *args)
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gabriellunesu/Git/AdNavi/backend/app/routers/finance.py", line 220, in get_pnl_statement
+    func.sum(MF.spend).label("spend"),
+             ^^
+NameError: name 'MF' is not defined
+INFO:     127.0.0.1:59846 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59846 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59846 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59853 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59846 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59853 - "GET /workspaces/4449fa5d-746d-4aa0-b446-28df32deb1e6/info HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59855 - "GET /workspaces/4449fa5d-746d-4aa0-b446-28df32deb1e6/finance/costs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59846 - "GET /workspaces/4449fa5d-746d-4aa0-b446-28df32deb1e6/finance/pnl?granularity=month&period_start=2025-09-30&period_end=2025-10-31&compare=true HTTP/1.1" 500 Internal Server Error
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/uvicorn/protocols/http/httptools_impl.py", line 401, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/uvicorn/middleware/proxy_headers.py", line 70, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/fastapi/applications.py", line 1054, in __call__
+    await super().__call__(scope, receive, send)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/applications.py", line 113, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/middleware/errors.py", line 187, in __call__
+    raise exc
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/middleware/errors.py", line 165, in __call__
+    await self.app(scope, receive, _send)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/middleware/cors.py", line 93, in __call__
+    await self.simple_response(scope, receive, send, request_headers=headers)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/middleware/cors.py", line 144, in simple_response
+    await self.app(scope, receive, send)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/middleware/sessions.py", line 85, in __call__
+    await self.app(scope, receive, send_wrapper)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/middleware/exceptions.py", line 62, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/_exception_handler.py", line 62, in wrapped_app
+    raise exc
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/_exception_handler.py", line 51, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/routing.py", line 715, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/routing.py", line 735, in app
+    await route.handle(scope, receive, send)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/routing.py", line 288, in handle
+    await self.app(scope, receive, send)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/routing.py", line 76, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/_exception_handler.py", line 62, in wrapped_app
+    raise exc
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/_exception_handler.py", line 51, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/routing.py", line 73, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/fastapi/routing.py", line 301, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/fastapi/routing.py", line 214, in run_endpoint_function
+    return await run_in_threadpool(dependant.call, **values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/starlette/concurrency.py", line 39, in run_in_threadpool
+    return await anyio.to_thread.run_sync(func, *args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/anyio/to_thread.py", line 33, in run_sync
+    return await get_asynclib().run_sync_in_worker_thread(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/anyio/_backends/_asyncio.py", line 877, in run_sync_in_worker_thread
+    return await future
+           ^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/anyio/_backends/_asyncio.py", line 807, in run
+    result = context.run(func, *args)
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gabriellunesu/Git/AdNavi/backend/app/routers/finance.py", line 220, in get_pnl_statement
+    func.sum(MF.spend).label("spend"),
+             ^^
+NameError: name 'MF' is not defined
+WARNING:  WatchFiles detected changes in 'app/routers/finance.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [36891]
+INFO:     Started server process [37763]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:60324 - "GET /health HTTP/1.1" 200 OK
+(trapped) error reading bcrypt version
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/passlib/handlers/bcrypt.py", line 620, in _load_backend_mixin
+    version = _bcrypt.__about__.__version__
+              ^^^^^^^^^^^^^^^^^
+AttributeError: module 'bcrypt' has no attribute '__about__'
+INFO:     127.0.0.1:60332 - "POST /auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60349 - "GET /workspaces/4449fa5d-746d-4aa0-b446-28df32deb1e6/finance/pnl?granularity=month&period_start=2025-10-01&period_end=2025-11-01&compare=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60596 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60618 - "GET /workspaces/4449fa5d-746d-4aa0-b446-28df32deb1e6/finance/pnl?granularity=month&period_start=2025-10-01&period_end=2025-11-01&compare=false HTTP/1.1" 200 OK
+WARNING:  WatchFiles detected changes in 'app/routers/finance.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [37763]
+INFO:     Started server process [38356]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:60692 - "GET /workspaces/4449fa5d-746d-4aa0-b446-28df32deb1e6/finance/pnl?granularity=month&period_start=2025-10-01&period_end=2025-11-01&compare=false HTTP/1.1" 200 OK
+WARNING:  WatchFiles detected changes in 'app/routers/finance.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [38356]
+INFO:     Started server process [38493]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
