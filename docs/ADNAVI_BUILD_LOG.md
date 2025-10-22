@@ -49,6 +49,17 @@ _Last updated: 2025-10-15T13:50:00Z_
   - `app/tests/`: Unit tests for DSL validation, executor, translator, v2.4.0 extensions
   - **Phase 6 Follow-up**: Comparison queries, entity provider filtering, list intent, goal-aware metric selection
 
+**Hierarchy Rollups & Comprehensive Logging (2025-10-16)**:
+- **Hierarchy Rollups**: Added hierarchy CTE support to UnifiedMetricService for entity_name filtering
+- **Fresh Data**: When querying campaigns/adsets by name, now rolls up from descendant entities only (excludes stale parent facts)
+- **Comprehensive Logging**: Added detailed logging throughout QA pipeline and UnifiedMetricService
+- **Log Markers**: `[QA_PIPELINE]`, `[UNIFIED_METRICS]`, `[ENTITY_CATALOG]` for easy filtering
+- **Entity Name Filter**: Added to KPI endpoint for consistency with QA system
+- **Testing**: Verified with curl tests - QA returns 1.29× ROAS (matching descendants-only calculation)
+- **Documentation**: Created testing guides and log viewing documentation
+- **Benefits**: Eliminates data mismatches, provides fresh data from children, improves debugging transparency
+- **Impact**: Fixes critical issue where QA system showed different values than expected due to stale campaign-level facts
+
 **Phase 6 Follow-up Improvements (2025-10-15)**:
 - **Comparison Query Support**: Added `comparison_type` field to DSL schema and implemented comparison query execution
 - **Entity Provider Filtering**: Fixed entity queries to use MetricFact.provider instead of Connection.provider for accurate filtering

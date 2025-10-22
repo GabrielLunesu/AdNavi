@@ -46,6 +46,7 @@ from sqlalchemy import func, cast, Date, desc, asc
 from app import models
 from app.metrics.registry import compute_metric, get_required_bases, is_base_measure
 from app.dsl.schema import TimeRange
+from app.dsl.hierarchy import campaign_ancestor_cte, adset_ancestor_cte
 
 logger = logging.getLogger(__name__)
 
@@ -158,23 +159,29 @@ class UnifiedMetricService:
             >>> print(result.metrics["roas"].value)
             6.29
         """
-        logger.info(f"[UNIFIED_METRICS] Getting summary for {len(metrics)} metrics")
+        logger.info(f"[UNIFIED_METRICS] Getting summary for {len(metrics)} metrics: {metrics}")
+        logger.info(f"[UNIFIED_METRICS] Time range: {time_range}")
+        logger.info(f"[UNIFIED_METRICS] Filters: provider={filters.provider}, level={filters.level}, status={filters.status}, entity_name={filters.entity_name}")
         
         # Resolve time range
         start_date, end_date = self._resolve_time_range(time_range)
+        logger.info(f"[UNIFIED_METRICS] Resolved dates: {start_date} to {end_date}")
         
         # Get current period totals
         current_totals = self._get_base_totals(
             workspace_id, start_date, end_date, filters
         )
+        logger.info(f"[UNIFIED_METRICS] Current period totals: {current_totals}")
         
         # Get previous period totals if requested
         previous_totals = None
         if compare_to_previous:
             prev_start, prev_end = self._get_previous_period(start_date, end_date)
+            logger.info(f"[UNIFIED_METRICS] Previous period dates: {prev_start} to {prev_end}")
             previous_totals = self._get_base_totals(
                 workspace_id, prev_start, prev_end, filters
             )
+            logger.info(f"[UNIFIED_METRICS] Previous period totals: {previous_totals}")
         
         # Calculate all requested metrics
         metric_results = {}
@@ -200,6 +207,9 @@ class UnifiedMetricService:
             workspace_avg = self.get_workspace_average(
                 workspace_id, metrics[0], time_range
             )
+        
+        logger.info(f"[UNIFIED_METRICS] Calculated metrics: {metric_results}")
+        logger.info(f"[UNIFIED_METRICS] Workspace average: {workspace_avg}")
         
         return MetricSummary(
             metrics=metric_results,
@@ -264,7 +274,7 @@ class UnifiedMetricService:
         )
         
         # Apply filters
-        query = self._apply_filters(query, filters)
+        query = self._apply_filters(query, filters, workspace_id)
         
         # Execute query
         rows = query.all()
@@ -323,9 +333,13 @@ class UnifiedMetricService:
             Summer Sale Campaign
         """
         logger.info(f"[UNIFIED_METRICS] Getting breakdown for {metric} by {breakdown_dimension}")
+        logger.info(f"[UNIFIED_METRICS] Time range: {time_range}")
+        logger.info(f"[UNIFIED_METRICS] Filters: provider={filters.provider}, level={filters.level}, status={filters.status}, entity_name={filters.entity_name}")
+        logger.info(f"[UNIFIED_METRICS] Top N: {top_n}, Sort order: {sort_order}")
         
         # Resolve time range
         start_date, end_date = self._resolve_time_range(time_range)
+        logger.info(f"[UNIFIED_METRICS] Resolved dates: {start_date} to {end_date}")
         
         # Build breakdown query based on dimension
         if breakdown_dimension == "provider":
@@ -482,7 +496,7 @@ class UnifiedMetricService:
         )
         
         # Apply filters
-        query = self._apply_filters(query, filters)
+        query = self._apply_filters(query, filters, workspace_id)
         
         # Execute query
         row = query.first()
@@ -491,29 +505,127 @@ class UnifiedMetricService:
         
         return row._asdict()
     
-    def _apply_filters(self, query, filters: MetricFilters):
-        """Apply filters to a query."""
+    def _resolve_entity_name_to_descendants(self, workspace_id: str, entity_name: str) -> Optional[List[str]]:
+        """
+        Resolve entity name to descendant entity IDs using hierarchy CTEs.
+        
+        When a user queries by entity name (e.g., "Product Launch Teaser campaign"),
+        we need to roll up metrics from all descendant entities, NOT include the
+        parent entity's own fact (which might be stale).
+        
+        Args:
+            workspace_id: Workspace UUID for scoping
+            entity_name: Name of the entity to resolve
+            
+        Returns:
+            List of descendant entity IDs (UUIDs), or None if entity not found
+            
+        Example:
+            >>> service._resolve_entity_name_to_descendants(workspace_id, "Product Launch Teaser")
+            ['adset-id-1', 'adset-id-2', 'ad-id-1', 'ad-id-2', ...]
+            
+        References:
+        - app/dsl/hierarchy.py: campaign_ancestor_cte, adset_ancestor_cte
+        """
+        logger.info(f"[UNIFIED_METRICS] Resolving entity name: '{entity_name}'")
+        
+        # Find the entity by name
+        entity = (
+            self.db.query(self.E)
+            .filter(self.E.workspace_id == workspace_id)
+            .filter(self.E.name.ilike(f"%{entity_name}%"))
+            .first()
+        )
+        
+        if not entity:
+            logger.warning(f"[UNIFIED_METRICS] Entity not found: '{entity_name}'")
+            return None
+        
+        logger.info(f"[UNIFIED_METRICS] Found entity: {entity.name} (ID: {entity.id}, Level: {entity.level})")
+        
+        # If it's an ad (leaf level), return just the entity itself
+        if entity.level == "ad":
+            logger.info(f"[UNIFIED_METRICS] Entity is ad level, returning itself only")
+            return [str(entity.id)]
+        
+        # Use hierarchy CTE to find all descendants
+        if entity.level == "campaign":
+            mapping_cte = campaign_ancestor_cte(self.db)
+            logger.info(f"[UNIFIED_METRICS] Using campaign hierarchy CTE")
+        elif entity.level == "adset":
+            mapping_cte = adset_ancestor_cte(self.db)
+            logger.info(f"[UNIFIED_METRICS] Using adset hierarchy CTE")
+        else:
+            logger.warning(f"[UNIFIED_METRICS] Unknown entity level: {entity.level}")
+            return [str(entity.id)]
+        
+        # Find all leaf entities that roll up to this ancestor
+        descendants = (
+            self.db.query(mapping_cte.c.leaf_id)
+            .filter(mapping_cte.c.ancestor_id == entity.id)
+            .all()
+        )
+        
+        descendant_ids = [str(row.leaf_id) for row in descendants]
+        logger.info(f"[UNIFIED_METRICS] Found {len(descendant_ids)} descendants for {entity.name}")
+        
+        # CRITICAL: Exclude the parent entity itself from descendants
+        # We only want facts from children, not the parent's own fact
+        if str(entity.id) in descendant_ids:
+            descendant_ids.remove(str(entity.id))
+            logger.info(f"[UNIFIED_METRICS] Excluded parent entity {entity.id} from descendants")
+        
+        logger.info(f"[UNIFIED_METRICS] Returning {len(descendant_ids)} descendant IDs for rollup")
+        return descendant_ids
+    
+    def _apply_filters(self, query, filters: MetricFilters, workspace_id: str = None):
+        """
+        Apply filters to a query.
+        
+        Args:
+            query: SQLAlchemy query object
+            filters: MetricFilters object with filter criteria
+            workspace_id: Workspace UUID (required for entity_name hierarchy resolution)
+        """
         # Provider filter
         if filters.provider:
             provider_value = filters.normalize_provider()
             query = query.filter(self.MF.provider == provider_value)
+            logger.debug(f"[UNIFIED_METRICS] Applied provider filter: {provider_value}")
         
         # Level filter (use E.level, not MF.level)
         if filters.level:
             query = query.filter(self.E.level == filters.level)
+            logger.debug(f"[UNIFIED_METRICS] Applied level filter: {filters.level}")
         
         # Status filter (default: include all entities)
         if filters.status:
             query = query.filter(self.E.status == filters.status)
+            logger.debug(f"[UNIFIED_METRICS] Applied status filter: {filters.status}")
         
         # Entity IDs filter
         if filters.entity_ids:
             query = query.filter(self.MF.entity_id.in_(filters.entity_ids))
+            logger.debug(f"[UNIFIED_METRICS] Applied entity_ids filter: {len(filters.entity_ids)} entities")
         
-        # Entity name filter (case-insensitive partial match)
+        # Entity name filter (case-insensitive partial match with hierarchy rollup)
         if filters.entity_name:
-            pattern = f"%{filters.entity_name}%"
-            query = query.filter(self.E.name.ilike(pattern))
+            if workspace_id:
+                # Use hierarchy rollup to get descendant IDs
+                descendant_ids = self._resolve_entity_name_to_descendants(workspace_id, filters.entity_name)
+                if descendant_ids:
+                    logger.info(f"[UNIFIED_METRICS] Using hierarchy rollup for '{filters.entity_name}': {len(descendant_ids)} descendants")
+                    query = query.filter(self.MF.entity_id.in_(descendant_ids))
+                else:
+                    # Fallback to simple name match if hierarchy resolution fails
+                    logger.warning(f"[UNIFIED_METRICS] Hierarchy resolution failed, falling back to name match")
+                    pattern = f"%{filters.entity_name}%"
+                    query = query.filter(self.E.name.ilike(pattern))
+            else:
+                # No workspace_id provided, use simple name match
+                logger.warning(f"[UNIFIED_METRICS] No workspace_id provided for entity_name filter, using simple match")
+                pattern = f"%{filters.entity_name}%"
+                query = query.filter(self.E.name.ilike(pattern))
         
         return query
     
@@ -539,7 +651,7 @@ class UnifiedMetricService:
             .group_by(self.MF.provider)
         )
         
-        return self._apply_filters(query, filters)
+        return self._apply_filters(query, filters, workspace_id)
     
     def _build_entity_breakdown_query(self, workspace_id: str, start_date: date, end_date: date, filters: MetricFilters, level: str):
         """Build query for entity breakdown (campaign/adset/ad)."""
@@ -566,7 +678,7 @@ class UnifiedMetricService:
             .group_by(self.E.name)
         )
         
-        return self._apply_filters(query, filters)
+        return self._apply_filters(query, filters, workspace_id)
     
     def _get_order_expression(self, metric: str):
         """Get SQL expression for ordering by metric."""
@@ -881,7 +993,7 @@ class UnifiedMetricService:
             .group_by(group_expr)
         )
         
-        return self._apply_filters(query, filters)
+        return self._apply_filters(query, filters, workspace_id)
     
     def _get_time_order_expression(self, metric: str, breakdown_dimension: str):
         """Get SQL expression for ordering by metric in time-based breakdowns."""

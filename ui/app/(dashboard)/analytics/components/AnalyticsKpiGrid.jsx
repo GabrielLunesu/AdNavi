@@ -32,7 +32,9 @@ export default function AnalyticsKpiGrid({
       lastNDays: rangeDays,
       provider: selectedProvider === 'all' ? null : selectedProvider,
       compareToPrevious: false, // Commented out for now
-      sparkline: false // Don't need sparklines for KPI cards
+      sparkline: false, // Don't need sparklines for KPI cards
+      customStartDate: customStartDate || null,
+      customEndDate: customEndDate || null
     };
 
     fetchWorkspaceKpis(params)

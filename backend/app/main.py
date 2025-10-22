@@ -9,6 +9,8 @@ from fastapi.openapi.utils import get_openapi
 from sqladmin import Admin, ModelView
 from starlette.middleware.sessions import SessionMiddleware
 import os
+import logging
+logging.basicConfig(level=logging.INFO)
 
 from .authentication import SimpleAuth
 from .database import engine
