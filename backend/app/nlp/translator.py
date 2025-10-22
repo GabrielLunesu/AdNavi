@@ -266,7 +266,7 @@ class Translator:
         
         Related:
         - Called by: to_dsl() when context is provided
-        - Context from: app/context/context_manager.py
+        - Context from: app/context/redis_context_manager.py (RedisContextManager)
         """
         if not context or len(context) == 0:
             return ""

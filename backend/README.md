@@ -4,7 +4,7 @@ This service provides email/password authentication using JWT stored in an HTTP-
 
 ## Prerequisites
 - Python 3.11+
-- Docker (for PostgreSQL)
+- Docker (for PostgreSQL and Redis)
 - A virtual environment (recommended)
 
 to run: uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 
@@ -30,12 +30,22 @@ DATABASE_URL=postgresql+psycopg2://adnavi:adnavi@localhost:5432/adnavi
 # CORS / Cookies
 BACKEND_CORS_ORIGINS=http://localhost:3000
 COOKIE_DOMAIN=localhost
+
+# Redis (for conversation context)
+# Option 1: Railway Redis (set this for both local and production)
+REDIS_URL=redis://default:aeauElUBRUoaHdgmBsgXntUcDsqPuRpm@gondola.proxy.rlwy.net:41155
+# Option 2: Local Redis (uncomment this and comment above for local-only)
+# REDIS_URL=redis://localhost:6379/0
+CONTEXT_MAX_HISTORY=5
+CONTEXT_TTL_SECONDS=3600
 ```
 
-## Start DB
+## Start DB (Redis uses Railway)
 ```bash
-cd backend
+cd ..
 docker compose up -d
+# PostgreSQL runs locally
+# Redis uses Railway instance (configured via REDIS_URL)
 ```
 
 ## Install Dependencies

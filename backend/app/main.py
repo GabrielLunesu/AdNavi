@@ -15,6 +15,7 @@ logging.basicConfig(level=logging.INFO)
 from .authentication import SimpleAuth
 from .database import engine
 from .deps import get_settings
+from . import state
 from .routers import auth as auth_router
 from .routers import workspaces as workspaces_router
 from .routers import connections as connections_router
@@ -392,6 +393,15 @@ def create_app() -> FastAPI:
     )
     def health():
         return schemas.HealthResponse(status="ok")
+    
+    @app.on_event("startup")
+    async def startup_event():
+        """Validate Redis connection on application startup."""
+        if state.context_manager.health_check():
+            logging.info("[STARTUP] Redis context manager is healthy")
+        else:
+            logging.error("[STARTUP] Redis context manager health check failed")
+            raise RuntimeError("Redis unavailable - application cannot start without Redis")
 
     # Initialize authentication backend for admin panel
     authentication_backend = SimpleAuth(secret_key=settings.ADMIN_SECRET_KEY)

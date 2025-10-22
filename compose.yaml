@@ -19,6 +19,10 @@ services:
       # OpenAI API Key
       OPENAI_API_KEY: 
       
+      # Redis Configuration
+      # Railway Redis URL configured via environment variable
+      REDIS_URL: ${REDIS_URL:-redis://localhost:6379/0}
+      
       # CORS Configuration - allow both versions
       BACKEND_CORS_ORIGINS: "https://t8zgrthold5r2-frontend--3000.prod1.defang.dev"
     healthcheck:
@@ -59,4 +63,3 @@ services:
       resources:
         reservations:
           memory: 512M
-

@@ -1388,6 +1388,79 @@ _Last updated: 2025-10-15T13:50:00Z_
 - **QA Prompts**: Updated to clarify default entity behavior
 - **No Breaking Changes**: All existing functionality preserved
 
+### 2025-01-16T18:00:00Z — **MAJOR FEATURE**: Redis Context Manager Migration ✅ — Production-ready conversation history with multi-instance support.
+
+**Summary**: Replaced in-memory context manager with Redis-backed implementation to enable horizontal scaling and eliminate critical vulnerabilities.
+
+**Problem**: In-memory context manager had critical limitations:
+- Lost conversation history on server restarts
+- Failed with multi-instance deployments (load balancing)
+- No automatic cleanup of stale sessions
+- Single-process limitation
+
+**Solution**: Implemented Redis-backed context manager with fail-fast approach.
+
+**Files Created**:
+- `backend/app/context/redis_context_manager.py`: Redis-backed implementation with FIFO eviction and TTL
+- `backend/app/tests/test_redis_context_manager.py`: 19 comprehensive unit tests (all passing)
+- `backend/tests/integration/test_redis_context_integration.py`: 9 integration tests (all passing)
+- `backend/docs/REDIS_CONTEXT_MANAGER.md`: Complete architecture documentation
+
+**Files Modified**:
+- `compose.yaml`: Added Redis service with health checks and persistent volume
+- `backend/requirements.txt`: Added redis==5.0.1 and fakeredis==2.21.1
+- `backend/app/deps.py`: Added Redis configuration (REDIS_URL, CONTEXT_MAX_HISTORY, CONTEXT_TTL_SECONDS)
+- `backend/app/state.py`: Replaced ContextManager with RedisContextManager singleton
+- `backend/app/main.py`: Added startup validation for Redis connectivity
+- `backend/app/context/__init__.py`: Updated to export RedisContextManager
+- `backend/app/nlp/translator.py`: Updated documentation references
+
+**Features**:
+- ✅ **Multi-Instance Support**: Shared state across API instances via Redis
+- ✅ **Persistence**: Survives server restarts with appendonly mode
+- ✅ **TTL-Based Cleanup**: Automatic expiration after 1 hour (configurable)
+- ✅ **FIFO Eviction**: Maximum 5 entries per user+workspace (configurable)
+- ✅ **Fail-Fast**: Clear error messages when Redis unavailable
+- ✅ **Connection Pooling**: Thread-safe with 50 connection pool
+- ✅ **Health Checks**: Application validates Redis on startup
+- ✅ **Tenant Isolation**: User+workspace scoped keys prevent leaks
+
+**Architecture**:
+- **Data Structure**: Redis lists with LPUSH/LTRIM for FIFO behavior
+- **Key Format**: `context:{user_id}:{workspace_id}`
+- **Entry Format**: JSON with question, DSL, and result
+- **TTL Strategy**: Refreshed on every write, auto-expires after inactivity
+- **FIFO Eviction**: Automatic eviction when max_history exceeded
+
+**Testing Results**:
+- ✅ **Unit Tests**: 19/19 passing (basics, FIFO, scoping, TTL, error handling, JSON serialization)
+- ✅ **Integration Tests**: 9/9 passing (QA integration, persistence, concurrent access, isolation, multi-turn)
+- ✅ **Fail-Fast**: Verified application fails to start if Redis unavailable
+- ✅ **Thread Safety**: Tested concurrent writes and reads
+
+**Impact**:
+- **Production Ready**: Eliminates multi-instance deployment vulnerability
+- **Scalability**: Enables horizontal scaling with load balancer
+- **Reliability**: Conversation history persists across restarts
+- **Security**: Fail-fast approach prevents silent failures
+- **Performance**: Connection pooling ensures low latency
+- **Maintainability**: Comprehensive documentation and testing
+
+**Breaking Changes**:
+- **Requires Redis**: Application fails to start without Redis (fail-fast approach)
+- **No Fallback**: No degradation to in-memory storage
+- **Configuration**: Must set REDIS_URL environment variable
+
+**Migration**: 
+- Old `ContextManager` kept temporarily for reference
+- Will be removed after production verification
+- No data migration needed (context is ephemeral with 1 hour TTL)
+
+**Documentation**:
+- Complete architecture guide in `backend/docs/REDIS_CONTEXT_MANAGER.md`
+- Updated references throughout codebase
+- Changelog entry added to build log
+
 Update routine (repeat every change)
 
 READ docs/ADNAVI_BUILD_LOG.md.

@@ -10,25 +10,28 @@ WHY this module exists:
 - Need to store recent DSLs + results to resolve pronouns and references
 
 Components:
-- context_manager.py: In-memory conversation history storage
+- redis_context_manager.py: Redis-backed conversation history storage (production)
+- context_manager.py: In-memory implementation (deprecated, kept for reference)
 
 Related files:
 - app/services/qa_service.py: Uses context manager to track conversations
 - app/nlp/translator.py: Uses context to resolve follow-up questions
 
 Design principles:
-- Simple in-memory storage (no database persistence yet)
+- Redis-backed storage for production scalability
 - User + workspace scoped (tenant isolation)
 - Fixed-size history (last N queries to prevent memory bloat)
+- TTL-based expiration (auto-cleanup after 1 hour)
 - Thread-safe for concurrent requests
+- Fail-fast if Redis unavailable
 
-Future enhancements:
-- Persistent storage (Redis, PostgreSQL)
-- Cross-session history
-- Smart context pruning (relevance-based, not just FIFO)
+Architecture:
+- Uses RedisContextManager as the primary implementation
+- In-memory ContextManager kept temporarily for reference
+- Single instance shared via app.state.context_manager
 """
 
-from app.context.context_manager import ContextManager
+from app.context.redis_context_manager import RedisContextManager
 
-__all__ = ["ContextManager"]
+__all__ = ["RedisContextManager"]
 
