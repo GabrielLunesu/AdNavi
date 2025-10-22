@@ -22,7 +22,7 @@ A **marketing analytics platform** that understands questions like:
 
 And returns **accurate, contextual answers** powered by real-time data.
 
-## ⚡ The Innovation: Safe AI Querying
+## ⚡ Safe AI Querying
 
 Traditional AI + databases = **dangerous** (SQL injection, hallucinations, security leaks).
 
@@ -188,7 +188,7 @@ Access: http://localhost:3000
 
 ## 🎯 Technical Innovation Summary
 
-**What makes this unique:**
+
 1. **Safe DSL Layer**: JSON schema prevents SQL injection and hallucinations
 2. **Intent Classification**: Answers match question complexity (simple vs analytical)
 3. **Unified Metrics**: Single source of truth eliminates data mismatches
