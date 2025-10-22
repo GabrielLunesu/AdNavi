@@ -51,3 +51,19 @@ venv/
 .vscode/
 .idea/
 
+# Log files
+*.log
+*.log.*
+qa_logs.txt
+backend/qa_logs.txt
+backend/*.log
+logs/
+*.logs
+
+# Python virtual environment (backend specific)
+backend/bin/
+backend/lib/
+backend/include/
+backend/pyvenv.cfg
+backend/.Python
+backend/share/
