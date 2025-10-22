@@ -67,3 +67,14 @@ backend/include/
 backend/pyvenv.cfg
 backend/.Python
 backend/share/
+
+# Python site-packages (never commit dependencies)
+backend/lib/python3.11/site-packages/
+
+# Python cache files
+**/__pycache__/
+**/*.pyc
+
+# QA logs
+qa_logs.txt
+backend/qa_logs.txt

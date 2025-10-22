@@ -22,6 +22,11 @@ class Settings(BaseSettings):
     COOKIE_DOMAIN: Optional[str] = None
     ADMIN_SECRET_KEY: str = "supersecretkey-change-this-in-production"
     OPENAI_API_KEY: str | None = None
+    
+    # Redis Configuration
+    REDIS_URL: str = "redis://localhost:6379/0"
+    CONTEXT_MAX_HISTORY: int = 5
+    CONTEXT_TTL_SECONDS: int = 3600  # 1 hour
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
