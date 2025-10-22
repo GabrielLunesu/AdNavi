@@ -1,8 +1,8 @@
 # QA System Architecture & DSL Specification
 
-**Version**: DSL v2.4.0 (Phase 6 Follow-up Improvements)  
-**Last Updated**: 2025-10-15  
-**Status**: Production Ready - Phase 6 Follow-up Complete
+**Version**: DSL v2.4.1 (Hierarchy Rollups & Logging)  
+**Last Updated**: 2025-10-16  
+**Status**: Production Ready - Hierarchy Rollups Complete
 
 ✅ **Phase 1 Complete**: Intent-based answer depth implemented. Simple questions now get simple answers (1 sentence), comparative questions get comparisons (2-3 sentences), analytical questions get full context (3-4 sentences).
 
@@ -62,6 +62,12 @@
 - **Step 3: Comparison Queries**: Extended DSL schema with comparison_type, comparison_entities, comparison_metrics
 - **Step 4: Structured Outputs**: Implemented JSON mode with improved error handling for OpenAI API calls
 - **Impact**: All technical debt items resolved, system stability improved
+
+✅ **Hierarchy Rollups & Logging Complete** (2025-10-16):
+- **Hierarchy Rollups**: UnifiedMetricService now uses hierarchy CTEs to roll up from descendants when querying by entity_name
+- **Comprehensive Logging**: Added detailed logging throughout QA pipeline and UnifiedMetricService
+- **Debugging Support**: Structured log markers enable easy filtering and debugging
+- **Impact**: Fresh data from children entities, eliminates stale campaign-level facts, improved transparency
 
 ✅ **Unified Metrics Refactor Complete (2025-10-14)**: Major architectural improvement:
 - **Single Source of Truth**: All endpoints now use `UnifiedMetricService` for consistent calculations
@@ -375,6 +381,12 @@ flowchart TD
 - `get_breakdown()`: Group by provider, level, or temporal dimensions
 - `get_workspace_average()`: Workspace-wide averages for context
 
+**🔴 NEW (2025-10-16): Hierarchy Rollups**:
+- When filtering by `entity_name` (e.g., "Product Launch Teaser campaign"), the service uses hierarchy CTEs to roll up metrics from **descendant entities only**
+- Why: Campaign-level facts may be stale; children (adsets/ads) have real-time data
+- How: Uses `campaign_ancestor_cte` or `adset_ancestor_cte` to find all descendants, then queries facts for descendants only (excludes parent entity's own fact)
+- Logging: Comprehensive logging at each step to track which entities are included/excluded
+
 **Service Architecture**:
 ```python
 class UnifiedMetricService:
@@ -540,6 +552,15 @@ Used by both AnswerBuilder (GPT prompts) and QAService (fallback templates).
 - Logs every run to `qa_query_logs` table
 - Captures: question, DSL, success/failure, latency, errors
 - Purpose: Observability, debugging, offline evaluation
+
+**🔴 NEW (2025-10-16): Comprehensive Pipeline Logging**:
+- **QA Pipeline**: Logs at each stage (context retrieval, translation, planning, execution, answer generation)
+- **UnifiedMetricService**: Logs input filters, entity resolution, hierarchy steps, aggregation calculations
+- **Key Log Markers**:
+  - `[QA_PIPELINE]`: All QA service pipeline stages
+  - `[UNIFIED_METRICS]`: All UnifiedMetricService operations
+  - `[ENTITY_CATALOG]`: Entity catalog building
+  - Formatted with structured data for easy parsing and debugging
 
 ### 1️⃣6️⃣ **Response**
 ```json
@@ -1579,6 +1600,14 @@ The roadmap outlines our evolution from Q&A system to autonomous marketing intel
 ---
 
 ## Version History
+
+- **v2.4.1 (2025-10-16)**: Hierarchy Rollups & Comprehensive Logging ✅
+  - Added hierarchy rollup support to UnifiedMetricService for entity_name filtering
+  - When querying campaigns/adsets by name, now rolls up from descendant entities only (excludes stale parent facts)
+  - Added comprehensive logging throughout QA pipeline and UnifiedMetricService
+  - Log markers: `[QA_PIPELINE]`, `[UNIFIED_METRICS]`, `[ENTITY_CATALOG]`
+  - Benefits: Fresh data from children entities, detailed debugging logs, transparency in calculations
+  - Impact: Fixes data mismatches between QA system and UI dashboards
 
 - **v2.2.0 (2025-10-13)**: Advanced Analytics Implementation (Phase 7)
   - Added multi-metric query support (`metric` field accepts list of strings)

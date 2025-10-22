@@ -138,13 +138,20 @@ class QAService:
         dsl = None
         answer_text = None
         
+        logger.info(f"[QA_PIPELINE] ===== Starting QA pipeline =====")
+        logger.info(f"[QA_PIPELINE] Question: '{question}'")
+        logger.info(f"[QA_PIPELINE] Workspace ID: {workspace_id}")
+        logger.info(f"[QA_PIPELINE] User ID: {user_id or 'anon'}")
+        
         try:
             # Step 1: Fetch prior context (last N Q&A for this user+workspace)
             # WHY: Enables follow-up questions like "Which one performed best?"
+            logger.info(f"[QA_PIPELINE] Step 1: Fetching conversation context")
             context = self.context_manager.get_context(
                 user_id or "anon", 
                 workspace_id
             )
+            logger.info(f"[QA_PIPELINE] Context retrieved: {len(context)} previous queries")
             
             # Step 1.5: Build entity catalog for LLM to choose from
             # WHY: Let LLM handle entity recognition without hardcoded patterns
@@ -154,15 +161,20 @@ class QAService:
             # Step 2: Translate to DSL with context awareness and entity catalog
             # WHY context: LLM can resolve pronouns ("that", "this", "which one")
             # WHY catalog: LLM can choose appropriate entities without hardcoded patterns
+            logger.info(f"[QA_PIPELINE] Step 2: Translating question to DSL")
             dsl, translation_latency = self.translator.to_dsl(
                 question, 
                 log_latency=True,
                 context=context,  # NEW: Pass conversation history
                 entity_catalog=entity_catalog  # NEW: Pass entity catalog for entity recognition
             )
+            logger.info(f"[QA_PIPELINE] Translation complete: {dsl.model_dump()}")
+            logger.info(f"[QA_PIPELINE] Translation latency: {translation_latency}ms")
             
             # Step 3: Plan execution (may return None for non-metrics queries)
+            logger.info(f"[QA_PIPELINE] Step 3: Building execution plan")
             plan = build_plan(dsl)
+            logger.info(f"[QA_PIPELINE] Plan built: {plan}")
             
             # Phase 3: Pre-execution validation for missing data
             # Check if platform filter exists before executing query
@@ -213,14 +225,17 @@ class QAService:
                 logger.warning(f"[VALIDATION] Platform check failed: {e}. Continuing with normal execution.")
             
             # Step 4: Execute plan (pass both plan and query for DSL v1.2)
+            logger.info(f"[QA_PIPELINE] Step 4: Executing plan")
             result = execute_plan(
                 db=self.db,
                 workspace_id=workspace_id,
                 plan=plan,
                 query=dsl
             )
+            logger.info(f"[QA_PIPELINE] Execution complete: {result}")
             
             # Step 5: Build human-readable answer (hybrid approach)
+            logger.info(f"[QA_PIPELINE] Step 5: Building answer")
             # WHY hybrid: LLM rephrases deterministic facts → natural + safe
             # WHY fallback: If LLM fails, use template-based answer
             # NEW v2.0: Pass date window for transparency in answers
@@ -240,12 +255,16 @@ class QAService:
                     window=window,  # NEW: Pass date window
                     log_latency=True
                 )
+                logger.info(f"[QA_PIPELINE] Answer generated successfully")
+                logger.info(f"[QA_PIPELINE] Answer: '{answer_text}'")
+                logger.info(f"[QA_PIPELINE] Answer generation latency: {answer_generation_ms}ms")
             except AnswerBuilderError as e:
                 # Fallback to template-based answer if LLM fails
                 # WHY fallback: Ensures we always return something, even if LLM is down
-                print(f"⚠️  Answer builder failed, using template fallback: {e.message}")
+                logger.warning(f"[QA_PIPELINE] Answer builder failed, using template fallback: {e.message}")
                 answer_text = self._build_answer_template(dsl, result, window)
                 answer_generation_ms = None  # Not measured for fallback
+                logger.info(f"[QA_PIPELINE] Template answer: '{answer_text}'")
             
             # Step 6: Save to conversation context for follow-ups
             # WHY: Enables next question to reference this query
@@ -271,6 +290,8 @@ class QAService:
             
             # Step 8: Log success (including answer generation latency)
             total_latency_ms = int((time.time() - start_time) * 1000)
+            logger.info(f"[QA_PIPELINE] Step 6: Saving to conversation context")
+            logger.info(f"[QA_PIPELINE] Step 7: Logging telemetry")
             log_qa_run(
                 db=self.db,
                 workspace_id=workspace_id,
@@ -282,6 +303,10 @@ class QAService:
                 answer_text=answer_text
             )
             
+            logger.info(f"[QA_PIPELINE] ===== Pipeline complete =====")
+            logger.info(f"[QA_PIPELINE] Total latency: {total_latency_ms}ms")
+            logger.info(f"[QA_PIPELINE] Final answer: '{answer_text}'")
+            
             return {
                 "answer": answer_text,
                 "executed_dsl": dsl.model_dump(),  # Convert Pydantic model to dict
@@ -292,6 +317,7 @@ class QAService:
         except TranslationError as e:
             error_message = f"Translation failed: {e.message}"
             total_latency_ms = int((time.time() - start_time) * 1000)
+            logger.error(f"[QA_PIPELINE] Translation error: {e.message}")
             
             # Log failure
             log_qa_run(

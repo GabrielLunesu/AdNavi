@@ -32,7 +32,9 @@ export default function AdditionalMetrics({
       lastNDays: rangeDays,
       provider: selectedProvider === 'all' ? null : selectedProvider,
       compareToPrevious: false,
-      sparkline: false
+      sparkline: false,
+      customStartDate: customStartDate || null,
+      customEndDate: customEndDate || null
     };
 
     fetchWorkspaceKpis(params)

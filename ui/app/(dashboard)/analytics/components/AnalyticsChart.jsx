@@ -77,20 +77,26 @@ export default function AnalyticsChart({
     let mounted = true;
     setLoading(true);
 
+    // Find the selected campaign's name
+    const selectedCampaignName = selectedCampaign && campaigns.length > 0
+      ? campaigns.find(c => c.id === selectedCampaign)?.name
+      : null;
+
     const params = {
       workspaceId,
       metrics: [selectedMetric],
       lastNDays: rangeDays,
       provider: selectedProvider === 'all' ? null : selectedProvider,
       compareToPrevious: false,
-      sparkline: true
+      sparkline: true,
+      customStartDate: customStartDate || null,
+      customEndDate: customEndDate || null,
+      entityName: selectedGrouping === 'campaign' && selectedCampaignName ? selectedCampaignName : null
     };
 
-    // Add breakdown based on grouping
+    // Add breakdown based on grouping (not needed when filtering to specific campaign)
     if (selectedGrouping === 'provider') {
       params.breakdown = 'provider';
-    } else if (selectedGrouping === 'campaign' && selectedCampaign) {
-      params.breakdown = 'campaign';
     }
 
     fetchWorkspaceKpis(params)
@@ -105,7 +111,7 @@ export default function AnalyticsChart({
       });
 
     return () => { mounted = false; };
-  }, [workspaceId, selectedProvider, rangeDays, selectedMetric, selectedGrouping, selectedCampaign, customStartDate, customEndDate]);
+  }, [workspaceId, selectedProvider, rangeDays, selectedMetric, selectedGrouping, selectedCampaign, campaigns, customStartDate, customEndDate]);
 
   // Render chart
   useEffect(() => {

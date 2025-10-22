@@ -55,6 +55,7 @@ def get_workspace_kpis(
     db: Session = Depends(get_db),
     provider: Optional[str] = Query(default=None, description="Optional provider filter (google/meta/tiktok/other/mock)"),
     level: Optional[str] = Query(default=None, description="Optional entity level filter (campaign/adset/ad/...)"),
+    entity_name: Optional[str] = Query(default=None, description="Optional entity name filter (uses hierarchy rollup for campaigns/adsets)"),
     only_active: bool = Query(default=True, description="If true, exclude non-active entities"),
 ):
     """
@@ -96,7 +97,7 @@ def get_workspace_kpis(
         level=level,
         status="active" if only_active else None,  # Apply status filter based on only_active
         entity_ids=None,
-        entity_name=None,
+        entity_name=entity_name,  # NEW: Support entity name filtering with hierarchy rollup
         metric_filters=None
     )
     

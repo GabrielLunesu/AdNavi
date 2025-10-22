@@ -17,30 +17,40 @@ export async function fetchWorkspaceKpis({
   sparkline = true,
   provider = null,
   level = null,
-  onlyActive = false
+  onlyActive = false,
+  customStartDate = null,
+  customEndDate = null,
+  entityName = null
 }) {
   const params = new URLSearchParams();
   if (provider) params.set("provider", provider);
   if (level) params.set("level", level);
+  if (entityName) params.set("entity_name", entityName);
   if (onlyActive) params.set("only_active", "true");
   else params.set("only_active", "false");
 
-  // Calculate time range based on offset (for "yesterday" case)
+  // Format dates as YYYY-MM-DD
+  const formatDate = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Calculate time range based on different scenarios
   let timeRange;
-  if (dayOffset > 0) {
+  if (customStartDate && customEndDate) {
+    // Use custom date range
+    timeRange = {
+      start: customStartDate,
+      end: customEndDate
+    };
+  } else if (dayOffset > 0) {
     // Calculate specific dates for offset (e.g., yesterday)
     const end = new Date();
     end.setDate(end.getDate() - dayOffset);
     const start = new Date(end);
     start.setDate(start.getDate() - lastNDays + 1);
-    
-    // Format dates as YYYY-MM-DD
-    const formatDate = (date) => {
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    };
     
     timeRange = {
       start: formatDate(start),
