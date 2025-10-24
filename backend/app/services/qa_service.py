@@ -26,7 +26,8 @@ from __future__ import annotations
 
 import time
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
+from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
@@ -40,6 +41,26 @@ from app.answer.formatters import format_metric_value, format_delta_pct, fmt_cur
 from app import state  # Import shared application state
 
 logger = logging.getLogger(__name__)
+
+
+def convert_decimals_to_floats(obj: Any) -> Any:
+    """
+    Recursively convert Decimal values to floats for JSON serialization.
+    
+    Args:
+        obj: Any Python object (dict, list, Decimal, etc.)
+    
+    Returns:
+        Object with all Decimal values converted to float
+    """
+    if isinstance(obj, Decimal):
+        return float(obj)
+    elif isinstance(obj, dict):
+        return {key: convert_decimals_to_floats(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_decimals_to_floats(item) for item in obj]
+    else:
+        return obj
 
 
 class QAService:
@@ -271,15 +292,18 @@ class QAService:
             # Example: User asks "Which one performed best?" → needs this result
             # Serialize result based on type
             if hasattr(result, 'model_dump'):
-                result_data = result.model_dump()
+                result_data = result.model_dump(mode='json')  # Changed: added mode='json'
             else:
                 result_data = result  # Already a dict
+            
+            # Convert Decimal values to floats for JSON serialization
+            result_data = convert_decimals_to_floats(result_data)
             
             self.context_manager.add_entry(
                 user_id=user_id or "anon",
                 workspace_id=workspace_id,
                 question=question,
-                dsl=dsl.model_dump(),
+                dsl=dsl.model_dump(mode='json'),  # Changed: added mode='json' to serialize dates
                 result=result_data
             )
             
@@ -296,7 +320,7 @@ class QAService:
                 db=self.db,
                 workspace_id=workspace_id,
                 question=question,
-                dsl=dsl.model_dump(),
+                dsl=dsl.model_dump(mode='json'),  # Changed: added mode='json' to serialize dates
                 success=True,
                 latency_ms=total_latency_ms,
                 user_id=user_id,
