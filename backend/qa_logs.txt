@@ -315,3 +315,14 @@ INFO:     Started server process [34771]
 INFO:     Waiting for application startup.
 INFO:root:[STARTUP] Redis context manager is healthy
 INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/answer/answer_builder.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [34771]
+INFO:app.context.redis_context_manager:[REDIS_CONTEXT] Connected to Redis at redis://default:aeauElUBRUoaHdgmBsgXntUcDsqPuRpm@gondola.proxy.rlwy.net:41155
+INFO:app.state:[STATE] Redis context manager initialized successfully
+INFO:     Started server process [34952]
+INFO:     Waiting for application startup.
+INFO:root:[STARTUP] Redis context manager is healthy
+INFO:     Application startup complete.
