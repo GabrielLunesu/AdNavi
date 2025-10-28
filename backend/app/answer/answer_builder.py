@@ -408,6 +408,18 @@ class AnswerBuilder:
                 user_prompt = self._build_user_prompt(dsl, facts)
                 
             else:  # entities
+                # Bypass LLM when list is reasonably small → "list means list"
+                if isinstance(result, dict):
+                    entities = result.get("entities", [])
+                else:
+                    entities = []
+
+                if entities and len(entities) <= 25:
+                    answer_text = self._build_entities_list_template(dsl, entities)
+                    latency_ms = int((time.time() - start_time) * 1000) if log_latency and start_time else None
+                    return answer_text, latency_ms
+                
+                # Fallback to LLM formatting for large lists
                 facts = self._extract_entities_facts(dsl, result)
                 system_prompt = self._build_system_prompt()
                 user_prompt = self._build_user_prompt(dsl, facts)
@@ -652,6 +664,20 @@ class AnswerBuilder:
             facts["status"] = dsl.filters.status
         
         return facts
+
+    def _build_entities_list_template(self, dsl: MetricQuery, entities: list[Dict[str, Any]]) -> str:
+        """
+        Deterministic, numbered list output for entities queries when N is small.
+        """
+        level = dsl.filters.level if dsl.filters and dsl.filters.level else "entities"
+        level_plural = level if level.endswith("s") else f"{level}s"
+        header = f"Here are your {len(entities)} {level_plural}:"
+        lines = []
+        for idx, e in enumerate(entities, start=1):
+            name = e.get("name") or "Unnamed"
+            lines.append(f"{idx}. {name}")
+        body = "\n".join(lines)
+        return f"{header}\n{body}"
     
     def _build_system_prompt(self) -> str:
         """

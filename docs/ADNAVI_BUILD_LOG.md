@@ -1,6 +1,6 @@
 # AdNavi — Living Build Log
 
-_Last updated: 2025-10-15T13:50:00Z_
+_Last updated: 2025-10-28T10:00:00Z_
 
 ## 0) Monorepo Map (Current & Planned)
 - **Frontend (current):** `ui/` — Next.js 15.5.4 (App Router), **JSX only**
@@ -59,6 +59,40 @@ _Last updated: 2025-10-15T13:50:00Z_
 - **Documentation**: Created testing guides and log viewing documentation
 - **Benefits**: Eliminates data mismatches, provides fresh data from children, improves debugging transparency
 - **Impact**: Fixes critical issue where QA system showed different values than expected due to stale campaign-level facts
+
+**Named Entity Breakdown Routing & Entities List UX (2025-10-28)**:
+- UnifiedMetricService: skip `E.level` when `entity_name` used; add `_resolve_entity_by_name`; add hierarchy-aware child breakdown builder; route same-level breakdown → child level.
+- AnswerBuilder: deterministic numbered list for `entities` when N ≤ 25.
+- Executor: basic `time_vs_time` comparison (current vs previous window of equal length; defaults to revenue).
+- No migrations.
+
+Testing commands (local):
+```bash
+cd backend
+python start_api.py 2>&1 | tee qa_logs.txt
+
+curl -X POST http://localhost:8000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "owner@defanglabs.com", "password": "password123"}' \
+  -c cookies.txt
+
+# Entities list (<= 25 enumerated)
+curl -X POST "http://localhost:8000/qa/?workspace_id=YOUR_WORKSPACE_ID" \
+  -H "Content-Type: application/json" -b cookies.txt \
+  -d '{"question": "list my active campaigns"}' | jq '.answer'
+
+# Named entity same-level breakdown → child level (campaign→adset)
+curl -X POST "http://localhost:8000/qa/?workspace_id=YOUR_WORKSPACE_ID" \
+  -H "Content-Type: application/json" -b cookies.txt \
+  -d '{"question": "give me a breakdown of Holiday Sale - Purchases campaign performance by campaign last week"}' | jq '.answer'
+
+# Time vs time
+curl -X POST "http://localhost:8000/qa/?workspace_id=YOUR_WORKSPACE_ID" \
+  -H "Content-Type: application/json" -b cookies.txt \
+  -d '{"question": "how does this week compare to last week?"}' | jq '.answer'
+
+tail -f qa_logs.txt | grep -E "\[UNIFIED_METRICS\]|Routing named-entity same-level breakdown|\[COMPARISON\] time_vs_time"
+```
 
 **Phase 6 Follow-up Improvements (2025-10-15)**:
 - **Comparison Query Support**: Added `comparison_type` field to DSL schema and implemented comparison query execution

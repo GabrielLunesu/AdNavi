@@ -1601,6 +1601,15 @@ The roadmap outlines our evolution from Q&A system to autonomous marketing intel
 
 ## Version History
 
+- **v2.4.2 (2025-10-28)**: Named Entity Breakdown Routing + Entities List UX + Time-vs-Time ✅
+  - UnifiedMetricService: skip `E.level` when `filters.entity_name` present to avoid empty results
+  - Added `_resolve_entity_by_name` helper (exact → partial match)
+  - Added hierarchy-aware child-level breakdown builder (campaign→adset, adset→ad)
+  - `get_breakdown`: if breakdown equals named entity level, route to child-level automatically
+  - AnswerBuilder: deterministic numbered list for `entities` when N ≤ 25
+  - Executor: implemented basic `time_vs_time` comparison (current vs previous window)
+  - Migrations: none
+
 - **v2.4.1 (2025-10-16)**: Hierarchy Rollups & Comprehensive Logging ✅
   - Added hierarchy rollup support to UnifiedMetricService for entity_name filtering
   - When querying campaigns/adsets by name, now rolls up from descendant entities only (excludes stale parent facts)

@@ -646,6 +646,54 @@ def _execute_comparison_plan(
             
             comparison_results.append(provider_result)
     
+    elif query.comparison_type == "time_vs_time":
+        # Basic time vs time: compare current window (plan.start/end) vs previous window of same length
+        metrics = query.comparison_metrics or [query.metric] if isinstance(query.metric, str) else (query.comparison_metrics or ["revenue"])  # default revenue
+
+        # Prepare service
+        from app.services.unified_metric_service import UnifiedMetricService, MetricFilters
+        service = UnifiedMetricService(db)
+
+        time_range_current = TimeRange(start=plan.start, end=plan.end)
+        # Derive previous window
+        period_length = (plan.end - plan.start).days + 1
+        prev_end = plan.start - timedelta(days=1)
+        prev_start = prev_end - timedelta(days=period_length - 1)
+        time_range_previous = TimeRange(start=prev_start, end=prev_end)
+
+        filters = MetricFilters(
+            provider=plan.filters.get("provider"),
+            level=plan.filters.get("level"),
+            status=plan.filters.get("status"),
+            entity_ids=plan.filters.get("entity_ids"),
+            entity_name=plan.filters.get("entity_name"),
+            metric_filters=plan.filters.get("metric_filters"),
+        )
+
+        # Fetch summaries
+        current_summary = service.get_summary(workspace_id, metrics, time_range_current, filters, compare_to_previous=False)
+        previous_summary = service.get_summary(workspace_id, metrics, time_range_previous, filters, compare_to_previous=False)
+
+        # Build comparison result
+        comparison_item = {"period": "current"}
+        for metric_name in metrics:
+            mv = current_summary.metrics.get(metric_name)
+            comparison_item[metric_name] = mv.value if mv else None
+
+        previous_item = {"period": "previous"}
+        for metric_name in metrics:
+            mv = previous_summary.metrics.get(metric_name)
+            previous_item[metric_name] = mv.value if mv else None
+
+        comparison_results = [comparison_item, previous_item]
+        logger.info(f"[COMPARISON] time_vs_time computed for metrics={metrics}")
+        return {
+            "comparison": comparison_results,
+            "comparison_type": query.comparison_type,
+            "metrics": metrics,
+            "query_type": "comparison"
+        }
+    
     else:
         raise ValueError(f"Unsupported comparison type: {query.comparison_type}")
     
