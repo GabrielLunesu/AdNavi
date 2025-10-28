@@ -106,7 +106,7 @@ class QAService:
         """
         self.db = db
         self.translator = Translator()
-        self.answer_builder = AnswerBuilder()
+        self.answer_builder = AnswerBuilder(db=self.db)
         # Use SHARED context manager from application state (not a new instance)
         # WHY: Context must persist across HTTP requests
         self.context_manager = state.context_manager
@@ -191,6 +191,9 @@ class QAService:
             )
             logger.info(f"[QA_PIPELINE] Translation complete: {dsl.model_dump()}")
             logger.info(f"[QA_PIPELINE] Translation latency: {translation_latency}ms")
+            
+            # Add workspace_id to DSL for context-aware answer generation
+            dsl.workspace_id = workspace_id
             
             # Step 3: Plan execution (may return None for non-metrics queries)
             logger.info(f"[QA_PIPELINE] Step 3: Building execution plan")

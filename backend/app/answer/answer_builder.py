@@ -34,6 +34,7 @@ import logging
 from typing import Dict, Any, Union, Optional
 from datetime import date
 from openai import OpenAI
+from sqlalchemy.orm import Session
 
 from app.dsl.schema import MetricQuery, MetricResult
 from app.deps import get_settings
@@ -247,9 +248,12 @@ class AnswerBuilder:
     - Input: app/dsl/schema.py (MetricQuery, MetricResult or dict)
     """
     
-    def __init__(self):
+    def __init__(self, db: Optional[Session] = None):
         """
-        Initialize Answer Builder with OpenAI client.
+        Initialize Answer Builder with OpenAI client and optional database session.
+        
+        Args:
+            db: Optional database session for enhanced context (e.g., entity counts)
         
         Uses the same API key and client pattern as the Translator
         for consistency.
@@ -260,6 +264,50 @@ class AnswerBuilder:
         """
         settings = get_settings()
         self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        self.db = db
+    
+    def _get_entity_count_for_breakdown(
+        self,
+        workspace_id: str,
+        breakdown_dimension: str,
+        status: Optional[str] = None
+    ) -> int:
+        """
+        Get count of entities for a breakdown dimension (without metric filters).
+        
+        Args:
+            workspace_id: Workspace ID
+            breakdown_dimension: 'campaign', 'adset', 'ad', or other
+            status: Optional status filter ('active', etc.)
+        
+        Returns:
+            Count of entities in workspace
+        """
+        if not self.db:
+            return 0
+        
+        try:
+            from app.services.unified_metric_service import UnifiedMetricService
+            from app.dsl.schema import Filters
+            service = UnifiedMetricService(self.db)
+            
+            level = breakdown_dimension if breakdown_dimension in ['campaign', 'adset', 'ad'] else None
+            
+            # Create minimal filters object
+            filters = Filters(
+                level=level,
+                status=status
+            )
+            
+            entities_result = service.get_entity_list(
+                workspace_id=workspace_id,
+                filters=filters,
+                level=level
+            )
+            return len(entities_result)
+        except Exception as e:
+            logger.warning(f"[ANSWER_BUILDER] Failed to get entity count: {e}")
+            return 0
     
     def build_answer(
         self, 
@@ -1183,6 +1231,90 @@ Answer:"""
             top_n = dsl.top_n or 5
             
             if not breakdown:
+                # Check if metric filters were applied
+                metric_filters = getattr(dsl.filters, 'metric_filters', None) if dsl.filters else None
+                
+                if metric_filters and self.db:
+                    # Get workspace_id from dsl or result
+                    workspace_id = getattr(dsl, 'workspace_id', None)
+                    
+                    if workspace_id:
+                        # Get total entity count (unfiltered)
+                        total_count = self._get_entity_count_for_breakdown(
+                            workspace_id=workspace_id,
+                            breakdown_dimension=dsl.breakdown,
+                            status=getattr(dsl.filters, 'status', None) if dsl.filters else None
+                        )
+                        
+                        # Build context for LLM to interpret
+                        filter_descriptions = []
+                        for f in metric_filters:
+                            filter_descriptions.append({
+                                "metric": f.get("metric"),
+                                "operator": f.get("operator"),
+                                "value": f.get("value")
+                            })
+                        
+                        context = {
+                            "question": question,
+                            "metric": metric_name,
+                            "timeframe": timeframe_display,
+                            "breakdown_dimension": dsl.breakdown,
+                            "filters": filter_descriptions,
+                            "total_entities": total_count,
+                            "result_count": 0
+                        }
+                        
+                        # Build prompt for LLM to interpret empty result
+                        prompt = f"""The user asked: "{question}"
+
+The query returned 0 results after applying filters, but {total_count} total entities exist in the workspace.
+
+CONTEXT:
+{json.dumps(context, indent=2)}
+
+TASK: Provide a natural, context-aware explanation for why no results were returned.
+
+Consider:
+1. If total_entities > 0 and result_count = 0, determine if this is:
+   - POSITIVE: All entities already exceed/meet the threshold (e.g., ">" operator with 0 results = all entities are above threshold)
+   - NEGATIVE: No entities meet the criteria (e.g., "<" operator with 0 results = no entities are below threshold)
+2. Examine the operator direction to determine positive vs negative
+3. Be specific about the filter criteria
+4. Keep it conversational and concise (1-2 sentences)
+
+EXAMPLES of good responses:
+- "Great news! All 10 of your campaigns already have a conversion rate above 5%."
+- "None of your 8 campaigns currently meet the spend threshold of $1,000."
+- "You don't have any campaigns with ROAS below 2.0—they're all performing well!"
+
+Answer:"""
+                        
+                        # Call GPT for intelligent interpretation
+                        try:
+                            response = self.client.chat.completions.create(
+                                model="gpt-4o",
+                                messages=[
+                                    {"role": "system", "content": "You are a helpful marketing analytics assistant. Interpret empty query results intelligently and provide context-aware explanations."},
+                                    {"role": "user", "content": prompt}
+                                ],
+                                temperature=0.3,
+                                max_tokens=150
+                            )
+                            
+                            answer = response.choices[0].message.content.strip()
+                            
+                            if log_latency:
+                                latency_ms = int((time.time() - start_time) * 1000)
+                                return answer, latency_ms
+                            else:
+                                return answer, None
+                                
+                        except Exception as e:
+                            logger.error(f"[ANSWER_BUILDER] LLM interpretation failed: {e}")
+                            # Fallback to generic message if LLM fails
+                
+                # Default fallback for non-filter cases or when context unavailable
                 return f"No data available for {timeframe_display if timeframe_display else 'the selected period'}.", None
             
             # Convert Decimal values to float for JSON serialization
