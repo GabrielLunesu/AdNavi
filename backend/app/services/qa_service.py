@@ -179,18 +179,55 @@ class QAService:
             entity_catalog = self._build_entity_catalog(workspace_id, limit=50)
             logger.info(f"[ENTITY_CATALOG] Built catalog with {len(entity_catalog)} entities")
             
-            # Step 2: Translate to DSL with context awareness and entity catalog
+            # Step 2: Translate to DSL with context awareness and entity catalog (with retry logic)
             # WHY context: LLM can resolve pronouns ("that", "this", "which one")
             # WHY catalog: LLM can choose appropriate entities without hardcoded patterns
+            # WHY retry: LLM sometimes returns empty DSL or fails - retry improves success rate
             logger.info(f"[QA_PIPELINE] Step 2: Translating question to DSL")
-            dsl, translation_latency = self.translator.to_dsl(
-                question, 
-                log_latency=True,
-                context=context,  # NEW: Pass conversation history
-                entity_catalog=entity_catalog  # NEW: Pass entity catalog for entity recognition
-            )
-            logger.info(f"[QA_PIPELINE] Translation complete: {dsl.model_dump()}")
-            logger.info(f"[QA_PIPELINE] Translation latency: {translation_latency}ms")
+            translation_attempts = 0
+            max_retries = 2
+            dsl = None
+            translation_latency = None
+            
+            while translation_attempts <= max_retries:
+                try:
+                    dsl, translation_latency = self.translator.to_dsl(
+                        question, 
+                        log_latency=True,
+                        context=context,  # NEW: Pass conversation history
+                        entity_catalog=entity_catalog  # NEW: Pass entity catalog for entity recognition
+                    )
+                    
+                    # Check if DSL is valid (not empty) - validate_dsl already checks this, but verify here too
+                    if dsl and dsl.model_dump() != {}:
+                        logger.info(f"[QA_PIPELINE] Translation complete: {dsl.model_dump()}")
+                        logger.info(f"[QA_PIPELINE] Translation latency: {translation_latency}ms")
+                        break  # Success, exit retry loop
+                    else:
+                        raise TranslationError(
+                            message="Translation returned empty DSL",
+                            question=question,
+                            raw_response=""
+                        )
+                        
+                except (TranslationError, DSLValidationError) as e:
+                    translation_attempts += 1
+                    logger.warning(f"[QA_PIPELINE] Translation attempt {translation_attempts} failed: {e.message}")
+                    
+                    if translation_attempts > max_retries:
+                        # All retries exhausted
+                        logger.error(f"[QA_PIPELINE] Translation failed after {max_retries + 1} attempts")
+                        # Raise with helpful message - will be caught by error handler below
+                        raise TranslationError(
+                            message=f"Translation failed after {max_retries + 1} attempts. Please try rephrasing your question.",
+                            question=question,
+                            raw_response=str(e)
+                        ) from e
+                    
+                    # Wait briefly before retry (exponential backoff)
+                    wait_time = 0.5 * translation_attempts
+                    logger.info(f"[QA_PIPELINE] Retrying translation in {wait_time}s...")
+                    time.sleep(wait_time)
             
             # Add workspace_id to DSL for context-aware answer generation
             dsl.workspace_id = workspace_id
@@ -281,14 +318,17 @@ class QAService:
                 )
                 logger.info(f"[QA_PIPELINE] Answer generated successfully")
                 logger.info(f"[QA_PIPELINE] Answer: '{answer_text}'")
+                # Ensure latency is always numeric (never None)
+                answer_generation_ms = answer_generation_ms if answer_generation_ms is not None else 0
                 logger.info(f"[QA_PIPELINE] Answer generation latency: {answer_generation_ms}ms")
             except AnswerBuilderError as e:
                 # Fallback to template-based answer if LLM fails
                 # WHY fallback: Ensures we always return something, even if LLM is down
                 logger.warning(f"[QA_PIPELINE] Answer builder failed, using template fallback: {e.message}")
                 answer_text = self._build_answer_template(dsl, result, window)
-                answer_generation_ms = None  # Not measured for fallback
+                answer_generation_ms = 0  # Template fallback (always 0ms for consistency)
                 logger.info(f"[QA_PIPELINE] Template answer: '{answer_text}'")
+                logger.info(f"[QA_PIPELINE] Answer generation latency: {answer_generation_ms}ms")
             
             # Step 6: Save to conversation context for follow-ups
             # WHY: Enables next question to reference this query
@@ -358,11 +398,18 @@ class QAService:
                 error_message=error_message
             )
             
-            raise
+            # Return helpful error response instead of raising (better UX)
+            return {
+                "answer": "I couldn't understand your question. Please try rephrasing it. For example:\n- 'What's my ROAS this week?'\n- 'Compare Google vs Meta campaigns'\n- 'Show me campaigns with ROAS above 4'\n- 'What's my spend and revenue last month?'",
+                "executed_dsl": {},
+                "data": None,
+                "error": error_message
+            }
             
         except DSLValidationError as e:
             error_message = f"Validation failed: {e.message}"
             total_latency_ms = int((time.time() - start_time) * 1000)
+            logger.error(f"[QA_PIPELINE] DSL validation error: {e.message}")
             
             # Log failure
             log_qa_run(
@@ -376,7 +423,13 @@ class QAService:
                 error_message=error_message
             )
             
-            raise
+            # Return helpful error response instead of raising (better UX)
+            return {
+                "answer": "I couldn't understand your question. Please try rephrasing it. For example:\n- 'What's my ROAS this week?'\n- 'Compare Google vs Meta campaigns'\n- 'Show me campaigns with ROAS above 4'\n- 'What's my spend and revenue last month?'",
+                "executed_dsl": {},
+                "data": None,
+                "error": error_message
+            }
             
         except Exception as e:
             error_message = f"Execution failed: {str(e)}"

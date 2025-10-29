@@ -1,6 +1,6 @@
 # AdNavi — Living Build Log
 
-_Last updated: 2025-10-28T10:00:00Z_
+_Last updated: 2025-10-28T18:00:00Z_
 
 ## 0) Monorepo Map (Current & Planned)
 - **Frontend (current):** `ui/` — Next.js 15.5.4 (App Router), **JSX only**
@@ -42,12 +42,13 @@ _Last updated: 2025-10-28T10:00:00Z_
   - `app/answer/formatters.py`: Single source of truth for display formatting (currency, ratios, percentages, counts)
   - Used by: AnswerBuilder (GPT prompts), QAService fallback (templates)
   - Benefits: Prevents "$0" bugs, ensures consistency, stops GPT from inventing formatting
-- QA System (DSL v2.4.0):
+- QA System (DSL v2.4.3):
   - `app/dsl/`: Domain-Specific Language for queries (schema, canonicalize, validate, planner, executor)
   - `app/nlp/`: Natural language translation via OpenAI (translator, prompts)
   - `app/telemetry/`: Structured logging and observability
-  - `app/tests/`: Unit tests for DSL validation, executor, translator, v2.4.0 extensions
+  - `app/tests/`: Unit tests for DSL validation, executor, translator, v2.4.3 extensions
   - **Phase 6 Follow-up**: Comparison queries, entity provider filtering, list intent, goal-aware metric selection
+  - **Phase 6-2 Fixes**: Translation retry logic, empty DSL validation, multi-metric answer enhancement, latency logging standardization
 
 **Hierarchy Rollups & Comprehensive Logging (2025-10-16)**:
 - **Hierarchy Rollups**: Added hierarchy CTE support to UnifiedMetricService for entity_name filtering
@@ -1264,6 +1265,46 @@ tail -f qa_logs.txt | grep -E "\[UNIFIED_METRICS\]|Routing named-entity same-lev
 - **Data Accuracy**: QA system now provides correct revenue calculations
 - **User Trust**: Eliminates confusion between QA answers and UI metrics
 - **System Reliability**: Fixes fundamental filtering bug affecting all level-based queries
+
+### 2025-10-28T18:00:00Z — **CRITICAL BUG FIX**: Phase 6-2 QA Test Results Fixes ✅ — Fixed provider comparison translation failures, multi-metric answer truncation, and latency logging bugs.
+
+**Summary**: Implemented critical fixes based on QA test results analysis (phase-6-2), addressing translation failures, incomplete answers, and observability issues.
+
+**Root Cause Analysis**:
+- **Provider Comparison Translation**: LLM translator failed to generate valid DSL for complex provider comparison queries with multiple metrics and specific time ranges
+- **Multi-Metric Answer Truncation**: Answer generation omitted breakdown data, resulting in incomplete answers
+- **Latency Logging**: Some answer generation methods returned None instead of numeric values, causing "Nonems" log entries
+
+**Files Modified**:
+- `backend/app/nlp/prompts.py`: Added comprehensive provider comparison example, removed conflicting old example, enhanced comparison query rules
+- `backend/app/dsl/validate.py`: Added empty DSL detection before Pydantic validation
+- `backend/app/services/qa_service.py`: Added retry logic (up to 2 attempts with exponential backoff), improved error handling to return user-friendly messages
+- `backend/app/answer/answer_builder.py`: Enhanced multi-metric answer generation to include breakdown data, standardized latency logging (always numeric)
+
+**Features Implemented**:
+- ✅ **Translation Retry Logic**: Automatic retry up to 2 times with exponential backoff (0.5s, 1.0s) for translation failures
+- ✅ **Empty DSL Validation**: Early detection of empty DSL responses with helpful error messages
+- ✅ **Error Handling**: Graceful error responses with example questions instead of raising exceptions
+- ✅ **Multi-Metric Enhancement**: LLM prompts and template fallback now include breakdown data
+- ✅ **Latency Standardization**: All answer generation methods return numeric values (0 for templates)
+
+**Testing Results**:
+- ✅ **Test 98**: Provider comparison query now translates successfully
+- ✅ **Tests 97, 99, 101, 103, 104**: Multi-metric queries now return complete answers with breakdown
+- ✅ **All Tests**: Latency logging shows numeric values only (no more "Nonems")
+
+**Impact**:
+- **Reliability**: Improved translation success rate for complex queries
+- **User Experience**: Complete answers with all metrics and breakdown data
+- **Observability**: Consistent latency logging enables better performance monitoring
+- **Error Handling**: User-friendly error messages guide users to rephrase questions
+
+**Migration**: None required
+
+**Documentation**:
+- Updated `backend/docs/QA_SYSTEM_ARCHITECTURE.md` to v2.4.3 with Phase 6-2 fixes
+- Added version history entry with detailed fix descriptions
+- Updated pipeline stages documentation with retry logic and error handling
 
 ### 2025-10-13T12:00:00Z — Phase 7: Advanced Analytics Implementation
 

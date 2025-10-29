@@ -311,7 +311,7 @@ class Translator:
             
             if query_type == "metrics":
                 entry_summary += f"  Query Type: METRICS\n"
-                entry_summary += f"  Metric Used: {metric} ← INHERIT THIS if user asks about different time period\n"
+                entry_summary += f"  Metric Used: {metric} ← Reference this if the user's question is a follow-up about a different time period but doesn't specify a new metric.\n"
                 entry_summary += f"  Time Range: {dsl.get('time_range', 'N/A')}\n"
                 entry_summary += f"  Result: {main_value}\n"
                 if top_items:

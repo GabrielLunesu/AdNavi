@@ -183,9 +183,17 @@ def build_plan(query: MetricQuery) -> Optional[Plan]:
         end = query.time_range.end
     else:
         # Relative date range (last_n_days)
-        end = date.today()
-        days = query.time_range.last_n_days or 7
-        start = end - timedelta(days=days - 1)  # -1 because range is inclusive
+        timeframe_desc = query.timeframe_description.lower() if query.timeframe_description else ""
+        if timeframe_desc == "yesterday":
+            end = date.today() - timedelta(days=1)
+            start = end
+        elif timeframe_desc == "today":
+            start = date.today()
+            end = start
+        else:
+            end = date.today()
+            days = query.time_range.last_n_days or 7
+            start = end - timedelta(days=days - 1)  # -1 because range is inclusive
     
     # Step 2: Determine base measures needed for all metrics
     # Collect all unique base measures required by the requested metrics
@@ -232,9 +240,15 @@ def build_plan(query: MetricQuery) -> Optional[Plan]:
         # Multi-metric: no single derived metric
         derived = None
     
-    # Step 4: Always compute timeseries for now (can optimize later)
-    # Timeseries is cheap and useful for visualization
-    need_timeseries = True
+    # Step 4: Compute timeseries only when needed (PERFORMANCE OPTIMIZATION 2025-10-29)
+    # WHY: Timeseries queries add 10-20 seconds to simple metric queries
+    # WHEN to compute:
+    # - Breakdown queries (for sparklines in UI)
+    # - Comparison queries (for trend visualization)
+    # - When explicitly requested
+    # WHEN to skip:
+    # - Simple metric queries with no breakdown (e.g., "what is my CPC this month?")
+    need_timeseries = query.breakdown is not None or query.compare_to_previous
     
     # Step 5: Pass through settings from DSL
     return Plan(

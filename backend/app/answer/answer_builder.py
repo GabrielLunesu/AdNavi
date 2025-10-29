@@ -359,6 +359,35 @@ class AnswerBuilder:
         start_time = time.time() if log_latency else None
         
         try:
+            # EARLY GUARD: Check for empty/null data BEFORE any processing
+            # This prevents hallucination when database returns no results
+            # IMPORTANT: Skip this for multi-metric queries (they have a different structure)
+            if dsl.query_type == "metrics":
+                # Skip early guard for multi-metric queries (they don't have a single "summary" field)
+                is_multi_metric = isinstance(result, dict) and result.get("query_type") == "multi_metrics"
+                
+                if not is_multi_metric:
+                    if isinstance(result, dict):
+                        summary = result.get("summary")
+                        breakdown = result.get("breakdown")
+                    elif isinstance(result, MetricResult):
+                        summary = result.summary
+                        breakdown = result.breakdown
+                    else:
+                        summary = None
+                        breakdown = None
+                    
+                    # If we have no summary data AND no breakdown data, return early
+                    # CRITICAL: Only check for None, not == 0 (zero is valid data!)
+                    if summary is None:
+                        if not breakdown or (isinstance(breakdown, list) and len(breakdown) == 0):
+                            timeframe_desc = getattr(dsl, 'timeframe_description', None) or ""
+                            timeframe_display = _format_timeframe_display(timeframe_desc, window)
+                            answer_text = f"I couldn't find any data for {dsl.metric} {timeframe_display}. You may want to try a different time period."
+                            latency_ms = int((time.time() - start_time) * 1000) if log_latency and start_time else 0
+                            logger.info(f"[ANSWER] No data found (early guard), returning template answer. Latency: {latency_ms}ms")
+                            return answer_text, latency_ms
+            
             # Step 1: Classify intent (NEW in Phase 1)
             question = getattr(dsl, 'question', None) or f"What is my {dsl.metric}?"
             intent = classify_intent(question, dsl)
@@ -394,7 +423,22 @@ class AnswerBuilder:
                 # Phase 7: Handle multi-metric queries
                 if isinstance(result, dict) and result.get("query_type") == "multi_metrics":
                     return self._build_multi_metric_answer(dsl, result, timeframe_display, question, log_latency)
-                
+
+                # HALLUCINATION GUARD: If no data, return a template message.
+                # CRITICAL: Only check for None, not == 0 (zero is valid data!)
+                if isinstance(result, MetricResult) and result.summary is None and not result.breakdown:
+                    answer_text = f"I couldn't find any data for {dsl.metric} for {timeframe_display}. You may want to try a different time period."
+                    latency_ms = int((time.time() - start_time) * 1000) if log_latency and start_time else 0
+                    logger.info(f"[ANSWER] No data found, returning template answer. Latency: {latency_ms}ms")
+                    return answer_text, latency_ms
+
+                # HYPOTHETICAL QUESTION GUARD: Detect if a metric_filter is being misused for a hypothetical.
+                if dsl.filters and dsl.filters.metric_filters and intent == AnswerIntent.SIMPLE:
+                    answer_text = "I'm sorry, but I can't answer hypothetical questions like that. I can only provide data based on your actual performance."
+                    latency_ms = int((time.time() - start_time) * 1000) if log_latency and start_time else 0
+                    logger.info(f"[ANSWER] Detected a hypothetical question, returning canned response. Latency: {latency_ms}ms")
+                    return answer_text, latency_ms
+                    
                 # Single metric query - extract rich context
                 context = extract_rich_context(
                     result=result,
@@ -464,7 +508,8 @@ class AnswerBuilder:
 
                 if entities and len(entities) <= 25:
                     answer_text = self._build_entities_list_template(dsl, entities)
-                    latency_ms = int((time.time() - start_time) * 1000) if log_latency and start_time else None
+                    latency_ms = int((time.time() - start_time) * 1000) if log_latency and start_time else 0
+                    logger.info(f"[ANSWER] Template answer latency: {latency_ms}ms")
                     return answer_text, latency_ms
                 
                 # Fallback to LLM formatting for large lists
@@ -487,8 +532,8 @@ class AnswerBuilder:
             
             answer_text = response.choices[0].message.content.strip()
             
-            # Step 3: Calculate latency if requested
-            latency_ms = None
+            # Step 3: Calculate latency if requested (always return numeric)
+            latency_ms = 0
             if log_latency and start_time:
                 latency_ms = int((time.time() - start_time) * 1000)
             
@@ -496,6 +541,7 @@ class AnswerBuilder:
                 f"[ANSWER] Generated {intent.value if dsl.query_type == 'metrics' else 'default'} answer "
                 f"({len(answer_text)} chars) in {latency_ms}ms"
             )
+            logger.info(f"[ANSWER] Answer generation latency: {latency_ms}ms")
             
             return answer_text, latency_ms
             
@@ -1018,13 +1064,19 @@ Remember: Include comparison, keep it conversational, 2-3 sentences max."""
                         "delta_pct": delta_pct
                     }
             
-            # Build context for LLM
+            # Build context for LLM (include breakdown if available)
+            breakdown = result.get("breakdown")
             context = {
                 "metrics": formatted_metrics,
                 "timeframe_display": timeframe_display,
                 "question": question,
                 "metric_count": len(formatted_metrics)
             }
+            
+            # Add breakdown data if available
+            if breakdown and len(breakdown) > 0:
+                context["breakdown"] = breakdown
+                context["breakdown_dimension"] = dsl.breakdown if dsl.breakdown else None
             
             # Use analytical prompt for multi-metric answers
             system_prompt = ANALYTICAL_ANSWER_PROMPT
@@ -1037,12 +1089,13 @@ METRICS DATA:
 {json.dumps(context, indent=2)}
 
 INSTRUCTIONS:
-1. Include ALL requested metrics in your answer
+1. Include ALL requested metrics in your answer with their values
 2. Use the timeframe_display for timeframe context
 3. Keep it conversational and natural
 4. If there are comparisons available, include them briefly
 5. Format numbers appropriately (currency, percentages, etc.)
-6. Keep the answer concise but comprehensive
+6. If breakdown data is provided, include the top performing items in your answer
+7. Keep the answer concise but comprehensive - ensure ALL metrics are listed with values
 
 Answer:"""
             
@@ -1061,17 +1114,103 @@ Answer:"""
             answer = response.choices[0].message.content.strip()
             
             # Calculate latency if requested
-            latency_ms = None
+            latency_ms = 0  # Always return numeric (0 for LLM success)
             if log_latency and start_time:
                 latency_ms = int((time.time() - start_time) * 1000)
             
             logger.info(f"[MULTI_METRIC_ANSWER] Generated answer for {len(formatted_metrics)} metrics")
+            logger.info(f"[MULTI_METRIC_ANSWER] Answer generation latency: {latency_ms}ms")
             return answer, latency_ms
             
         except Exception as e:
             logger.error(f"[MULTI_METRIC_ANSWER] Failed to generate answer: {e}")
-            # Fallback to simple template
-            return self._build_multi_metric_template_answer(dsl, result, timeframe_display), None
+            # Fallback to simple template (always return 0 latency for template)
+            template_answer = self._build_multi_metric_template_answer(dsl, result, timeframe_display)
+            logger.info(f"[MULTI_METRIC_ANSWER] Using template fallback (latency: 0ms)")
+            return template_answer, 0
+    
+    def _build_list_template_answer(
+        self,
+        dsl: MetricQuery,
+        breakdown: list,
+        timeframe_display: str,
+        log_latency: bool,
+        start_time: Optional[float]
+    ) -> tuple[str, Optional[int]]:
+        """
+        Deterministic template-based answer for large lists (>10 items).
+        
+        PERFORMANCE: This is INSTANT (0ms) vs 15-20 seconds for LLM formatting.
+        
+        WHY: When users ask "show me all ads with CPC below $1", they want a list, not prose.
+        A simple numbered list is clearer and 1000x faster than LLM-generated paragraphs.
+        
+        Args:
+            dsl: The MetricQuery
+            breakdown: List of breakdown items
+            timeframe_display: Human-friendly timeframe
+            log_latency: Whether to track latency
+            start_time: Start time for latency calculation
+            
+        Returns:
+            tuple: (answer_text, latency_ms)
+        """
+        metric_name = dsl.metric
+        breakdown_dimension = dsl.breakdown
+        
+        # Build header
+        has_metric_filter = (dsl.filters and 
+                            hasattr(dsl.filters, 'metric_filters') and 
+                            dsl.filters.metric_filters)
+        
+        if has_metric_filter:
+            filter_desc = dsl.filters.metric_filters[0]
+            operator_text = {
+                ">": "above",
+                ">=": "at least",
+                "<": "below",
+                "<=": "at most",
+                "=": "equal to",
+                "!=": "not equal to"
+            }.get(filter_desc.get("operator"), "")
+            
+            filter_metric = filter_desc.get("metric")
+            filter_value = filter_desc.get("value")
+            
+            # Format the filter value
+            if filter_metric in ['cpc', 'cpa', 'cpl', 'cpi', 'cpp', 'cpm', 'revenue', 'spend', 'profit']:
+                filter_value_str = f"${filter_value:,.2f}" if filter_value else str(filter_value)
+            elif filter_metric in ['roas', 'poas']:
+                filter_value_str = f"{filter_value}×"
+            elif filter_metric in ['ctr', 'cvr']:
+                filter_value_str = f"{filter_value}%"
+            else:
+                filter_value_str = f"{filter_value:,}"
+            
+            header = f"Here are the {breakdown_dimension}s {timeframe_display} with {filter_metric.upper()} {operator_text} {filter_value_str}:"
+        else:
+            header = f"Here are the top {len(breakdown)} {breakdown_dimension}s by {metric_name.upper()} {timeframe_display}:"
+        
+        # Build numbered list
+        lines = [header, ""]
+        for idx, item in enumerate(breakdown, start=1):
+            label = item.get("label", "Unknown")
+            value = item.get("value")
+            
+            # Format value
+            formatted_value = format_metric_value(metric_name, value) if value is not None else "N/A"
+            
+            lines.append(f"{idx}. {label}: {formatted_value}")
+        
+        answer_text = "\n".join(lines)
+        
+        # Calculate latency
+        latency_ms = 0
+        if log_latency and start_time:
+            latency_ms = int((time.time() - start_time) * 1000)
+        
+        logger.info(f"[LIST_TEMPLATE] Built list with {len(breakdown)} items in {latency_ms}ms")
+        return answer_text, latency_ms
     
     def _build_multi_metric_template_answer(
         self,
@@ -1083,28 +1222,58 @@ Answer:"""
         Fallback template-based answer for multi-metric queries.
         
         This provides a simple, deterministic answer when LLM fails.
+        Ensures ALL metrics are included with their values.
         """
         metrics_data = result.get("metrics", {})
         
         if not metrics_data:
             return f"No data available for {timeframe_display if timeframe_display else 'the selected period'}."
         
-        # Build simple list of metrics
+        # Build simple list of metrics with values
         metric_lines = []
         for metric_name, metric_data in metrics_data.items():
             summary_value = metric_data.get("summary")
             if summary_value is not None:
                 formatted_value = format_metric_value(metric_name, summary_value)
-                metric_lines.append(f"• {metric_name.upper()}: {formatted_value}")
+                previous_value = metric_data.get("previous")
+                delta_pct = metric_data.get("delta_pct")
+                
+                # Include comparison if available
+                if previous_value is not None and delta_pct is not None:
+                    change_text = f" ({delta_pct:+.1f}% vs previous period)"
+                    metric_lines.append(f"• {metric_name.upper()}: {formatted_value}{change_text}")
+                else:
+                    metric_lines.append(f"• {metric_name.upper()}: {formatted_value}")
         
         if not metric_lines:
             return f"No data available for {timeframe_display if timeframe_display else 'the selected period'}."
+        
+        # Add breakdown if available
+        breakdown = result.get("breakdown")
+        breakdown_text = ""
+        if breakdown and len(breakdown) > 0:
+            breakdown_lines = []
+            breakdown_dimension = dsl.breakdown if dsl.breakdown else "items"
+            for item in breakdown[:5]:  # Top 5 items
+                label = item.get("label", "Unknown")
+                value = item.get("value")
+                if value is not None:
+                    # Format value using first metric if available
+                    first_metric = list(metrics_data.keys())[0] if metrics_data else None
+                    if first_metric:
+                        formatted_value = format_metric_value(first_metric, value)
+                    else:
+                        formatted_value = f"{value:,.2f}"
+                    breakdown_lines.append(f"  - {label}: {formatted_value}")
+            
+            if breakdown_lines:
+                breakdown_text = f"\n\nTop {breakdown_dimension.upper()}:\n" + "\n".join(breakdown_lines)
         
         # Combine into answer
         metrics_text = "\n".join(metric_lines)
         timeframe_text = f" {timeframe_display}" if timeframe_display else ""
         
-        return f"Here are your metrics{timeframe_text}:\n\n{metrics_text}"
+        return f"Here are your metrics{timeframe_text}:\n\n{metrics_text}{breakdown_text}"
 
     def _build_comparison_answer(
         self,
@@ -1135,7 +1304,8 @@ Answer:"""
             metrics = result.get("metrics", [])
             
             if not comparison_data:
-                return "It looks like there are currently no entities to compare, as the count is 0. Let me know if you need help with anything else!", None
+                latency_ms = 0 if log_latency else 0
+                return "It looks like there are currently no entities to compare, as the count is 0. Let me know if you need help with anything else!", latency_ms
             
             # Convert Decimal values to float for JSON serialization
             def convert_decimals(obj):
@@ -1209,6 +1379,11 @@ Answer:"""
         """
         Build answer for list queries.
         
+        PERFORMANCE OPTIMIZATION (2025-10-29):
+        - For lists with >10 items, use deterministic template (instant, 0ms)
+        - For lists with <=10 items, use LLM for natural formatting
+        - This prevents 15-20 second latency when formatting large lists
+        
         Args:
             dsl: The MetricQuery with breakdown fields
             result: Metric results with breakdown data
@@ -1229,6 +1404,11 @@ Answer:"""
                 breakdown = result.breakdown or []
             metric_name = dsl.metric
             top_n = dsl.top_n or 5
+            
+            # PERFORMANCE OPTIMIZATION: Use template for large lists (>10 items)
+            # WHY: LLM takes 15-20 seconds to format 30 items, template is instant
+            if breakdown and len(breakdown) > 10:
+                return self._build_list_template_answer(dsl, breakdown, timeframe_display, log_latency, start_time)
             
             if not breakdown:
                 # Check if metric filters were applied

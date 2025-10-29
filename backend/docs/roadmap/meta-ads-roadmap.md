@@ -47,9 +47,9 @@ Time: 2–3 hours
 Priority: High
 
 Tasks:
-- Update models/docs to standardize UTC
-- Convert provider timestamps to UTC on ingest
-- Store UTC in DB; localize on display
+- make the system dynamic on user timezone/ ad account timezone
+- Convert provider timestamps to timezone selected on ad account or user profile on ingest
+- Store timezone in DB; selected timezone on display
 
 Deliverable: Consistent timestamps
 
