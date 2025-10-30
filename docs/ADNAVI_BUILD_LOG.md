@@ -112,6 +112,21 @@ tail -f qa_logs.txt | grep -E "\[UNIFIED_METRICS\]|Routing named-entity same-lev
 
 ## 2) Plan / Next Steps
 
+### Meta Ads API Integration (Active)
+**Status**: Phase 0 - API Setup  
+**Roadmap**: `backend/docs/roadmap/meta-ads-roadmap.md`  
+**Setup Guide**: `docs/meta-ads-lib/META_API_SETUP_GUIDE.md`
+
+**Current Phase**: Phase 0 - Meta API Access Setup (2-3 hours)
+- [ ] Create Meta Developer account and app
+- [ ] Generate long-lived access token (60-day)
+- [ ] Verify API connectivity (campaigns, insights, hourly data)
+- [ ] Install and test Python SDK (`facebook-business==19.0.0`)
+
+**Known Issue**: Test user creation temporarily disabled by Meta (2025). Workarounds documented in setup guide.
+
+**Next**: After Phase 0 complete, proceed to Phase 1 (Database performance and ingestion API)
+
 
 ---
 
@@ -265,6 +280,77 @@ tail -f qa_logs.txt | grep -E "\[UNIFIED_METRICS\]|Routing named-entity same-lev
 ---
 
 ## 11) Changelog
+
+### 2025-10-30T19:00:00Z — **DOCUMENTATION**: Meta Ads API Setup Guide ✅ — Comprehensive guide for obtaining credentials and setting up test environment.
+
+**Summary**: Created complete setup guide for Meta Ads API integration, addressing 2025-specific issues (test user creation disabled) with practical workarounds.
+
+**Files Created**:
+- `docs/meta-ads-lib/META_API_SETUP_GUIDE.md`: Complete setup guide (200+ lines)
+  - Phase 0.1: Developer account & app creation
+  - Phase 0.2: Access token generation (3 options: personal account, system user, standard access)
+  - Phase 0.3: API verification (4 test scenarios: auth, campaigns, insights, hourly data)
+  - Phase 0.4: SDK installation & test script
+  - Phase 0.5: Test campaign creation (optional)
+  - Security best practices (token storage, refresh logic)
+  - Troubleshooting section (8 common issues)
+  - JSON response schemas appendix
+
+**Files Modified**:
+- `backend/docs/roadmap/meta-ads-roadmap.md`: Added Phase 0 as prerequisite, updated implementation timeline
+- `docs/ADNAVI_BUILD_LOG.md`: Added Meta Ads integration to "Plan / Next Steps"
+
+**Key Features**:
+- ✅ **3 Token Generation Methods**: Personal account (fastest), system user (production), standard access (long-term)
+- ✅ **2025 Workarounds**: Test user creation disabled by Meta - documented alternative approaches
+- ✅ **Test Script**: Complete Python script to verify API connectivity (`backend/test_meta_api.py`)
+- ✅ **Hourly Data Testing**: Verifies AdNavi's critical hourly granularity requirement
+- ✅ **Security Patterns**: Environment variable management, token refresh logic, `.gitignore` checks
+- ✅ **JSON Schemas**: Example responses for campaigns, insights (daily/hourly), ad sets, ads
+
+**Test Script Features** (`test_meta_api.py`):
+1. API connection verification
+2. Campaigns fetching
+3. Insights (metrics) fetching
+4. Hourly insights (AdNavi requirement)
+- Graceful handling of empty data (new accounts)
+- Environment variable validation
+- Clear error messages for common issues
+
+**Known Issues Addressed**:
+- ❌ **Test User Creation Disabled** (Meta platform issue, 2025)
+  - Workaround 1: Use personal ad account (recommended for quick start)
+  - Workaround 2: Create system user in Business Manager
+  - Workaround 3: Apply for Standard Access (production)
+
+**API Verification Checklist**:
+- ✅ GET /me (token validation)
+- ✅ GET /me/adaccounts (account access)
+- ✅ GET /{account}/campaigns (campaigns list)
+- ✅ GET /{account}/insights (daily metrics)
+- ✅ GET /{account}/insights?time_increment=1 (hourly metrics)
+
+**Roadmap Updates**:
+- Added **Phase 0** as blocking prerequisite (2-3 hours)
+- Updated Week 0 timeline: API setup must complete before Phase 1
+- Documented credentials storage in `.env`
+
+**Benefits**:
+- **Unblocks Development**: Clear path to obtain API access despite 2025 platform issues
+- **Production-Ready**: Includes system user setup for production deployments
+- **Comprehensive**: Covers all scenarios from first-time setup to production hardening
+- **Troubleshooting**: 8 common issues with solutions documented
+- **Security-First**: Best practices for credential management
+
+**Next Steps**:
+1. User completes Phase 0 (API setup guide)
+2. Runs test script to verify connectivity
+3. Proceeds to Phase 1 (database & ingestion fixes)
+
+**Impact**:
+- **Timeline**: Adds 2-3 hours upfront, but prevents weeks of API confusion
+- **Risk Reduction**: Verifies API access patterns before building integration
+- **Documentation**: Single source of truth for Meta API setup in 2025
 | - 2025-10-12T14:00:00Z — **FEATURE**: Campaigns UI Integration ✅ — Connected Campaigns page to backend with three-level drill-down, live metrics, and strict SoC.
   - **Overview**: Full integration of Campaigns list and detail pages with backend API, supporting drill-down from campaigns → ad sets → ads.
   - **Data source**: MetricFact (real-time metrics) + Entity (hierarchy) with recursive CTEs for metric rollup from leaf nodes to ancestors.

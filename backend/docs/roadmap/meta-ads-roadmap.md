@@ -1,5 +1,26 @@
 # Meta Ads API Integration Roadmap
 
+> **Prerequisites**: Before starting Phase 1, complete the setup guide at [META_API_SETUP_GUIDE.md](../../../docs/meta-ads-lib/META_API_SETUP_GUIDE.md)
+
+## Phase 0: Meta API Access Setup (REQUIRED FIRST)
+**Time**: 2-3 hours  
+**Status**: 🔴 Not Started  
+**Blocking**: All subsequent phases
+
+### Deliverables:
+- ✅ Meta Developer account created
+- ✅ App created with Marketing API product
+- ✅ Long-lived access token generated (60 days)
+- ✅ Ad account access verified
+- ✅ Python SDK installed and tested
+- ✅ Test script confirms API connectivity
+
+**See**: [Complete Setup Guide](../../../docs/meta-ads-lib/META_API_SETUP_GUIDE.md)
+
+**Known Issue (2025)**: Test user creation temporarily disabled by Meta. Use personal account or system user instead (guide covers workarounds).
+
+---
+
 ## Phase 1: Foundational fixes (pre‑Meta)
 Purpose: Stabilize ingestion before external APIs.
 
@@ -264,10 +285,15 @@ Deliverable: Visibility into health
 
 ## Implementation order summary
 
-- Week 1: Phase 1 (foundational fixes), Phase 2.1–2.2 (auth/client)
-- Week 2: Phase 2.3 (entities), Phase 3.1–3.2 (ingestion), Phase 5.1 (tests)
-- Week 3: Phase 3.3 (validation), Phase 5.2 (quality), Phase 4.1 (hourly breakdowns)
-- Week 4: Phase 4.2 (real‑time), Phase 6 (hardening)
+- **Week 0 (Day 1)**: Phase 0 (Meta API setup - REQUIRED FIRST)
+  - Complete [META_API_SETUP_GUIDE.md](../../../docs/meta-ads-lib/META_API_SETUP_GUIDE.md)
+  - Verify API connectivity with test script
+  - Document credentials securely in `.env`
+  
+- **Week 1**: Phase 1 (foundational fixes), Phase 2.1–2.2 (auth/client)
+- **Week 2**: Phase 2.3 (entities), Phase 3.1–3.2 (ingestion), Phase 5.1 (tests)
+- **Week 3**: Phase 3.3 (validation), Phase 5.2 (quality), Phase 4.1 (hourly breakdowns)
+- **Week 4**: Phase 4.2 (real‑time), Phase 6 (hardening)
 
 ---
 
