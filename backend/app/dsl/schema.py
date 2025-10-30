@@ -371,6 +371,9 @@ class MetricQuery(BaseModel):
     question: Optional[str] = Field(None, description="Original user question for tense/context")
     timeframe_description: Optional[str] = Field(None, description="Natural language timeframe like 'last week', 'today'")
     
+    # NEW: For context-aware empty result handling
+    workspace_id: Optional[str] = Field(None, description="Workspace ID for enhanced context (e.g., entity counts)")
+    
     @model_validator(mode='after')
     def set_timeframe_description(self):
         """Auto-generate timeframe description from time_range and question.

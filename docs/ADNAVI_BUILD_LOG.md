@@ -1,6 +1,6 @@
 # AdNavi — Living Build Log
 
-_Last updated: 2025-10-15T13:50:00Z_
+_Last updated: 2025-10-28T18:00:00Z_
 
 ## 0) Monorepo Map (Current & Planned)
 - **Frontend (current):** `ui/` — Next.js 15.5.4 (App Router), **JSX only**
@@ -42,12 +42,13 @@ _Last updated: 2025-10-15T13:50:00Z_
   - `app/answer/formatters.py`: Single source of truth for display formatting (currency, ratios, percentages, counts)
   - Used by: AnswerBuilder (GPT prompts), QAService fallback (templates)
   - Benefits: Prevents "$0" bugs, ensures consistency, stops GPT from inventing formatting
-- QA System (DSL v2.4.0):
+- QA System (DSL v2.4.3):
   - `app/dsl/`: Domain-Specific Language for queries (schema, canonicalize, validate, planner, executor)
   - `app/nlp/`: Natural language translation via OpenAI (translator, prompts)
   - `app/telemetry/`: Structured logging and observability
-  - `app/tests/`: Unit tests for DSL validation, executor, translator, v2.4.0 extensions
+  - `app/tests/`: Unit tests for DSL validation, executor, translator, v2.4.3 extensions
   - **Phase 6 Follow-up**: Comparison queries, entity provider filtering, list intent, goal-aware metric selection
+  - **Phase 6-2 Fixes**: Translation retry logic, empty DSL validation, multi-metric answer enhancement, latency logging standardization
 
 **Hierarchy Rollups & Comprehensive Logging (2025-10-16)**:
 - **Hierarchy Rollups**: Added hierarchy CTE support to UnifiedMetricService for entity_name filtering
@@ -59,6 +60,40 @@ _Last updated: 2025-10-15T13:50:00Z_
 - **Documentation**: Created testing guides and log viewing documentation
 - **Benefits**: Eliminates data mismatches, provides fresh data from children, improves debugging transparency
 - **Impact**: Fixes critical issue where QA system showed different values than expected due to stale campaign-level facts
+
+**Named Entity Breakdown Routing & Entities List UX (2025-10-28)**:
+- UnifiedMetricService: skip `E.level` when `entity_name` used; add `_resolve_entity_by_name`; add hierarchy-aware child breakdown builder; route same-level breakdown → child level.
+- AnswerBuilder: deterministic numbered list for `entities` when N ≤ 25.
+- Executor: basic `time_vs_time` comparison (current vs previous window of equal length; defaults to revenue).
+- No migrations.
+
+Testing commands (local):
+```bash
+cd backend
+python start_api.py 2>&1 | tee qa_logs.txt
+
+curl -X POST http://localhost:8000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "owner@defanglabs.com", "password": "password123"}' \
+  -c cookies.txt
+
+# Entities list (<= 25 enumerated)
+curl -X POST "http://localhost:8000/qa/?workspace_id=YOUR_WORKSPACE_ID" \
+  -H "Content-Type: application/json" -b cookies.txt \
+  -d '{"question": "list my active campaigns"}' | jq '.answer'
+
+# Named entity same-level breakdown → child level (campaign→adset)
+curl -X POST "http://localhost:8000/qa/?workspace_id=YOUR_WORKSPACE_ID" \
+  -H "Content-Type: application/json" -b cookies.txt \
+  -d '{"question": "give me a breakdown of Holiday Sale - Purchases campaign performance by campaign last week"}' | jq '.answer'
+
+# Time vs time
+curl -X POST "http://localhost:8000/qa/?workspace_id=YOUR_WORKSPACE_ID" \
+  -H "Content-Type: application/json" -b cookies.txt \
+  -d '{"question": "how does this week compare to last week?"}' | jq '.answer'
+
+tail -f qa_logs.txt | grep -E "\[UNIFIED_METRICS\]|Routing named-entity same-level breakdown|\[COMPARISON\] time_vs_time"
+```
 
 **Phase 6 Follow-up Improvements (2025-10-15)**:
 - **Comparison Query Support**: Added `comparison_type` field to DSL schema and implemented comparison query execution
@@ -76,6 +111,21 @@ _Last updated: 2025-10-15T13:50:00Z_
 ---
 
 ## 2) Plan / Next Steps
+
+### Meta Ads API Integration (Active)
+**Status**: Phase 0 - API Setup  
+**Roadmap**: `backend/docs/roadmap/meta-ads-roadmap.md`  
+**Setup Guide**: `docs/meta-ads-lib/META_API_SETUP_GUIDE.md`
+
+**Current Phase**: Phase 0 - Meta API Access Setup (2-3 hours)
+- [ ] Create Meta Developer account and app
+- [ ] Generate long-lived access token (60-day)
+- [ ] Verify API connectivity (campaigns, insights, hourly data)
+- [ ] Install and test Python SDK (`facebook-business==19.0.0`)
+
+**Known Issue**: Test user creation temporarily disabled by Meta (2025). Workarounds documented in setup guide.
+
+**Next**: After Phase 0 complete, proceed to Phase 1 (Database performance and ingestion API)
 
 
 ---
@@ -230,6 +280,77 @@ _Last updated: 2025-10-15T13:50:00Z_
 ---
 
 ## 11) Changelog
+
+### 2025-10-30T19:00:00Z — **DOCUMENTATION**: Meta Ads API Setup Guide ✅ — Comprehensive guide for obtaining credentials and setting up test environment.
+
+**Summary**: Created complete setup guide for Meta Ads API integration, addressing 2025-specific issues (test user creation disabled) with practical workarounds.
+
+**Files Created**:
+- `docs/meta-ads-lib/META_API_SETUP_GUIDE.md`: Complete setup guide (200+ lines)
+  - Phase 0.1: Developer account & app creation
+  - Phase 0.2: Access token generation (3 options: personal account, system user, standard access)
+  - Phase 0.3: API verification (4 test scenarios: auth, campaigns, insights, hourly data)
+  - Phase 0.4: SDK installation & test script
+  - Phase 0.5: Test campaign creation (optional)
+  - Security best practices (token storage, refresh logic)
+  - Troubleshooting section (8 common issues)
+  - JSON response schemas appendix
+
+**Files Modified**:
+- `backend/docs/roadmap/meta-ads-roadmap.md`: Added Phase 0 as prerequisite, updated implementation timeline
+- `docs/ADNAVI_BUILD_LOG.md`: Added Meta Ads integration to "Plan / Next Steps"
+
+**Key Features**:
+- ✅ **3 Token Generation Methods**: Personal account (fastest), system user (production), standard access (long-term)
+- ✅ **2025 Workarounds**: Test user creation disabled by Meta - documented alternative approaches
+- ✅ **Test Script**: Complete Python script to verify API connectivity (`backend/test_meta_api.py`)
+- ✅ **Hourly Data Testing**: Verifies AdNavi's critical hourly granularity requirement
+- ✅ **Security Patterns**: Environment variable management, token refresh logic, `.gitignore` checks
+- ✅ **JSON Schemas**: Example responses for campaigns, insights (daily/hourly), ad sets, ads
+
+**Test Script Features** (`test_meta_api.py`):
+1. API connection verification
+2. Campaigns fetching
+3. Insights (metrics) fetching
+4. Hourly insights (AdNavi requirement)
+- Graceful handling of empty data (new accounts)
+- Environment variable validation
+- Clear error messages for common issues
+
+**Known Issues Addressed**:
+- ❌ **Test User Creation Disabled** (Meta platform issue, 2025)
+  - Workaround 1: Use personal ad account (recommended for quick start)
+  - Workaround 2: Create system user in Business Manager
+  - Workaround 3: Apply for Standard Access (production)
+
+**API Verification Checklist**:
+- ✅ GET /me (token validation)
+- ✅ GET /me/adaccounts (account access)
+- ✅ GET /{account}/campaigns (campaigns list)
+- ✅ GET /{account}/insights (daily metrics)
+- ✅ GET /{account}/insights?time_increment=1 (hourly metrics)
+
+**Roadmap Updates**:
+- Added **Phase 0** as blocking prerequisite (2-3 hours)
+- Updated Week 0 timeline: API setup must complete before Phase 1
+- Documented credentials storage in `.env`
+
+**Benefits**:
+- **Unblocks Development**: Clear path to obtain API access despite 2025 platform issues
+- **Production-Ready**: Includes system user setup for production deployments
+- **Comprehensive**: Covers all scenarios from first-time setup to production hardening
+- **Troubleshooting**: 8 common issues with solutions documented
+- **Security-First**: Best practices for credential management
+
+**Next Steps**:
+1. User completes Phase 0 (API setup guide)
+2. Runs test script to verify connectivity
+3. Proceeds to Phase 1 (database & ingestion fixes)
+
+**Impact**:
+- **Timeline**: Adds 2-3 hours upfront, but prevents weeks of API confusion
+- **Risk Reduction**: Verifies API access patterns before building integration
+- **Documentation**: Single source of truth for Meta API setup in 2025
 | - 2025-10-12T14:00:00Z — **FEATURE**: Campaigns UI Integration ✅ — Connected Campaigns page to backend with three-level drill-down, live metrics, and strict SoC.
   - **Overview**: Full integration of Campaigns list and detail pages with backend API, supporting drill-down from campaigns → ad sets → ads.
   - **Data source**: MetricFact (real-time metrics) + Entity (hierarchy) with recursive CTEs for metric rollup from leaf nodes to ancestors.
@@ -1230,6 +1351,46 @@ _Last updated: 2025-10-15T13:50:00Z_
 - **Data Accuracy**: QA system now provides correct revenue calculations
 - **User Trust**: Eliminates confusion between QA answers and UI metrics
 - **System Reliability**: Fixes fundamental filtering bug affecting all level-based queries
+
+### 2025-10-28T18:00:00Z — **CRITICAL BUG FIX**: Phase 6-2 QA Test Results Fixes ✅ — Fixed provider comparison translation failures, multi-metric answer truncation, and latency logging bugs.
+
+**Summary**: Implemented critical fixes based on QA test results analysis (phase-6-2), addressing translation failures, incomplete answers, and observability issues.
+
+**Root Cause Analysis**:
+- **Provider Comparison Translation**: LLM translator failed to generate valid DSL for complex provider comparison queries with multiple metrics and specific time ranges
+- **Multi-Metric Answer Truncation**: Answer generation omitted breakdown data, resulting in incomplete answers
+- **Latency Logging**: Some answer generation methods returned None instead of numeric values, causing "Nonems" log entries
+
+**Files Modified**:
+- `backend/app/nlp/prompts.py`: Added comprehensive provider comparison example, removed conflicting old example, enhanced comparison query rules
+- `backend/app/dsl/validate.py`: Added empty DSL detection before Pydantic validation
+- `backend/app/services/qa_service.py`: Added retry logic (up to 2 attempts with exponential backoff), improved error handling to return user-friendly messages
+- `backend/app/answer/answer_builder.py`: Enhanced multi-metric answer generation to include breakdown data, standardized latency logging (always numeric)
+
+**Features Implemented**:
+- ✅ **Translation Retry Logic**: Automatic retry up to 2 times with exponential backoff (0.5s, 1.0s) for translation failures
+- ✅ **Empty DSL Validation**: Early detection of empty DSL responses with helpful error messages
+- ✅ **Error Handling**: Graceful error responses with example questions instead of raising exceptions
+- ✅ **Multi-Metric Enhancement**: LLM prompts and template fallback now include breakdown data
+- ✅ **Latency Standardization**: All answer generation methods return numeric values (0 for templates)
+
+**Testing Results**:
+- ✅ **Test 98**: Provider comparison query now translates successfully
+- ✅ **Tests 97, 99, 101, 103, 104**: Multi-metric queries now return complete answers with breakdown
+- ✅ **All Tests**: Latency logging shows numeric values only (no more "Nonems")
+
+**Impact**:
+- **Reliability**: Improved translation success rate for complex queries
+- **User Experience**: Complete answers with all metrics and breakdown data
+- **Observability**: Consistent latency logging enables better performance monitoring
+- **Error Handling**: User-friendly error messages guide users to rephrase questions
+
+**Migration**: None required
+
+**Documentation**:
+- Updated `backend/docs/QA_SYSTEM_ARCHITECTURE.md` to v2.4.3 with Phase 6-2 fixes
+- Added version history entry with detailed fix descriptions
+- Updated pipeline stages documentation with retry logic and error handling
 
 ### 2025-10-13T12:00:00Z — Phase 7: Advanced Analytics Implementation
 

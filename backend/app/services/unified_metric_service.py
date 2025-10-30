@@ -40,7 +40,7 @@ from typing import Optional, List, Dict, Any, Union
 from dataclasses import dataclass
 import logging
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 from sqlalchemy import func, cast, Date, desc, asc
 
 from app import models
@@ -341,17 +341,37 @@ class UnifiedMetricService:
         start_date, end_date = self._resolve_time_range(time_range)
         logger.info(f"[UNIFIED_METRICS] Resolved dates: {start_date} to {end_date}")
         
-        # Build breakdown query based on dimension
-        if breakdown_dimension == "provider":
-            query = self._build_provider_breakdown_query(
-                workspace_id, start_date, end_date, filters
-            )
-        elif breakdown_dimension in ["campaign", "adset", "ad"]:
-            query = self._build_entity_breakdown_query(
-                workspace_id, start_date, end_date, filters, breakdown_dimension
-            )
-        else:
-            raise ValueError(f"Unsupported breakdown dimension: {breakdown_dimension}")
+        # Special handling: named entity + same-level breakdown → route to child-level
+        query = None
+        if filters.entity_name and breakdown_dimension in ["campaign", "adset", "ad"]:
+            named_entity = self._resolve_entity_by_name(workspace_id, filters.entity_name)
+            if named_entity is not None and named_entity.level == breakdown_dimension:
+                child_level_map = {"campaign": "adset", "adset": "ad", "ad": "ad"}
+                child_level = child_level_map.get(breakdown_dimension)
+                logger.info(
+                    f"[UNIFIED_METRICS] Routing named-entity same-level breakdown to child level: {breakdown_dimension}→{child_level}"
+                )
+                query = self._build_hierarchy_entity_breakdown_query(
+                    workspace_id=workspace_id,
+                    start_date=start_date,
+                    end_date=end_date,
+                    named_entity=named_entity,
+                    child_level=child_level,
+                    filters=filters,
+                )
+
+        # Regular path
+        if query is None:
+            if breakdown_dimension == "provider":
+                query = self._build_provider_breakdown_query(
+                    workspace_id, start_date, end_date, filters
+                )
+            elif breakdown_dimension in ["campaign", "adset", "ad"]:
+                query = self._build_entity_breakdown_query(
+                    workspace_id, start_date, end_date, filters, breakdown_dimension
+                )
+            else:
+                raise ValueError(f"Unsupported breakdown dimension: {breakdown_dimension}")
         
         # Apply ordering and limit
         if sort_order == "asc":
@@ -594,7 +614,10 @@ class UnifiedMetricService:
             logger.debug(f"[UNIFIED_METRICS] Applied provider filter: {provider_value}")
         
         # Level filter (use E.level, not MF.level)
-        if filters.level:
+        # IMPORTANT: When filtering by entity_name (hierarchy rollup), do NOT also
+        # constrain by E.level here, because we will restrict by descendants and/or
+        # grouping level separately. Applying both can over-constrain to empty.
+        if filters.level and not filters.entity_name:
             query = query.filter(self.E.level == filters.level)
             logger.debug(f"[UNIFIED_METRICS] Applied level filter: {filters.level}")
         
@@ -627,6 +650,144 @@ class UnifiedMetricService:
                 pattern = f"%{filters.entity_name}%"
                 query = query.filter(self.E.name.ilike(pattern))
         
+        return query
+
+    def _resolve_entity_by_name(self, workspace_id: str, entity_name: str):
+        """
+        Resolve a single entity by name for a workspace.
+        Tries exact match first, then partial (ILIKE) match.
+        Returns the Entity ORM object or None if not found.
+        """
+        logger.info(f"[UNIFIED_METRICS] Resolving entity by name (exact first): '{entity_name}'")
+        # Exact match
+        exact = (
+            self.db.query(self.E)
+            .filter(self.E.workspace_id == workspace_id)
+            .filter(self.E.name == entity_name)
+            .first()
+        )
+        if exact:
+            return exact
+
+        # Case-insensitive partial match
+        pattern = f"%{entity_name}%"
+        partial = (
+            self.db.query(self.E)
+            .filter(self.E.workspace_id == workspace_id)
+            .filter(self.E.name.ilike(pattern))
+            .first()
+        )
+        if partial:
+            logger.info(f"[UNIFIED_METRICS] Using partial match for '{entity_name}': {partial.name} ({partial.id})")
+        else:
+            logger.warning(f"[UNIFIED_METRICS] No entity found for name '{entity_name}' in workspace {workspace_id}")
+        return partial
+
+    def _build_hierarchy_entity_breakdown_query(
+        self,
+        workspace_id: str,
+        start_date,
+        end_date,
+        named_entity,
+        child_level: str,
+        filters: MetricFilters,
+    ):
+        """
+        Build a hierarchy-aware breakdown query for a named ancestor entity.
+        Restrict facts to descendants of the named entity and group by the requested child level.
+
+        child_level: 'adset' or 'ad' (when ancestor is campaign/adset respectively).
+        """
+        # Use entity_name-based descendant filtering (already working) instead of joining CTEs directly
+        # This avoids SQLAlchemy CTE reuse issues while still getting the right data
+        
+        if named_entity.level == "campaign" and child_level == "adset":
+            # For campaign→adset breakdown, filter by campaign descendants and group by adset ancestors
+            from app.dsl.hierarchy import adset_ancestor_cte
+            
+            # Create unique CTE by creating a new session-bound one
+            adset_cte = adset_ancestor_cte(self.db)
+            adset_alias = aliased(self.E)
+            
+            query = (
+                self.db.query(
+                    adset_alias.name.label("group_name"),
+                    func.coalesce(func.sum(self.MF.spend), 0).label("spend"),
+                    func.coalesce(func.sum(self.MF.revenue), 0).label("revenue"),
+                    func.coalesce(func.sum(self.MF.clicks), 0).label("clicks"),
+                    func.coalesce(func.sum(self.MF.impressions), 0).label("impressions"),
+                    func.coalesce(func.sum(self.MF.conversions), 0).label("conversions"),
+                )
+                .select_from(self.MF)
+                .join(self.E, self.E.id == self.MF.entity_id)
+                .join(adset_cte, adset_cte.c.leaf_id == self.E.id)
+                .join(adset_alias, adset_alias.id == adset_cte.c.ancestor_id)
+                .filter(self.E.workspace_id == workspace_id)
+                .filter(cast(self.MF.event_date, Date).between(start_date, end_date))
+                .group_by(adset_alias.name)
+            )
+            
+            # Apply entity_name filter via descendants (this uses the working path)
+            filters_no_name = MetricFilters(
+                provider=filters.provider,
+                level=None,
+                status=filters.status,
+                entity_ids=filters.entity_ids,
+                entity_name=filters.entity_name,  # Keep entity_name to use descendant filtering
+                metric_filters=filters.metric_filters,
+            )
+            query = self._apply_filters(query, filters_no_name, workspace_id)
+            
+        elif named_entity.level == "adset" and child_level == "ad":
+            # For adset→ad breakdown, filter by adset descendants and group by ad names
+            query = (
+                self.db.query(
+                    self.E.name.label("group_name"),
+                    func.coalesce(func.sum(self.MF.spend), 0).label("spend"),
+                    func.coalesce(func.sum(self.MF.revenue), 0).label("revenue"),
+                    func.coalesce(func.sum(self.MF.clicks), 0).label("clicks"),
+                    func.coalesce(func.sum(self.MF.impressions), 0).label("impressions"),
+                    func.coalesce(func.sum(self.MF.conversions), 0).label("conversions"),
+                )
+                .select_from(self.MF)
+                .join(self.E, self.E.id == self.MF.entity_id)
+                .filter(self.E.workspace_id == workspace_id)
+                .filter(cast(self.MF.event_date, Date).between(start_date, end_date))
+                .group_by(self.E.name)
+            )
+            
+            # Apply entity_name filter via descendants
+            filters_no_name = MetricFilters(
+                provider=filters.provider,
+                level=None,
+                status=filters.status,
+                entity_ids=filters.entity_ids,
+                entity_name=filters.entity_name,
+                metric_filters=filters.metric_filters,
+            )
+            query = self._apply_filters(query, filters_no_name, workspace_id)
+            
+        elif named_entity.level == "ad":
+            # Single ad entity
+            query = (
+                self.db.query(
+                    self.E.name.label("group_name"),
+                    func.coalesce(func.sum(self.MF.spend), 0).label("spend"),
+                    func.coalesce(func.sum(self.MF.revenue), 0).label("revenue"),
+                    func.coalesce(func.sum(self.MF.clicks), 0).label("clicks"),
+                    func.coalesce(func.sum(self.MF.impressions), 0).label("impressions"),
+                    func.coalesce(func.sum(self.MF.conversions), 0).label("conversions"),
+                )
+                .select_from(self.MF)
+                .join(self.E, self.E.id == self.MF.entity_id)
+                .filter(self.E.id == named_entity.id)
+                .filter(self.E.workspace_id == workspace_id)
+                .filter(cast(self.MF.event_date, Date).between(start_date, end_date))
+                .group_by(self.E.name)
+            )
+        else:
+            raise ValueError(f"Unsupported breakdown: {named_entity.level}→{child_level}")
+
         return query
     
     def _build_provider_breakdown_query(self, workspace_id: str, start_date: date, end_date: date, filters: MetricFilters):

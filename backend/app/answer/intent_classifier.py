@@ -111,20 +111,29 @@ def classify_intent(question: str, query: MetricQuery) -> AnswerIntent:
     # These users want to see multiple items, not just the top performer
     list_keywords = [
         "list", "show me all", "give me", "top", "all",
-        "every", "each", "entire", "complete"
+        "every", "each", "entire", "complete", "show me"
     ]
     
     # Check for list keywords in question
     has_list_keywords = any(kw in question_lower for kw in list_keywords)
     
-    # Check DSL for list signals (breakdown with top_n > 1)
+    # Check DSL for list signals (breakdown with top_n > 1 OR has metric_filters)
     has_list_in_dsl = (
         query.breakdown is not None and 
         query.top_n is not None and 
         query.top_n > 1
     )
     
-    if has_list_keywords and has_list_in_dsl:
+    # IMPORTANT: Metric filter queries are ALWAYS list queries
+    # When user says "show me campaigns with ROAS above 4", they want a list
+    has_metric_filters = (
+        query.filters and 
+        hasattr(query.filters, 'metric_filters') and 
+        query.filters.metric_filters is not None and 
+        len(query.filters.metric_filters) > 0
+    )
+    
+    if (has_list_keywords and has_list_in_dsl) or has_metric_filters:
         return AnswerIntent.LIST
     
     # COMPARATIVE: Asking to compare things

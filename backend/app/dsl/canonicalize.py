@@ -30,6 +30,8 @@ METRIC_SYNONYMS = {
     "return on ad spend": "roas",
     "return on spend": "roas",
     "roas": "roas",
+    "performance": "roas",  # General "performance" → ROAS (most universal metric)
+    "performing": "roas",
     
     # CVR variations
     "cvr": "cvr",
@@ -55,6 +57,11 @@ METRIC_SYNONYMS = {
     "sales": "revenue",
     "turnover": "revenue",
     "income": "revenue",
+    
+    # Profit variations
+    "profit margin": "profit",  # User asking for profit margin wants profit amount, not ratio
+    "profitability": "profit",
+    "net profit": "profit",
     
     # Clicks variations
     "click": "clicks",

@@ -1,11 +1,12 @@
 #!/bin/bash
 # Simple QA Test Runner
 
-WORKSPACE_ID="4449fa5d-746d-4aa0-b446-28df32deb1e6"
+WORKSPACE_ID="4e0fcdf8-cd09-46f9-ae6a-5bcbc68b0199"
 API_URL="http://localhost:8000/qa/?workspace_id=$WORKSPACE_ID"
 COOKIE_FILE="../cookies.txt"
 TEST_RESULTS_DIR="test-results"
-OUTPUT_FILE="$TEST_RESULTS_DIR/qa_test_results-phase-6.md"
+OUTPUT_FILE="$TEST_RESULTS_DIR/qa_test_results-phase-6-2.md"
+LOG_FILE="qa_logs.txt"
 
 # Create test-results directory if it doesn't exist
 mkdir -p "$TEST_RESULTS_DIR"
@@ -19,6 +20,42 @@ NC='\033[0m' # No Color
 echo "🧪 QA Test Suite Runner"
 echo "======================="
 echo ""
+
+# Check if API is already running
+if curl -s http://localhost:8000/health > /dev/null 2>&1; then
+    echo -e "${GREEN}✓${NC} API server is already running"
+    echo ""
+    echo "⚠️  IMPORTANT: For logs to appear in test results, the API must be"
+    echo "   running with output redirected to the log file."
+    echo ""
+    echo "   Please restart your API server with:"
+    echo "   ${BLUE}python start_api.py 2>&1 | tee qa_logs.txt${NC}"
+    echo ""
+    echo "   Or run the API in the test directory and use tee:"
+    echo "   ${BLUE}cd backend && python start_api.py 2>&1 | tee qa_logs.txt${NC}"
+    echo ""
+    echo "Press Enter to continue with tests (logs may be empty)..."
+    read
+    echo ""
+else
+    echo -e "${RED}✗${NC} API server is not running"
+    echo "Starting API server in background with logs..."
+    python start_api.py > "$LOG_FILE" 2>&1 &
+    API_PID=$!
+    echo "API server started with PID: $API_PID"
+    echo "Waiting for API to be ready..."
+    sleep 5
+    
+    # Wait for API to be ready
+    for i in {1..30}; do
+        if curl -s http://localhost:8000/health > /dev/null 2>&1; then
+            echo -e "${GREEN}✓${NC} API server is ready"
+            break
+        fi
+        sleep 1
+    done
+    echo ""
+fi
 
 # Login and get cookies
 echo -e "${BLUE}→${NC} Logging in..."
@@ -36,9 +73,18 @@ if [ -z "$user_email" ]; then
     exit 1
 fi
 
+# Extract cookie value from cookie file
+COOKIE_VALUE=$(grep "access_token" "$COOKIE_FILE" | awk -F'\t' '{print $7}' | tr -d '"')
+
 echo -e "${GREEN}✓${NC} Logged in as: $user_email"
 echo -e "${GREEN}✓${NC} Workspace ID: $WORKSPACE_ID"
+echo -e "${GREEN}✓${NC} Cookie extracted"
 echo ""
+
+# Truncate log file to start fresh (avoids growing too large)
+if [ -f "$LOG_FILE" ]; then
+    > "$LOG_FILE"
+fi
 
 # Create output file with header
 cat > $OUTPUT_FILE << EOF
@@ -102,6 +148,16 @@ QUESTIONS=(
     "Which adset had the lowest ctr last week?"
     "what is my total CVR last month?"
     "what is my cvr on google last month?"
+
+    # follow up questions
+    "how much did i spent last month?"
+    "wich campaign had the highest spend?"
+    "wich ads in that campaign performed best?"
+    "how many conversions did that campaign deliver?"
+    "how much revenue in the last week?"
+    "wich campaign brought in the most?"
+    "how many conversions did that campaign deliver?"
+
 
         
     # Filters
@@ -184,21 +240,58 @@ for question in "${QUESTIONS[@]}"; do
     
     echo -e "${BLUE}[$current/$total]${NC} Testing: $question"
     
-    # Make API call
-    response=$(curl -s -X 'POST' "$API_URL" \
+    # Capture current log file size BEFORE making the API call
+    # This way we know where to start reading from after the API call
+    log_start_size=""
+    if [ -f "$LOG_FILE" ]; then
+        log_start_size=$(wc -l < "$LOG_FILE" | tr -d ' ')
+    fi
+    
+    # Make a single API call and capture both response body and HTTP status code
+    # The -w "\\n%{http_code}" appends the status code on a new line to the response
+    response_with_code=$(curl -s -w "\\n%{http_code}" -X 'POST' "$API_URL" \
         -H 'Content-Type: application/json' \
-        -b "$COOKIE_FILE" \
+        -H "Cookie: access_token=$COOKIE_VALUE" \
         -d "{\"question\": \"$question\"}")
+    
+    # Extract the HTTP status code (last line)
+    http_code=$(echo "$response_with_code" | tail -n1)
+    # Extract the response body (everything except the last line)
+    response=$(echo "$response_with_code" | sed '$d')
     
     # Extract answer and DSL
     answer=$(echo "$response" | jq -r '.answer // "ERROR"')
     dsl=$(echo "$response" | jq -c '.executed_dsl // {}')
     
+    # Small delay to ensure logs are flushed to disk
+    sleep 0.3
+    
+    # Capture logs for this test (ONLY new logs added after API call)
+    test_logs=""
+    if [ -f "$LOG_FILE" ] && [ -n "$log_start_size" ]; then
+        # Read from the log_start_size+1 line onwards (new logs only)
+        total_lines=$(wc -l < "$LOG_FILE" | tr -d ' ')
+        if [ "$total_lines" -gt "$log_start_size" ]; then
+            lines_to_read=$((total_lines - log_start_size))
+            # Get only the new lines and filter for relevant markers
+            # Add debug output for first 3 tests
+            if [ "$current" -le 3 ]; then
+                echo "  Debug: Reading $lines_to_read new lines from log file"
+            fi
+            test_logs=$(tail -n "$lines_to_read" "$LOG_FILE" | grep -E "\[QA_PIPELINE\]|\[COMPARISON\]|\[UNIFIED_METRICS\]|\[ENTITY_CATALOG\]")
+        else
+            if [ "$current" -le 3 ]; then
+                echo "  Debug: No new log lines (start: $log_start_size, total: $total_lines)"
+            fi
+        fi
+    fi
+    
     # Check if successful
     if [ "$answer" != "ERROR" ] && [ "$answer" != "null" ]; then
         echo -e "  ${GREEN}✓${NC} Got answer"
     else
-        echo -e "  ${RED}✗${NC} Failed"
+        echo -e "  ${RED}✗${NC} Failed (HTTP $http_code)"
+        echo "  Response: $response"
     fi
     
     # Append to output file
@@ -213,6 +306,11 @@ for question in "${QUESTIONS[@]}"; do
 $(echo "$dsl" | jq '.')
 \`\`\`
 
+**Logs**:
+\`\`\`
+$test_logs
+\`\`\`
+
 ---
 
 EOF
@@ -224,10 +322,22 @@ done
 echo ""
 echo "✅ Test run complete!"
 echo "📄 Results saved to: $OUTPUT_FILE"
+echo "📋 Logs available in: $LOG_FILE"
 echo ""
+
+# Clean up: Kill API server if we started it
+if [ -n "$API_PID" ]; then
+    echo "Stopping API server (PID: $API_PID)..."
+    kill $API_PID 2>/dev/null
+    echo "✓ API server stopped"
+    echo ""
+fi
+
 echo "Summary:"
 echo "  Total questions: $total"
 echo "  Results file: $OUTPUT_FILE"
+echo "  Log file: $LOG_FILE"
 echo ""
 echo "To view results: cat $OUTPUT_FILE"
+echo "To view logs: tail -f $LOG_FILE"
 

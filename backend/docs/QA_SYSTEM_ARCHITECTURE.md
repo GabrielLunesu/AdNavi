@@ -1,8 +1,8 @@
 # QA System Architecture & DSL Specification
 
-**Version**: DSL v2.4.1 (Hierarchy Rollups & Logging)  
-**Last Updated**: 2025-10-16  
-**Status**: Production Ready - Hierarchy Rollups Complete
+**Version**: DSL v2.4.3 (Phase 6-2 Critical Fixes)  
+**Last Updated**: 2025-10-28  
+**Status**: Production Ready - Critical Bugs Fixed
 
 ✅ **Phase 1 Complete**: Intent-based answer depth implemented. Simple questions now get simple answers (1 sentence), comparative questions get comparisons (2-3 sentences), analytical questions get full context (3-4 sentences).
 
@@ -68,6 +68,14 @@
 - **Comprehensive Logging**: Added detailed logging throughout QA pipeline and UnifiedMetricService
 - **Debugging Support**: Structured log markers enable easy filtering and debugging
 - **Impact**: Fresh data from children entities, eliminates stale campaign-level facts, improved transparency
+
+✅ **Phase 6-2 Critical Fixes Complete** (2025-10-28):
+- **Provider Comparison Translation**: Fixed translation failures for provider_vs_provider queries with multiple metrics and specific time ranges
+- **Retry Logic**: Added automatic retry (up to 2 attempts) for translation failures with exponential backoff
+- **Empty DSL Validation**: Early detection of empty DSL responses with helpful error messages
+- **Multi-Metric Answer Enhancement**: Fixed truncated answers by including breakdown data in both LLM and template paths
+- **Latency Logging Standardization**: All answer generation methods now return numeric latency values (never None)
+- **Impact**: Critical bugs fixed, improved reliability and user experience
 
 ✅ **Unified Metrics Refactor Complete (2025-10-14)**: Major architectural improvement:
 - **Single Source of Truth**: All endpoints now use `UnifiedMetricService` for consistent calculations
@@ -284,8 +292,11 @@ flowchart TD
 - Main coordinator for the entire pipeline
 - Retrieves conversation context for follow-ups
 - Saves conversation history after execution
+- **Translation Retry Logic** (NEW in v2.4.3): Automatic retry up to 2 times with exponential backoff
+- **Error Handling** (NEW in v2.4.3): Returns helpful user-facing messages instead of raising exceptions
 - Handles error propagation and logging
 - Measures total latency
+- Ensures answer generation latency is always numeric (prevents None values)
 
 ### 2️⃣.1️⃣ **Date Parsing** (`app/dsl/date_parser.py`) - NEW
 - **Purpose**: Pre-parse date ranges to guide LLM
@@ -315,13 +326,15 @@ flowchart TD
   - `"this month"` → `"last 30 days"`
   - `"yesterday"` → `"last 1 day"`
 
-### 5️⃣ **Translation** (`app/nlp/translator.py`)
+### 5️⃣ **Translation** (`app/nlp/translator.py`) + **Retry Logic** (`app/services/qa_service.py`)
 - **LLM**: OpenAI GPT-4-turbo (upgraded in Phase 4.5 for better accuracy)
 - **Settings**: Temperature=0 (deterministic), JSON mode
 - **Input**: Canonicalized question + conversation context
 - **Output**: Raw JSON DSL (validated in next step)
 - **Context handling**: Includes last 1-2 queries for follow-up resolution
-- **Few-shot learning**: 22 examples covering all query types (including sort_order patterns)
+- **Few-shot learning**: 22+ examples covering all query types (including provider comparisons and sort_order patterns)
+- **Retry Logic** (NEW in v2.4.3): Automatic retry up to 2 times on translation failures with exponential backoff
+- **Comprehensive Examples**: Added detailed provider comparison examples for complex queries with multiple metrics and time ranges
 
 ### 6️⃣ **Prompting** (`app/nlp/prompts.py`)
 - **System Prompt**: Task explanation, constraints, schema, sort_order rules
@@ -335,6 +348,9 @@ flowchart TD
 
 ### 7️⃣ **Validation** (`app/dsl/validate.py`)
 - **Engine**: Pydantic v2
+- **Early Checks** (NEW in v2.4.3):
+  - Empty DSL detection before Pydantic validation
+  - Returns helpful error message for translation failures
 - **Validates**:
   - Query type (metrics, providers, entities)
   - Metric is valid (24 metrics supported)
@@ -500,6 +516,7 @@ Used by both AnswerBuilder (GPT prompts) and QAService (fallback templates).
 
 2. **Extract facts** deterministically from results
    - Summary value, delta %, top performer
+   - Breakdown data included for multi-metric queries (NEW in v2.4.3)
    - No hallucinations possible (validated DB results)
 
 3. **Filter context** based on intent
@@ -523,11 +540,19 @@ Used by both AnswerBuilder (GPT prompts) and QAService (fallback templates).
    - Temperature: 0.3 (natural but controlled)
    - Strict instructions: "Do NOT invent numbers or formatting"
    - Max tokens: 200 (enough for analytical answers)
+   - Multi-metric prompts include breakdown data when available (NEW in v2.4.3)
 
 7. **Fallback** to template if LLM fails
    - Always returns an answer
    - Uses same formatters for consistency
+   - Includes breakdown data in template answers (NEW in v2.4.3)
    - Robotic but safe
+
+**Latency Logging** (NEW in v2.4.3):
+- All answer generation methods return numeric latency values (never None)
+- Template fallbacks return 0ms for consistency
+- Consistent logging format: `Answer generation latency: {ms}ms`
+- Prevents "Nonems" log entries and ensures observability
 
 **Examples by Intent:**
 - **SIMPLE**: `"Your ROAS last month was 3.88×"` (1 sentence)
@@ -1601,6 +1626,43 @@ The roadmap outlines our evolution from Q&A system to autonomous marketing intel
 
 ## Version History
 
+- **v2.4.3 (2025-10-28)**: Phase 6-2 Critical Fixes ✅
+  - **Provider Comparison Translation**: Fixed translation failures for provider_vs_provider queries with multiple metrics and specific time ranges
+    - Added comprehensive provider comparison example in prompts.py
+    - Removed conflicting old-format example
+    - Enhanced comparison query rules documentation
+  - **Translation Retry Logic**: Added automatic retry (up to 2 attempts) for translation failures
+    - Exponential backoff between retries (0.5s, 1.0s)
+    - Detailed logging of retry attempts
+    - Helpful error messages after all retries exhausted
+  - **Empty DSL Validation**: Early detection of empty DSL responses
+    - Check before Pydantic validation in validate.py
+    - Returns helpful error message: "Translation failed: Empty DSL returned"
+  - **Error Handling**: Graceful error responses instead of raising exceptions
+    - TranslationError and DSLValidationError now return user-friendly messages
+    - Includes example questions to guide users
+  - **Multi-Metric Answer Enhancement**: Fixed truncated answers for multi-metric queries
+    - LLM prompts now include breakdown data when available
+    - Template fallback includes breakdown with top 5 items
+    - Ensures all metrics are listed with values in both paths
+  - **Latency Logging Standardization**: All answer generation methods return numeric values
+    - Template fallbacks return 0ms for consistency
+    - AnswerBuilder methods standardized to always return int (never None)
+    - qa_service.py ensures latency is numeric before logging
+    - Consistent log format: "Answer generation latency: {ms}ms"
+  - **Impact**: Critical bugs fixed, improved reliability and user experience
+  - **Testing**: All previously failing tests (97, 98, 99, 101, 103, 104) now passing
+  - **Migrations**: None required
+
+- **v2.4.2 (2025-10-28)**: Named Entity Breakdown Routing + Entities List UX + Time-vs-Time ✅
+  - UnifiedMetricService: skip `E.level` when `filters.entity_name` present to avoid empty results
+  - Added `_resolve_entity_by_name` helper (exact → partial match)
+  - Added hierarchy-aware child-level breakdown builder (campaign→adset, adset→ad)
+  - `get_breakdown`: if breakdown equals named entity level, route to child-level automatically
+  - AnswerBuilder: deterministic numbered list for `entities` when N ≤ 25
+  - Executor: implemented basic `time_vs_time` comparison (current vs previous window)
+  - Migrations: none
+
 - **v2.4.1 (2025-10-16)**: Hierarchy Rollups & Comprehensive Logging ✅
   - Added hierarchy rollup support to UnifiedMetricService for entity_name filtering
   - When querying campaigns/adsets by name, now rolls up from descendant entities only (excludes stale parent facts)
@@ -1936,6 +1998,28 @@ Try the `/qa` endpoint with:
   - **Impact**: Level filters weren't applied correctly, causing cross-level aggregation
   - **Fix**: Changed 5 instances of `MF.level` → `E.level` in `app/dsl/executor.py`
   - **Result**: QA and UI now return identical values for same queries
+
+### ✅ Phase 6-2 Critical Fixes (2025-10-28)
+- **Provider Comparison Translation Failure**: Fixed empty DSL responses ✅
+  - **Problem**: Provider comparison queries (e.g., "Compare CTR and conversion rate for Google vs Meta campaigns in September") returned empty DSL `{}`
+  - **Root Cause**: Insufficient few-shot examples for complex provider comparisons with multiple metrics and specific time ranges
+  - **Impact**: Complete failure of provider comparison queries
+  - **Fix**: Added comprehensive provider comparison example, removed conflicting old example, added retry logic
+  - **Result**: Provider comparison queries now translate successfully
+
+- **Multi-Metric Answer Truncation**: Fixed incomplete answers ✅
+  - **Problem**: Multi-metric queries returned "Here are your metrics..." without listing values
+  - **Root Cause**: Breakdown data not included in LLM context and template fallback
+  - **Impact**: Users received incomplete answers for multi-metric queries
+  - **Fix**: Enhanced LLM prompts and template fallback to include breakdown data
+  - **Result**: All metrics listed with values, breakdown included when available
+
+- **Latency Logging Bug**: Fixed "Nonems" log entries ✅
+  - **Problem**: Some tests showed `Nonems` instead of numeric latency values
+  - **Root Cause**: Answer generation methods sometimes returned None for latency
+  - **Impact**: Poor observability, logging errors
+  - **Fix**: Standardized all answer generation methods to always return numeric values (0 for templates)
+  - **Result**: Consistent latency logging with numeric values only
 
 ### Remaining Limitations
 

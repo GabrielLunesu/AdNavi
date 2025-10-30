@@ -69,6 +69,15 @@ def validate_dsl(dsl_dict: Dict[str, Any]) -> MetricQuery:
     - Wraps errors in domain-specific exception for better error handling
     - Preserves original error details for debugging and repair
     """
+    # Check for empty DSL (critical check before validation)
+    # WHY: Catches translation failures early with helpful error message
+    if not dsl_dict or dsl_dict == {}:
+        raise DSLValidationError(
+            message="Translation failed: Empty DSL returned. The question may be too complex or unclear. Please try rephrasing your question.",
+            raw_dict=dsl_dict,
+            pydantic_errors=None
+        )
+    
     try:
         return MetricQuery(**dsl_dict)
     except ValidationError as e:

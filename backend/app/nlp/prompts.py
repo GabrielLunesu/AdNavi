@@ -531,6 +531,20 @@ FEW_SHOT_EXAMPLES = [
             "top_n": 10
         }
     },
+    {
+        "question": "list all active campaigns",
+        "dsl": {
+            "query_type": "entities",
+            "filters": {"level": "campaign", "status": "active"},
+            "top_n": 50
+        }
+    },
+    {
+        "question": "which platforms am I on?",
+        "dsl": {
+            "query_type": "providers"
+        }
+    },
     
     # NEW Phase 4.5: Sort order examples (lowest vs highest)
     # CRITICAL: Use "sort_order": "asc" for LOWEST, "desc" for HIGHEST (by literal value)
@@ -802,27 +816,14 @@ CRITICAL - Date Range Rules:
 CONVERSATION CONTEXT (CRITICAL - READ CAREFULLY):
 When a CONVERSATION HISTORY section is provided:
 
-1. METRIC INHERITANCE (MOST IMPORTANT):
-   - Look at the "Metric Used:" line in the previous question
-   - If the current question asks about a TIME PERIOD (yesterday, last week, this month) but doesn't mention a NEW metric
-   - YOU MUST USE THE SAME METRIC from the previous question
-   - Example: Previous had "Metric Used: conversions", user asks "and the week before?" → USE "conversions" again
-   - DO NOT randomly switch metrics (conversions → roas, spend → revenue, etc.)
-
-2. ENTITY REFERENCE:
-   - Look for "Top Items:" or "Entity Names:" or "First Entity:" markers in context
-   - Questions like "which one?", "that campaign", "it", "them" → reference those entities
-   - If user asks "which one performed best?" → use query_type "entities" with top_n=1 and the entity level from context
-
-3. PRONOUNS ("that", "it", "this", "those"):
-   - "that campaign" → use the campaign name from "First Entity:" marker
-   - "how many X did that deliver?" → apply filters for the entity mentioned in previous context
-   - ALWAYS check context before generating a generic query
-
-4. FOLLOW-UP SIGNALS:
-   - Questions starting with "and..." → inherit previous metric AND filters
-   - "more details" → generate entities query with info from previous context
-   - "what about..." → keep metric, change only what's explicitly mentioned
+1.  **Parse the User's Question**: Your primary goal is to understand the user's CURRENT question. Always prioritize what the user is asking for now.
+2.  **Use Conversation Context (If Provided)**:
+    -   Use the `Previous Question` history ONLY to understand follow-up questions (e.g., "and yesterday?", "which one performed best?").
+    -   If the user asks a new, complete question (e.g., "how many conversions..."), IGNORE the context and focus on the new question.
+    -   **CRITICAL**: Do NOT inherit metrics or filters from the context if the user's new question specifies its own. The current question ALWAYS wins.
+3.  **Fill the JSON Schema**: Based on the user's question, fill out all fields in the `MetricQuery` JSON schema.
+    -   `query_type`: Default to "metrics" if unsure.
+    -   `metric`: If the user asks a question without a clear metric (e.g., "how did we do?"), use `revenue` as a default.
 """
 
     # Define the default metric selection rules section
@@ -948,6 +949,22 @@ TEMPORAL BREAKDOWNS (NEW - Phase 7):
   * "Which day had the highest CPC?" → "breakdown": "day"
   * "Show me weekly performance" → "breakdown": "week"
   * "Give me monthly revenue" → "breakdown": "month"
+
+TOP_N (How many items to return):
+- Default: 5 (for simple breakdowns)
+- Range: 1-50 (schema limit)
+- CRITICAL RULES:
+  * "show me THE campaign" or "which ONE" → top_n: 1
+  * "top 5" or "top 10" → use the explicit number
+  * "show me ALL" or "list all" or "show me campaigns/adsets/ads" → top_n: 50
+  * Questions with metric_filters ("with ROAS above 4") → top_n: 50 (user wants to see all matching)
+  * No explicit limit mentioned + breakdown → top_n: 10 (reasonable default for lists)
+- Examples:
+  * "Which campaign had highest ROAS?" → top_n: 1
+  * "Top 5 campaigns by revenue" → top_n: 5
+  * "Show me all active campaigns" → top_n: 50
+  * "Show me campaigns with ROAS above 4" → top_n: 50 (metric filter = wants all matching)
+  * "Give me adsets with CPC below 1" → top_n: 50 (metric filter = wants complete list)
 """
 
     # Define the thresholds section

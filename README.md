@@ -167,7 +167,7 @@ docker compose up -d
 
 # Backend
 cd backend
-python -m venv venv && source venv/bin/activate
+python -m venv venv && source bin/activate
 pip install -r requirements.txt
 alembic upgrade head
 python -m app.seed_mock
