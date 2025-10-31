@@ -38,7 +38,7 @@ export default function Sidebar() {
     { href: "/copilot", label: "Copilot", icon: Bot, active: pathname?.startsWith('/copilot') },
     { href: "/finance", label: "Finance (P&L)", icon: Receipt, active: pathname === "/finance" },
     { href: "/campaigns", label: "Campaigns", icon: Megaphone, active: pathname?.startsWith('/campaigns') },
-    { href: "#", label: "Settings", icon: Settings, active: false },
+    { href: "/settings", label: "Settings", icon: Settings, active: pathname === "/settings" },
   ];
 
   return (

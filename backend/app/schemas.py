@@ -3,7 +3,8 @@
 from datetime import datetime, date
 from uuid import UUID
 from typing import Optional, List, Literal, Union, Any
-from pydantic import BaseModel, EmailStr, constr, Field, field_serializer
+from decimal import Decimal
+from pydantic import BaseModel, EmailStr, constr, Field, field_serializer, field_validator
 from .models import RoleEnum, ProviderEnum, LevelEnum, KindEnum, ComputeRunTypeEnum, GoalEnum
 
 
@@ -738,3 +739,379 @@ class ManualCostOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+
+# ============================================================================
+# Meta Ads Ingestion Schemas (Phase 1.2)
+# ============================================================================
+
+class MetricFactCreate(BaseModel):
+    """
+    Schema for ingesting metric facts from ad platforms (Meta, Google, TikTok).
+    
+    WHY:
+    - Unified schema for ingestion from any ad platform
+    - Can infer entity_id from external_entity_id + provider if entity already exists
+    - Supports UPSERT pattern via natural_key
+    
+    WHAT:
+    - External identifiers from ad platform (campaign_id, ad_id, etc.)
+    - Base measures only (no computed metrics)
+    - Timezone-aware event_at timestamp
+    
+    WHERE:
+    - Used by POST /workspaces/{workspace_id}/metrics/ingest
+    - Called by Phase 3 MetaMetricsFetcher service
+    
+    REFERENCES:
+    - app/models.py:MetricFact (target table)
+    - backend/docs/roadmap/meta-ads-roadmap.md Phase 1.2
+    """
+    
+    # Entity identification (one of these patterns):
+    # Pattern 1: Existing entity
+    entity_id: Optional[UUID] = Field(
+        None,
+        description="AdNavi entity UUID (if entity already synced)"
+    )
+    
+    # Pattern 2: New entity (will be looked up or created)
+    external_entity_id: Optional[str] = Field(
+        None,
+        description="Platform's entity ID (e.g., Meta campaign_id)",
+        example="123456789"
+    )
+    
+    # Required metadata
+    provider: ProviderEnum = Field(
+        description="Ad platform provider",
+        example="meta"
+    )
+    
+    level: LevelEnum = Field(
+        description="Entity hierarchy level",
+        example="campaign"
+    )
+    
+    # Timestamp (timezone-aware)
+    event_at: datetime = Field(
+        description="When this metric occurred (with timezone)",
+        example="2025-10-30T14:00:00+00:00"
+    )
+    
+    # Base measures (Meta Insights API fields)
+    spend: Decimal = Field(
+        description="Ad spend in currency units",
+        example=150.50,
+        ge=0
+    )
+    
+    impressions: int = Field(
+        description="Number of ad impressions",
+        example=5420,
+        ge=0
+    )
+    
+    clicks: int = Field(
+        description="Number of clicks",
+        example=234,
+        ge=0
+    )
+    
+    # Optional base measures
+    conversions: Optional[Decimal] = Field(
+        None,
+        description="Conversion events count",
+        example=12.0,
+        ge=0
+    )
+    
+    revenue: Optional[Decimal] = Field(
+        None,
+        description="Revenue attributed to ads",
+        example=1250.00,
+        ge=0
+    )
+    
+    leads: Optional[Decimal] = Field(
+        None,
+        description="Lead form submissions",
+        example=8.0,
+        ge=0
+    )
+    
+    installs: Optional[int] = Field(
+        None,
+        description="App installs",
+        example=15,
+        ge=0
+    )
+    
+    purchases: Optional[int] = Field(
+        None,
+        description="Purchase events",
+        example=5,
+        ge=0
+    )
+    
+    visitors: Optional[int] = Field(
+        None,
+        description="Landing page visitors",
+        example=180,
+        ge=0
+    )
+    
+    profit: Optional[Decimal] = Field(
+        None,
+        description="Net profit (revenue - costs)",
+        example=1100.00
+    )
+    
+    # Currency
+    currency: str = Field(
+        description="Currency code",
+        example="USD",
+        min_length=3,
+        max_length=3
+    )
+    
+    # Natural key (for deduplication)
+    natural_key: Optional[str] = Field(
+        None,
+        description="Unique key for this fact (prevents duplicates)",
+        example="123456789-2025-10-30T14:00:00+00:00"
+    )
+    
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "external_entity_id": "123456789",
+                "provider": "meta",
+                "level": "campaign",
+                "event_at": "2025-10-30T14:00:00+00:00",
+                "spend": 150.50,
+                "impressions": 5420,
+                "clicks": 234,
+                "conversions": 12.0,
+                "revenue": 1250.00,
+                "currency": "USD"
+            }
+        }
+    }
+
+
+class MetricFactIngestResponse(BaseModel):
+    """Response from metric fact ingestion."""
+    
+    success: bool = Field(
+        description="Whether ingestion succeeded"
+    )
+    
+    ingested: int = Field(
+        description="Number of facts ingested",
+        example=24
+    )
+    
+    skipped: int = Field(
+        description="Number of facts skipped (duplicates)",
+        example=0
+    )
+    
+    errors: List[str] = Field(
+        default_factory=list,
+        description="List of error messages"
+    )
+    
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "success": True,
+                "ingested": 24,
+                "skipped": 0,
+                "errors": []
+            }
+        }
+    }
+
+
+# Meta Ads Sync Schemas
+# ---------------------------------------------------------------------
+
+class EntitySyncStats(BaseModel):
+    """Statistics from entity synchronization.
+    
+    WHAT: Tracks created/updated counts for campaigns, adsets, ads
+    WHY: Provides visibility into what changed during sync
+    """
+    
+    campaigns_created: int = Field(
+        default=0,
+        description="Number of campaigns created"
+    )
+    campaigns_updated: int = Field(
+        default=0,
+        description="Number of campaigns updated"
+    )
+    adsets_created: int = Field(
+        default=0,
+        description="Number of adsets created"
+    )
+    adsets_updated: int = Field(
+        default=0,
+        description="Number of adsets updated"
+    )
+    ads_created: int = Field(
+        default=0,
+        description="Number of ads created"
+    )
+    ads_updated: int = Field(
+        default=0,
+        description="Number of ads updated"
+    )
+    duration_seconds: float = Field(
+        description="Total duration in seconds"
+    )
+
+
+class EntitySyncResponse(BaseModel):
+    """Response from entity synchronization endpoint.
+    
+    WHAT: Returns success status, stats, and any errors
+    WHY: Provides complete feedback for sync operation
+    """
+    
+    success: bool = Field(
+        description="Whether sync succeeded overall (partial success possible)"
+    )
+    synced: EntitySyncStats = Field(
+        description="Statistics about what was synced"
+    )
+    errors: List[str] = Field(
+        default_factory=list,
+        description="List of error messages (if any)"
+    )
+    
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "success": True,
+                "synced": {
+                    "campaigns_created": 5,
+                    "campaigns_updated": 2,
+                    "adsets_created": 12,
+                    "adsets_updated": 3,
+                    "ads_created": 24,
+                    "ads_updated": 8,
+                    "duration_seconds": 15.3
+                },
+                "errors": []
+            }
+        }
+    }
+
+
+class DateRange(BaseModel):
+    """Date range for metrics sync.
+    
+    WHAT: Start and end dates for metrics fetching
+    WHY: Provides visibility into what period was synced
+    """
+    
+    start: date = Field(
+        description="Start date (inclusive)"
+    )
+    end: date = Field(
+        description="End date (inclusive)"
+    )
+
+
+class MetricsSyncRequest(BaseModel):
+    """Request for metrics synchronization.
+    
+    WHAT: Optional parameters to control metrics sync
+    WHY: Allows manual date range and force refresh
+    """
+    
+    start_date: Optional[date] = Field(
+        default=None,
+        description="Start date (default: 90 days ago or last synced date)"
+    )
+    end_date: Optional[date] = Field(
+        default=None,
+        description="End date (default: yesterday)"
+    )
+    force_refresh: bool = Field(
+        default=False,
+        description="Re-fetch data even if it already exists"
+    )
+    
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "start_date": "2024-01-01",
+                "end_date": "2024-01-31",
+                "force_refresh": False
+            }
+        }
+    }
+
+
+class MetricsSyncStats(BaseModel):
+    """Statistics from metrics synchronization.
+    
+    WHAT: Tracks facts ingested, skipped, date range, and ads processed
+    WHY: Provides visibility into sync operation results
+    """
+    
+    facts_ingested: int = Field(
+        description="Number of metric facts ingested"
+    )
+    facts_skipped: int = Field(
+        description="Number of facts skipped (already existed)"
+    )
+    date_range: DateRange = Field(
+        description="Date range that was synced"
+    )
+    ads_processed: int = Field(
+        description="Number of ads processed"
+    )
+    duration_seconds: float = Field(
+        description="Total duration in seconds"
+    )
+
+
+class MetricsSyncResponse(BaseModel):
+    """Response from metrics synchronization endpoint.
+    
+    WHAT: Returns success status, stats, and any errors
+    WHY: Provides complete feedback for sync operation
+    """
+    
+    success: bool = Field(
+        description="Whether sync succeeded overall"
+    )
+    synced: MetricsSyncStats = Field(
+        description="Statistics about what was synced"
+    )
+    errors: List[str] = Field(
+        default_factory=list,
+        description="List of error messages (if any)"
+    )
+    
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "success": True,
+                "synced": {
+                    "facts_ingested": 450,
+                    "facts_skipped": 0,
+                    "date_range": {
+                        "start": "2024-10-01",
+                        "end": "2024-10-31"
+                    },
+                    "ads_processed": 15,
+                    "duration_seconds": 245.7
+                },
+                "errors": []
+            }
+        }
+    }

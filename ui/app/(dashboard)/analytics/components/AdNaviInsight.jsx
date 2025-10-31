@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { fetchQA } from "../../../../lib/api";
+import { fetchQA } from "@/lib/api";
 import { Sparkles } from "lucide-react";
 
 export default function AdNaviInsight({

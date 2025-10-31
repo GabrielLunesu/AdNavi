@@ -27,6 +27,8 @@ from .routers import qa as qa_router
 from .routers import qa_log as qa_log_router
 from .routers import finance as finance_router
 from .routers import entity_performance as entity_performance_router
+from .routers import ingest as ingest_router  # Phase 1.2: Meta ingestion API
+from .routers import meta_sync as meta_sync_router  # Phase 2: Meta entity and metrics sync
 from . import schemas
 
 # Import models so Alembic can discover metadata
@@ -375,6 +377,8 @@ def create_app() -> FastAPI:
     app.include_router(kpis_router.router)
     app.include_router(qa_router.router)
     app.include_router(qa_log_router.router)
+    app.include_router(ingest_router.router)  # Phase 1.2: Metrics ingestion
+    app.include_router(meta_sync_router.router)  # Phase 2: Meta sync endpoints
 
     @app.get(
         "/health",

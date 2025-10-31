@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { Chart, registerables } from "chart.js";
-import { fetchWorkspaceKpis, fetchWorkspaceCampaigns } from "../../../../lib/api";
+import { fetchWorkspaceKpis, fetchWorkspaceCampaigns } from "@/lib/api";
 import { ChevronDown } from "lucide-react";
 
 Chart.register(...registerables);

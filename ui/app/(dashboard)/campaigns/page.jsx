@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-// import { useAuth } from "../../../lib/auth"; // TODO: Implement auth hook
+import { currentUser } from "@/lib/auth";
 import { campaignsApiClient, campaignsAdapter } from "../../../lib";
 import TopToolbar from "./components/TopToolbar";
 import CampaignTableHeader from "./components/CampaignTableHeader";
@@ -10,10 +10,10 @@ import Card from "../../../components/Card";
 import { useRouter } from "next/navigation";
 
 export default function CampaignsPage() {
-  // For now, hardcode the workspace_id from login response
-  // TODO: Implement proper auth context with useAuth hook
-  const workspaceId = "1e72698a-1f6c-4abb-9b99-48dba86508ce";
   const router = useRouter();
+  const [user, setUser] = useState(null);
+  const [workspaceId, setWorkspaceId] = useState(null);
+  const [availableProviders, setAvailableProviders] = useState([]);
 
   const [campaignsData, setCampaignsData] = useState({
     meta: { title: "Campaigns", subtitle: "Loading...", level: "campaign", lastUpdatedAt: null },
@@ -21,6 +21,7 @@ export default function CampaignsPage() {
     rows: [],
   });
   const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const [filters, setFilters] = useState({
@@ -32,6 +33,28 @@ export default function CampaignsPage() {
     page: 1,
     pageSize: 8,
   });
+
+  // Fetch user and workspace ID on mount
+  useEffect(() => {
+    let mounted = true;
+    currentUser()
+      .then((u) => {
+        if (!mounted) return;
+        setUser(u);
+        setWorkspaceId(u?.workspace_id);
+        setInitialLoading(false);
+      })
+      .catch((err) => {
+        console.error("Failed to get user:", err);
+        if (mounted) {
+          setUser(null);
+          setInitialLoading(false);
+        }
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const fetchCampaigns = async () => {
     if (!workspaceId) return;
@@ -60,8 +83,13 @@ export default function CampaignsPage() {
   };
 
   useEffect(() => {
-    fetchCampaigns();
+    if (workspaceId) {
+      fetchCampaigns();
+    }
   }, [workspaceId, filters]);
+
+  // Missing dependency warning fix - wrap fetchCampaigns in useCallback or disable eslint
+  // eslint-disable-next-line react-hooks/exhaustive-deps
 
   const handlePlatformChange = (platform) => setFilters((prev) => ({ ...prev, platform, page: 1 }));
   const handleStatusChange = (status) => setFilters((prev) => ({ ...prev, status, page: 1 }));
@@ -75,15 +103,39 @@ export default function CampaignsPage() {
 
   const { rows, meta, pagination } = campaignsData;
 
+  if (initialLoading) {
+    return (
+      <div className="p-12 text-center">
+        <div className="w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+        <p className="text-neutral-600">Loading campaigns...</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="p-12 text-center">
+        <div className="glass-card rounded-3xl border border-neutral-200/60 p-6 max-w-md mx-auto">
+          <h2 className="text-xl font-medium mb-2 text-neutral-900">You must be signed in.</h2>
+          <a href="/login" className="text-cyan-600 hover:text-cyan-700 underline">Go to sign in</a>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
       <TopToolbar
         meta={meta}
         filters={filters}
+        workspaceId={workspaceId}
+        availableProviders={availableProviders}
+        setAvailableProviders={setAvailableProviders}
         onPlatformChange={handlePlatformChange}
         onStatusChange={handleStatusChange}
         onSortChange={handleSortChange}
         onTimeRangeChange={handleTimeRangeChange}
+        loading={loading}
       />
 
       <div className="space-y-0">

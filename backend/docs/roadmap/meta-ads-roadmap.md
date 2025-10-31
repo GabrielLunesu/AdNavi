@@ -315,5 +315,63 @@ Deliverable: Visibility into health
 - Handles 1M+ rows efficiently
 - Recovers from errors automatically
 - Observability in place
+- **User OAuth flow**: Click button → Modal → Meta login → Ad account selection → Connected
+
+---
+
+## Phase 7: OAuth User Flow (End Goal)
+Purpose: Seamless user onboarding without manual token setup.
+
+### 7.1 OAuth Backend Implementation
+Time: 6-8 hours  
+Priority: High (User Experience)
+
+Tasks:
+- Implement Meta OAuth 2.0 flow
+- Endpoint: `GET /auth/meta/authorize` (redirects to Meta)
+- Endpoint: `GET /auth/meta/callback` (handles OAuth callback)
+- Store access_token, refresh_token in Token table (encrypted)
+- Associate token with workspace
+- Handle token refresh automatically
+
+Deliverable: Backend OAuth endpoints
+
+### 7.2 OAuth Frontend Implementation
+Time: 4-6 hours  
+Priority: High (User Experience)
+
+Tasks:
+- "Connect Meta Ads" button in UI
+- Modal with Meta login flow
+- Ad account selection UI (if user has multiple)
+- Success/error states
+- Token status indicator (connected/expired)
+
+Deliverable: Complete user-facing OAuth flow
+
+### 7.3 Multi-Account Support
+Time: 2-3 hours  
+Priority: Medium
+
+Tasks:
+- Allow users to connect multiple ad accounts
+- UI to manage connected accounts
+- Disconnect/reconnect functionality
+- Per-account sync status
+
+Deliverable: Multi-account management UI
+
+**UX Flow**:
+1. User clicks "Connect Meta Ads" button
+2. Modal opens with "Login with Meta" button
+3. Redirects to Meta OAuth consent screen
+4. User grants permissions (ads_read, ads_management, read_insights)
+5. Callback handler receives token
+6. If multiple ad accounts: show selection UI
+7. Store token(s) encrypted in database
+8. Show "Connected ✅" status
+9. Begin automatic sync
+
+---
 
 Should I proceed with Phase 1?

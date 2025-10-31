@@ -929,6 +929,9 @@ class UnifiedMetricService:
         """
         Get list of entities matching filters.
         
+        IMPORTANT: Uses LEFT JOIN so entities without metric facts still appear.
+        This is critical for newly synced campaigns that haven't delivered yet.
+        
         Args:
             workspace_id: Workspace UUID for scoping
             filters: Filtering criteria
@@ -950,18 +953,30 @@ class UnifiedMetricService:
         """
         logger.info(f"[UNIFIED_METRICS] Getting entity list for level: {level}")
         
-        # Build base query with provider from MetricFact (distinct to avoid duplicates)
+        # Build base query starting from Entity, LEFT JOIN MetricFact to get provider
+        # Also join Connection to get provider when MetricFact is missing
+        Connection = models.Connection
         query = (
             self.db.query(
                 self.E.id,
                 self.E.name,
                 self.E.status,
                 self.E.level,
-                models.MetricFact.provider.label("provider")
+                func.coalesce(
+                    func.max(models.MetricFact.provider), 
+                    Connection.provider
+                ).label("provider")
             )
-            .join(models.MetricFact, models.MetricFact.entity_id == self.E.id)
+            .join(Connection, Connection.id == self.E.connection_id)
+            .outerjoin(models.MetricFact, models.MetricFact.entity_id == self.E.id)
             .filter(self.E.workspace_id == workspace_id)
-            .distinct()
+            .group_by(
+                self.E.id,
+                self.E.name,
+                self.E.status,
+                self.E.level,
+                Connection.provider
+            )
         )
         
         # Apply level filter if specified
@@ -985,9 +1000,10 @@ class UnifiedMetricService:
                 "name": row.name,
                 "status": row.status,
                 "level": row.level,
-                "provider": row.provider
+                "provider": row.provider.value if row.provider else None
             })
         
+        logger.info(f"[UNIFIED_METRICS] Found {len(entities)} entities")
         return entities
     
     def get_time_based_breakdown(
@@ -1096,10 +1112,12 @@ class UnifiedMetricService:
     
     def _apply_entity_filters(self, query, filters: MetricFilters):
         """Apply filters to entity queries (not metric queries)."""
-        # Provider filter (from MetricFact)
+        # Provider filter (from Connection since we're joining it)
         if filters.provider:
             provider_value = filters.normalize_provider()
-            query = query.filter(models.MetricFact.provider == provider_value)
+            # Filter by Connection.provider since we're already joining Connection
+            Connection = models.Connection
+            query = query.filter(Connection.provider == provider_value)
         
         # Level filter
         if filters.level:

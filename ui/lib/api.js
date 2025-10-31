@@ -196,3 +196,61 @@ export async function fetchWorkspaceCampaigns({
   return res.json();
 }
 
+// Fetch ad platform connections for workspace.
+// WHY: Settings page needs to display connected accounts.
+// Returns: { connections: [{ id, provider, name, external_account_id, status, connected_at }, ...], total: number }
+export async function fetchConnections({ workspaceId, provider = null, status = null }) {
+  const params = new URLSearchParams();
+  if (provider) params.set('provider', provider);
+  if (status) params.set('status', status);
+  
+  const res = await fetch(`${BASE}/connections?${params.toString()}`, {
+    method: "GET",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" }
+  });
+  if (!res.ok) {
+    const msg = await res.text();
+    throw new Error(`Failed to fetch connections: ${res.status} ${msg}`);
+  }
+  return res.json();
+}
+
+// Sync Meta Ads entities (campaigns, adsets, ads).
+// WHY: UI sync button triggers entity sync.
+// Returns: { success: boolean, synced: { campaigns_created, campaigns_updated, adsets_created, adsets_updated, ads_created, ads_updated, duration_seconds }, errors: [] }
+export async function syncMetaEntities({ workspaceId, connectionId }) {
+  const res = await fetch(`${BASE}/workspaces/${workspaceId}/connections/${connectionId}/sync-entities`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" }
+  });
+  if (!res.ok) {
+    const msg = await res.text();
+    throw new Error(`Failed to sync entities: ${res.status} ${msg}`);
+  }
+  return res.json();
+}
+
+// Sync Meta Ads metrics (insights).
+// WHY: UI sync button triggers metrics sync after entities.
+// Returns: { success: boolean, synced: { facts_ingested, facts_skipped, date_range, ads_processed, duration_seconds }, errors: [] }
+export async function syncMetaMetrics({ workspaceId, connectionId, startDate = null, endDate = null, forceRefresh = false }) {
+  const body = {};
+  if (startDate) body.start_date = startDate;
+  if (endDate) body.end_date = endDate;
+  if (forceRefresh) body.force_refresh = forceRefresh;
+  
+  const res = await fetch(`${BASE}/workspaces/${workspaceId}/connections/${connectionId}/sync-metrics`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) {
+    const msg = await res.text();
+    throw new Error(`Failed to sync metrics: ${res.status} ${msg}`);
+  }
+  return res.json();
+}
+

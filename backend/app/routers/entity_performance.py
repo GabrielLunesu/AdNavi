@@ -104,17 +104,21 @@ def _base_query(
 ):
     """
     Build core aggregate query for entity performance.
-
+    
     WHY: We need totals for spend/revenue/clicks etc. aggregated at requested level.
-    HOW: Join MetricFact with Entity, optionally join parent ancestor (campaign→ad sets).
+    HOW: Start from Entity, LEFT JOIN MetricFact to include entities without metrics.
+    
+    IMPORTANT: Uses LEFT JOIN so entities without metric facts in the date range
+    still appear with $0 values. This is critical for newly synced campaigns.
     """
 
     if level not in (models.LevelEnum.campaign, models.LevelEnum.adset, models.LevelEnum.ad):
         raise HTTPException(status_code=400, detail="Unsupported entity level")
 
     MF = models.MetricFact
+    Connection = models.Connection
     
-    # For ads (leaf level), query MetricFacts directly without hierarchy CTEs
+    # For ads (leaf level), start from Entity and LEFT JOIN MetricFact
     if level == models.LevelEnum.ad:
         entity = aliased(models.Entity)
         query = (
@@ -122,7 +126,7 @@ def _base_query(
                 entity.id.label("entity_id"),
                 entity.name.label("entity_name"),
                 entity.status,
-                MF.provider.label("provider"),
+                func.coalesce(func.max(MF.provider), Connection.provider).label("provider"),  # Get provider from connection if no facts
                 func.max(MF.ingested_at).label("last_updated"),
                 func.coalesce(func.sum(MF.spend), 0).label("spend"),
                 func.coalesce(func.sum(MF.revenue), 0).label("revenue"),
@@ -130,17 +134,22 @@ def _base_query(
                 func.coalesce(func.sum(MF.impressions), 0).label("impressions"),
                 func.coalesce(func.sum(MF.conversions), 0).label("conversions"),
             )
-            .select_from(MF)
-            .join(entity, entity.id == MF.entity_id)
+            .select_from(entity)
+            .join(Connection, Connection.id == entity.connection_id)
+            .outerjoin(MF, 
+                (MF.entity_id == entity.id) &
+                (func.date(MF.event_date) >= start) &
+                (func.date(MF.event_date) < end)
+            )
             .filter(entity.workspace_id == workspace_id)
             .filter(entity.level == models.LevelEnum.ad)
-            .filter(func.date(MF.event_date) >= start)
-            .filter(func.date(MF.event_date) < end)
         )
     else:
         # For campaigns and adsets, use hierarchy CTEs
+        # Start from ancestor entities, LEFT JOIN through hierarchy to MetricFact
         leaf = aliased(models.Entity)
         ancestor = aliased(models.Entity)
+        connection = aliased(models.Connection)
         mapping = campaign_ancestor_cte(db) if level == models.LevelEnum.campaign else adset_ancestor_cte(db)
 
         query = (
@@ -148,7 +157,7 @@ def _base_query(
                 ancestor.id.label("entity_id"),
                 ancestor.name.label("entity_name"),
                 ancestor.status,
-                MF.provider.label("provider"),
+                func.coalesce(func.max(MF.provider), connection.provider).label("provider"),  # Get provider from connection if no facts
                 func.max(MF.ingested_at).label("last_updated"),
                 func.coalesce(func.sum(MF.spend), 0).label("spend"),
                 func.coalesce(func.sum(MF.revenue), 0).label("revenue"),
@@ -156,13 +165,17 @@ def _base_query(
                 func.coalesce(func.sum(MF.impressions), 0).label("impressions"),
                 func.coalesce(func.sum(MF.conversions), 0).label("conversions"),
             )
-            .select_from(MF)
-            .join(leaf, leaf.id == MF.entity_id)
-            .join(mapping, mapping.c.leaf_id == leaf.id)
-            .join(ancestor, ancestor.id == mapping.c.ancestor_id)
+            .select_from(ancestor)
+            .join(connection, connection.id == ancestor.connection_id)
+            .join(mapping, mapping.c.ancestor_id == ancestor.id)
+            .join(leaf, leaf.id == mapping.c.leaf_id)
+            .outerjoin(MF,
+                (MF.entity_id == leaf.id) &
+                (func.date(MF.event_date) >= start) &
+                (func.date(MF.event_date) < end)
+            )
             .filter(ancestor.workspace_id == workspace_id)
-            .filter(func.date(MF.event_date) >= start)
-            .filter(func.date(MF.event_date) < end)
+            .filter(ancestor.level == level)
         )
 
     # Apply filters - use the appropriate entity alias
@@ -173,7 +186,11 @@ def _base_query(
             provider = models.ProviderEnum(platform)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail="Unsupported platform filter") from exc
-        query = query.filter(MF.provider == provider)
+        # Filter by connection provider (works for both entities with and without facts)
+        if level == models.LevelEnum.ad:
+            query = query.filter(Connection.provider == provider)
+        else:
+            query = query.filter(connection.provider == provider)
 
     if status and status.lower() != "all":
         query = query.filter(entity_alias.status == status)
@@ -193,8 +210,13 @@ def _base_query(
         entity_alias.id,
         entity_alias.name,
         entity_alias.status,
-        MF.provider,
     ]
+    
+    # Add provider to group_by - use connection provider since we're joining it
+    if level == models.LevelEnum.ad:
+        group_columns.append(Connection.provider)
+    else:
+        group_columns.append(connection.provider)
 
     return query.group_by(*group_columns)
 
