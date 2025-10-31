@@ -19,7 +19,6 @@ WHERE USED:
 
 from alembic import op
 import sqlalchemy as sa
-from datetime import datetime
 
 
 # revision identifiers, used by Alembic.
@@ -43,19 +42,20 @@ def upgrade() -> None:
         sa.Column('updated_at', sa.DateTime(), nullable=True)
     )
     
-    # Set default values for existing rows
+    # Set default values for existing rows using PostgreSQL NOW()
+    # This executes at SQL execution time, not at import time
     op.execute(
-        f"""
+        """
         UPDATE entities
-        SET created_at = '{datetime.utcnow().isoformat()}'
+        SET created_at = NOW()
         WHERE created_at IS NULL
         """
     )
     
     op.execute(
-        f"""
+        """
         UPDATE entities
-        SET updated_at = '{datetime.utcnow().isoformat()}'
+        SET updated_at = NOW()
         WHERE updated_at IS NULL
         """
     )
