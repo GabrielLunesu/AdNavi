@@ -253,6 +253,10 @@ class Entity(Base):
 
     connection_id = Column(UUID(as_uuid=True), ForeignKey("connections.id"), nullable=True)
     connection = relationship("Connection", back_populates="entities")
+    
+    # Timestamps for tracking entity lifecycle
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     children = relationship("Entity", backref="parent", remote_side=[id])
     facts = relationship("MetricFact", back_populates="entity")

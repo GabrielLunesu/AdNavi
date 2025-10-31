@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { currentUser } from "../../../lib/auth";
+import { currentUser } from "@/lib/auth";
 
 // New components (to be created)
 import TopFilters from "./components/TopFilters";

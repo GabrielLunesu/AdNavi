@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { fetchQA } from "../../../../lib/api";
+import { fetchQA } from "@/lib/api";
 
 const PROVIDER_COLORS = {
   google: { bg: 'rgba(234, 67, 53, 0.8)', border: '#EA4335' },

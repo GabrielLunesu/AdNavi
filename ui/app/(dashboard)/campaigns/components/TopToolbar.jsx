@@ -1,12 +1,37 @@
 "use client";
-import { useState } from "react";
-import { ChevronDown, ArrowDownUp, Download, SlidersHorizontal } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ChevronDown, ArrowDownUp } from "lucide-react";
+import { fetchWorkspaceProviders } from "@/lib/api";
 
-export default function TopToolbar({ meta, onPlatformChange, onStatusChange, onSortChange, onTimeRangeChange, loading }) {
+export default function TopToolbar({ meta, onPlatformChange, onStatusChange, onSortChange, onTimeRangeChange, loading, workspaceId, availableProviders, setAvailableProviders }) {
   const [selectedPlatform, setSelectedPlatform] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [selectedSort, setSelectedSort] = useState('roas');
   const [selectedTime, setSelectedTime] = useState('7d');
+  const [providersLoading, setProvidersLoading] = useState(true);
+
+  // Fetch available providers on mount
+  useEffect(() => {
+    if (!workspaceId) return;
+    
+    let mounted = true;
+    setProvidersLoading(true);
+    
+    fetchWorkspaceProviders({ workspaceId })
+      .then((data) => {
+        if (!mounted) return;
+        if (setAvailableProviders) {
+          setAvailableProviders(data.providers || []);
+        }
+        setProvidersLoading(false);
+      })
+      .catch((err) => {
+        console.error('Failed to fetch providers:', err);
+        if (mounted) setProvidersLoading(false);
+      });
+    
+    return () => { mounted = false; };
+  }, [workspaceId, setAvailableProviders]);
 
   const timeRanges = [
     { id: '7d', label: '7d' },
@@ -24,6 +49,11 @@ export default function TopToolbar({ meta, onPlatformChange, onStatusChange, onS
   const handleStatusClick = (status) => {
     setSelectedStatus(status);
     onStatusChange?.(status);
+  };
+
+  const handlePlatformClick = (platform) => {
+    setSelectedPlatform(platform);
+    onPlatformChange?.(platform);
   };
 
   return (
@@ -62,22 +92,44 @@ export default function TopToolbar({ meta, onPlatformChange, onStatusChange, onS
         <div className="flex items-center gap-4 justify-between">
           {/* Left Filters */}
           <div className="flex items-center gap-3">
-            {/* Platform Filter */}
-            <div className="relative">
-              <select
-                value={selectedPlatform}
-                onChange={(e) => {
-                  setSelectedPlatform(e.target.value);
-                  onPlatformChange?.(e.target.value);
-                }}
-                className="px-4 py-2.5 pr-10 rounded-full bg-white/60 text-neutral-900 text-sm font-medium border border-neutral-200/60 hover:border-cyan-400/40 transition-all appearance-none cursor-pointer"
-              >
-                <option value="all">All Platforms</option>
-                <option value="meta">Meta</option>
-                <option value="google">Google</option>
-                <option value="tiktok">TikTok</option>
-              </select>
-              <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" strokeWidth={1.5} />
+            {/* Platform Filter - Dynamic buttons like Analytics */}
+            <div className="flex items-center gap-2">
+              {providersLoading ? (
+                <div className="flex gap-2">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="w-20 h-9 bg-neutral-200 animate-pulse rounded-full"></div>
+                  ))}
+                </div>
+              ) : (
+                <>
+                  {/* All button */}
+                  <button
+                    onClick={() => handlePlatformClick('all')}
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all capitalize ${
+                      selectedPlatform === 'all'
+                        ? 'bg-cyan-500 text-white shadow-lg'
+                        : 'bg-white/60 border border-neutral-200/60 text-neutral-700 hover:bg-white hover:border-cyan-400/40'
+                    }`}
+                  >
+                    All
+                  </button>
+                  
+                  {/* Dynamic provider buttons */}
+                  {availableProviders && availableProviders.map((provider) => (
+                    <button
+                      key={provider}
+                      onClick={() => handlePlatformClick(provider)}
+                      className={`px-4 py-2 rounded-full text-sm font-medium transition-all capitalize ${
+                        selectedPlatform === provider
+                          ? 'bg-cyan-500 text-white shadow-lg'
+                          : 'bg-white/60 border border-neutral-200/60 text-neutral-700 hover:bg-white hover:border-cyan-400/40'
+                      }`}
+                    >
+                      {provider}
+                    </button>
+                  ))}
+                </>
+              )}
             </div>
             
             {/* Status Filter */}

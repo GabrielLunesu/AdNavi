@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { fetchWorkspaceProviders } from "../../../../lib/api";
+import { fetchWorkspaceProviders } from "@/lib/api";
 
 export default function TopFilters({
   selectedProvider,

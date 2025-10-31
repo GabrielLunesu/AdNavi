@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { fetchWorkspaceKpis } from "../../../../lib/api";
+import { fetchWorkspaceKpis } from "@/lib/api";
 
 const LABELS = {
   revenue: "Revenue",
