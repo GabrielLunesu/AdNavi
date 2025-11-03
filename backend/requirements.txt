@@ -17,3 +17,4 @@ itsdangerous==2.2.0
 redis==5.0.1
 fakeredis==2.21.1
 facebook-business==19.0.0
+cryptography==43.0.1

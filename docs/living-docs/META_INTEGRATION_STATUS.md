@@ -1,8 +1,8 @@
 # Meta Ads Integration - Living Status Document
 
-**Last Updated**: 2025-10-31  
-**Current Phase**: Phase 2 Complete (Including UI), Ready for Phase 3 (Automation)  
-**Overall Progress**: 55% (5.5 of 10 weeks)
+**Last Updated**: 2025-11-01  
+**Current Phase**: Phase 2.1 Token Security Complete → Preparing Phase 3 (Automation)  
+**Overall Progress**: 60% (6 of 10 weeks)
 
 ---
 
@@ -122,6 +122,7 @@ Step 2: Fetch Performance Metrics
 | **UI Integration** | ✅ Complete | 2025-10-31 | Settings page, sync button |
 | **Campaigns Page** | ✅ Fixed | 2025-10-31 | Shows campaigns without metrics ($0 values) |
 | **QA System** | ✅ Fixed | 2025-10-31 | Finds campaigns even without performance data |
+| **Token Model (Encrypted)** | ✅ Complete | 2025-11-01 | Fernet encryption, token service, migration applied |
 | **OAuth Flow** | 🔴 Not Started | - | Phase 7 (end goal) |
 
 ---
@@ -411,6 +412,46 @@ Both the campaigns page and QA system used queries that started from `MetricFact
 
 ---
 
+### Phase 2.1: Token Encryption (2025-11-01)
+**Time Spent**: 3 hours  
+**Status**: ✅ Complete
+
+**What Works**:
+- Fernet-based encryption utilities for storing provider tokens securely.
+- Alembic migration `20251101_000001_update_tokens_encryption.py` (optional refresh/expiry columns + `ad_account_ids`).
+- `store_connection_token` service centralizes encryption + persistence for connections.
+- Seed script auto-encrypts system Meta token when `META_ACCESS_TOKEN` is present.
+- Meta sync decrypts tokens before calling the API; falls back to `.env` token if none saved.
+
+**Test Results**:
+```bash
+pytest backend/tests/services/test_token_service.py
+# ✅ 2 tests passed (encryption + update scenarios)
+```
+
+**How to Verify**:
+- Ensure `TOKEN_ENCRYPTION_KEY` is set (run `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` once per environment).
+- After `alembic upgrade head`, check `tokens.access_token_enc` for non-plaintext values.
+- Trigger Meta sync; logs should show `[TOKEN_ENCRYPT]` / `[TOKEN_DECRYPT]` entries and sync proceeds normally.
+
+**Files Created**:
+- `backend/app/services/token_service.py`
+- `backend/alembic/versions/20251101_000001_update_tokens_encryption.py`
+- `backend/tests/services/test_token_service.py`
+- `docs/meta-ads-lib/PHASE_2_1_TOKEN_ENCRYPTION.md`
+
+**Files Modified**:
+- `backend/app/security.py`
+- `backend/app/models.py`
+- `backend/app/routers/meta_sync.py`
+- `backend/app/seed_mock.py`
+- `backend/requirements.txt`
+- `backend/tests/conftest.py`
+
+**Known Issues**: None
+
+---
+
 ## 🔄 In Progress (Week 2)
 
 ### Phase 2.5: UI Integration (2025-10-31)
@@ -436,26 +477,6 @@ Both the campaigns page and QA system used queries that started from `MetricFact
 ---
 
 ## 🔜 Next Steps (Prioritized)
-
-### Phase 2.1: Token Model with Encryption (Deferred)
-**Estimated Time**: 4-6 hours  
-**Status**: 🔴 Not Started
-
-**Tasks**:
-- [ ] Create database migration for `tokens` table updates
-- [ ] Add encryption fields: `access_token_enc`, `refresh_token_enc`
-- [ ] Add metadata: `expires_at`, `scope`, `ad_account_ids`
-- [ ] Implement encryption/decryption helpers
-- [ ] Update seed script to use encrypted tokens
-- [ ] Test token storage and retrieval
-
-**Why Important**: Required for Phase 7 OAuth flow
-
-**Blockers**: None
-
-**Note**: Deferred to Phase 7 since OAuth requires Standard Access (app review). Currently using system user token from .env.
-
----
 
 ### Phase 3.1: Metrics Fetcher Service
 **Estimated Time**: 8-10 hours  
@@ -514,6 +535,7 @@ _No bugs reported yet_
 - ✅ Metrics sync with real Meta account (2025-10-31): 0 facts (correct for new campaign)
 - ✅ Campaigns page displays campaigns without metrics (2025-10-31)
 - ✅ QA system finds campaigns without performance data (2025-10-31)
+- ✅ Token encryption unit tests (`pytest backend/tests/services/test_token_service.py`, 2025-11-01)
 
 ### Automated Tests Needed
 - ⏳ Unit tests for MetricFactCreate schema validation
@@ -539,7 +561,7 @@ _No bugs reported yet_
 
 - ✅ Meta tokens stored in `.env` (gitignored)
 - ✅ System user token (permanent, no expiration)
-- ⏳ Token encryption (Phase 2.1)
+- ✅ Token encryption (Phase 2.1)
 - ⏳ OAuth token refresh (Phase 7)
 - ⏳ Rate limiting enforcement (Phase 2.2)
 - ⏳ Workspace isolation validation
@@ -551,6 +573,7 @@ _No bugs reported yet_
 ### Created
 - ✅ `docs/meta-ads-lib/META_API_SETUP_GUIDE.md` - Setup walkthrough
 - ✅ `docs/meta-ads-lib/README.md` - Documentation hub
+- ✅ `docs/meta-ads-lib/PHASE_2_1_TOKEN_ENCRYPTION.md` - Phase 2.1 implementation guide
 - ✅ `backend/docs/roadmap/meta-ads-roadmap.md` - Implementation plan
 - ✅ `backend/docs/META_INTEGRATION_STATUS.md` - This file
 
@@ -594,6 +617,18 @@ python test_meta_api.py
 ```bash
 cd /Users/gabriellunesu/Git/AdNavi/backend
 ./bin/alembic upgrade head
+```
+
+### Verify Token Encryption
+```bash
+# Ensure TOKEN_ENCRYPTION_KEY is exported (see docs/meta-ads-lib/PHASE_2_1_TOKEN_ENCRYPTION.md)
+export TOKEN_ENCRYPTION_KEY=<your-fernet-key>
+
+cd /Users/gabriellunesu/Git/AdNavi/backend
+pytest tests/services/test_token_service.py
+
+# Inspect encrypted payload (should be unreadable base64 text)
+psql $DATABASE_URL -c "SELECT provider, access_token_enc FROM tokens LIMIT 5;"
 ```
 
 ### Test Ingestion
@@ -735,6 +770,12 @@ curl -X POST "http://localhost:8000/qa/?workspace_id=YOUR_WORKSPACE_ID" \
 - **Trade-off**: Slightly more complex queries, but better user experience
 - **Result**: ✅ Campaigns page and QA system now show campaigns even without performance data
 
+### 2025-11-01: Token Encryption Rollout
+- **Decision**: Require `TOKEN_ENCRYPTION_KEY` and encrypt all provider tokens with Fernet.
+- **Reason**: Meet Phase 2.1 security milestone before introducing automated fetchers and OAuth.
+- **Trade-off**: Deployments must manage an extra secret; migrations required for token table.
+- **Result**: ✅ Tokens encrypted at rest, seed + sync flows updated, unit tests added.
+
 ---
 
 ## 🔗 Related Files
@@ -747,8 +788,12 @@ curl -X POST "http://localhost:8000/qa/?workspace_id=YOUR_WORKSPACE_ID" \
 - `backend/app/routers/ingest.py` - Ingestion endpoint (Phase 1.2)
 - `backend/app/schemas.py` - Request/response schemas
 - `backend/app/models.py` - Database models
+- `backend/app/security.py` - JWT + token encryption helpers (Phase 2.1)
+- `backend/app/services/token_service.py` - Encrypted token persistence (Phase 2.1)
 - `backend/app/tests/test_meta_ads_client.py` - MetaAdsClient unit tests
+- `backend/tests/services/test_token_service.py` - Token encryption unit tests (Phase 2.1)
 - `backend/alembic/versions/20251030_000001_add_meta_indexes.py` - Performance indexes migration
+- `backend/alembic/versions/20251101_000001_update_tokens_encryption.py` - Token encryption migration
 - `backend/alembic/versions/db163fecca9d_add_entity_timestamps.py` - Entity timestamps migration
 - `backend/test_meta_api.py` - API connectivity test script
 - `backend/.env` - Credentials (gitignored)
@@ -794,4 +839,3 @@ curl -X POST "http://localhost:8000/qa/?workspace_id=YOUR_WORKSPACE_ID" \
 ---
 
 _This is a living document. Update it after each phase completion or when bugs are discovered._
-

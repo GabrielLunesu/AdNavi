@@ -19,12 +19,14 @@ This script will:
 """
 
 from datetime import datetime, timedelta
+import os
 import random
 import uuid
 
 from app.database import SessionLocal
 from app import models
 from app.security import get_password_hash
+from app.services.token_service import store_connection_token
 from app.services.compute_service import run_compute_snapshot
 
 
@@ -245,6 +247,22 @@ def seed():
         )
         db.add(connection)
         db.flush()
+
+        # Phase 2.1: Seed encrypted provider token if META_ACCESS_TOKEN is available.
+        system_token = os.getenv("META_ACCESS_TOKEN")
+        if system_token:
+            print("🔐 Seeding encrypted Meta system token...")
+            store_connection_token(
+                db,
+                connection,
+                access_token=system_token,
+                refresh_token=None,
+                expires_at=None,
+                scope="system-user",
+                ad_account_ids=["MOCK-123"],
+            )
+        else:
+            print("⚠️  META_ACCESS_TOKEN not set; skipping token seed.")
         
         # 4. Create fetch and import (required for MetricFacts)
         print("📥 Creating fetch and import records...")

@@ -47,6 +47,7 @@ from app.schemas import (
     DateRange,
     MetricFactCreate,
 )
+from app.security import decrypt_secret
 from app.services.meta_ads_client import (
     MetaAdsClient,
     MetaAdsClientError,
@@ -77,30 +78,33 @@ OBJECTIVE_TO_GOAL = {
 
 
 def _get_access_token(connection: Connection) -> str:
-    """Get Meta access token from connection or environment.
-    
+    """Retrieve decrypted Meta access token for a connection.
+
     WHAT:
-        Returns access token for Meta API.
-        Tries connection.token first, falls back to .env for Phase 2.
-    
+        Uses encrypted tokens from DB when available, otherwise falls back to
+        the Phase 2 system token in `.env`.
     WHY:
-        Phase 2 uses system user token from .env.
-        Phase 7 (OAuth) will use connection.token.
-    
-    Args:
-        connection: Connection record
-        
-    Returns:
-        Meta access token string
-        
-    Raises:
-        HTTPException: If no token available
+        Supports the Phase 2.1 rollout (encrypted storage) while preserving
+        backward compatibility for manual tokens.
+    REFERENCES:
+        - app/security.py::decrypt_secret
+        - docs/living-docs/META_INTEGRATION_STATUS.md (Phase 2.1)
     """
     # Phase 7 (OAuth): Use connection.token
     if connection.token and connection.token.access_token_enc:
-        # TODO: Decrypt token when encryption implemented
-        logger.info(f"[META_SYNC] Using token from connection: {connection.id}")
-        return connection.token.access_token_enc
+        try:
+            access_token = decrypt_secret(
+                connection.token.access_token_enc,
+                context=f"meta-connection:{connection.id}",
+            )
+            logger.info("[META_SYNC] Using decrypted token for connection %s", connection.id)
+            return access_token
+        except ValueError:
+            logger.exception("[META_SYNC] Stored token for connection %s could not be decrypted", connection.id)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Stored Meta token is invalid or corrupted."
+            )
     
     # Phase 2: Use system user token from .env
     token = os.getenv("META_ACCESS_TOKEN")
@@ -479,10 +483,11 @@ def _determine_date_range(
         
         if last_fact:
             # Incremental: last date + 1 day
-            start_date = last_fact.event_date + timedelta(days=1)
+            last_date = last_fact.event_date.date()
+            start_date = last_date + timedelta(days=1)
             logger.info(
                 f"[META_SYNC] Incremental sync: "
-                f"last date was {last_fact.event_date}, starting from {start_date}"
+                f"last date was {last_date}, starting from {start_date}"
             )
         else:
             # First sync: 90 days from connection date
@@ -865,4 +870,3 @@ async def sync_metrics(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Metrics sync failed: {str(e)}"
         )
-
