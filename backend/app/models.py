@@ -172,19 +172,31 @@ class Connection(Base):
 
 
 class Token(Base):
+    """Encrypted provider credential bundle.
+    
+    WHAT:
+        Stores Meta tokens (Phase 2.1) with symmetric encryption applied.
+    WHY:
+        Prevents leaking access/refresh tokens while preserving metadata for future OAuth work.
+    REFERENCES:
+        - backend/app/security.py (encrypt_secret / decrypt_secret)
+        - docs/living-docs/META_INTEGRATION_STATUS.md (Phase 2.1)
+    """
     __tablename__ = "tokens"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     provider = Column(Enum(ProviderEnum, values_callable=lambda obj: [e.value for e in obj]), nullable=False)
     access_token_enc = Column(String, nullable=False)
-    refresh_token_enc = Column(String, nullable=False)
-    expires_at = Column(DateTime, nullable=False)
+    refresh_token_enc = Column(String, nullable=True)
+    expires_at = Column(DateTime, nullable=True)
     scope = Column(String, nullable=True)
+    ad_account_ids = Column(JSON, nullable=True)
 
     connections = relationship("Connection", back_populates="token")
     
     def __str__(self):
-        return f"{self.provider.value} token (expires: {self.expires_at.strftime('%Y-%m-%d %H:%M')})"
+        expires = self.expires_at.strftime('%Y-%m-%d %H:%M') if self.expires_at else 'no-expiry'
+        return f"{self.provider.value} token (expires: {expires})"
 
 
 class Fetch(Base):
@@ -517,4 +529,3 @@ class AuthCredential(Base):
     
     def __str__(self):
         return f"Credential for {self.user.email if self.user else 'Unknown'}"
-
