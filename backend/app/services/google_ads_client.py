@@ -240,6 +240,44 @@ class GAdsClient:
             "ad_group_id": ad_group_id,
         } for r in rows]
 
+    # --- Performance Max (Asset Groups) ---------------------------------
+    def list_asset_groups(self, customer_id: str, campaign_id: str) -> List[Dict[str, Any]]:
+        q = (
+            "SELECT asset_group.id, asset_group.name, asset_group.status, asset_group.campaign "
+            "FROM asset_group WHERE asset_group.campaign = 'customers/{cid}/campaigns/{cmp}' "
+            "ORDER BY asset_group.name"
+        ).format(cid=customer_id, cmp=campaign_id)
+        rows = self.search(customer_id, q)
+        return [{
+            "id": r.asset_group.id,
+            "name": getattr(r.asset_group, "name", None),
+            "status": r.asset_group.status,
+            "campaign_id": campaign_id,
+        } for r in rows]
+
+    def list_asset_group_assets(self, customer_id: str, asset_group_id: str) -> List[Dict[str, Any]]:
+        q = (
+            "SELECT asset_group_asset.asset, asset_group_asset.field_type, asset_group_asset.status, asset_group_asset.asset_group "
+            "FROM asset_group_asset WHERE asset_group_asset.asset_group = 'customers/{cid}/assetGroups/{ag}'"
+        ).format(cid=customer_id, ag=asset_group_id)
+        rows = self.search(customer_id, q)
+        out: List[Dict[str, Any]] = []
+        for r in rows:
+            asset_id = getattr(r.asset_group_asset, "asset", None)
+            field_type = getattr(r.asset_group_asset, "field_type", None)
+            status = getattr(r.asset_group_asset, "status", None)
+            # Build a simple display name from type+id tail
+            tail = str(asset_id).split("/")[-1] if asset_id else ""
+            type_name = field_type.name if hasattr(field_type, "name") else str(field_type)
+            name = f"{type_name.title()} {tail}".strip()
+            out.append({
+                "id": tail or str(asset_id),
+                "name": name,
+                "status": status,
+                "asset_group_id": asset_group_id,
+            })
+        return out
+
     # --- Account metadata ----------------------------------------------
     def get_customer_metadata(self, customer_id: str) -> Dict[str, Optional[str]]:
         """Fetch customer timezone and currency code."""
@@ -262,11 +300,15 @@ class GAdsClient:
             "campaign": "campaign",
             "ad_group": "ad_group",
             "ad": "ad_group_ad",
+            "asset_group": "asset_group",
+            "asset_group_asset": "asset_group_asset",
         }[level]
         select_id = {
             "campaign": "campaign.id, campaign.name",
             "ad_group": "ad_group.id, ad_group.name, ad_group.campaign",
             "ad": "ad_group_ad.ad.id, ad_group_ad.ad.name, ad_group_ad.ad_group",
+            "asset_group": "asset_group.id, asset_group.name, asset_group.campaign",
+            "asset_group_asset": "asset_group_asset.asset, asset_group_asset.field_type, asset_group_asset.asset_group",
         }[level]
         q = (
             f"SELECT {select_id}, "
@@ -287,8 +329,14 @@ class GAdsClient:
                 resource_id = getattr(r.campaign, "id", None)
             elif level == "ad_group":
                 resource_id = getattr(r.ad_group, "id", None)
-            else:
+            elif level == "ad":
                 resource_id = getattr(getattr(r.ad_group_ad, "ad", None), "id", None)
+            elif level == "asset_group":
+                resource_id = getattr(r.asset_group, "id", None)
+            else:  # asset_group_asset
+                # resource id is the asset id; normalize to trailing numeric id
+                asset = getattr(r.asset_group_asset, "asset", None)
+                resource_id = str(asset).split("/")[-1] if asset else None
             out.append({
                 "date": str(d),
                 "impressions": int(m.impressions or 0),

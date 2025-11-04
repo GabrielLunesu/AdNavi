@@ -216,47 +216,92 @@ async def sync_entities(
             else:
                 stats.campaigns_updated += 1
 
-            # Ad groups (mapped to adsets)
-            try:
-                ad_groups = client.list_ad_groups(customer_id, str(c["id"]))
-                for ag in ad_groups:
-                    adset, ag_created = _upsert_entity(
-                        db=db,
-                        connection=connection,
-                        external_id=str(ag["id"]),
-                        level=LevelEnum.adset,
-                        name=ag.get("name") or f"Ad group {ag['id']}",
-                        status=_normalize_status(ag.get("status")),
-                        parent_id=camp.id,
-                    )
-                    if ag_created:
-                        stats.adsets_created += 1
-                    else:
-                        stats.adsets_updated += 1
+            # Route by channel type: STANDARD (ad groups/ads) vs PMax (asset groups/assets)
+            chan = c.get("advertising_channel_type") or ""
+            if str(chan).upper() == "PERFORMANCE_MAX":
+                # Asset Groups → map to adset level
+                try:
+                    agroups = client.list_asset_groups(customer_id, str(c["id"]))
+                    for grp in agroups:
+                        adset, ag_created = _upsert_entity(
+                            db=db,
+                            connection=connection,
+                            external_id=str(grp["id"]),
+                            level=LevelEnum.adset,
+                            name=grp.get("name") or f"Asset Group {grp['id']}",
+                            status=_normalize_status(grp.get("status")),
+                            parent_id=camp.id,
+                        )
+                        if ag_created:
+                            stats.adsets_created += 1
+                        else:
+                            stats.adsets_updated += 1
 
-                    # Ads
-                    try:
-                        ads = client.list_ads(customer_id, str(ag["id"]))
-                        for ad in ads:
-                            _, ad_created = _upsert_entity(
-                                db=db,
-                                connection=connection,
-                                external_id=str(ad["id"]),
-                                level=LevelEnum.ad,
-                                name=ad.get("name") or f"Ad {ad['id']}",
-                                status=_normalize_status(ad.get("status")),
-                                parent_id=adset.id,
-                            )
-                            if ad_created:
-                                stats.ads_created += 1
-                            else:
-                                stats.ads_updated += 1
-                    except Exception as e:
-                        logger.exception("[GOOGLE_SYNC] Ads fetch failed for ad group %s: %s", ag.get("id"), e)
-                        errors.append(f"ad_group {ag.get('id')}: {e}")
-            except Exception as e:
-                logger.exception("[GOOGLE_SYNC] Ad groups fetch failed for campaign %s: %s", c.get("id"), e)
-                errors.append(f"campaign {c.get('id')}: {e}")
+                        # Asset Group Assets → map to creative level
+                        try:
+                            assets = client.list_asset_group_assets(customer_id, str(grp["id"]))
+                            for asset in assets:
+                                _, created_cre = _upsert_entity(
+                                    db=db,
+                                    connection=connection,
+                                    external_id=str(asset["id"]),
+                                    level=LevelEnum.creative,
+                                    name=asset.get("name") or f"Asset {asset['id']}",
+                                    status=_normalize_status(asset.get("status")),
+                                    parent_id=adset.id,
+                                )
+                                if created_cre:
+                                    stats.ads_created += 1  # count under ads for UI totals
+                                else:
+                                    stats.ads_updated += 1
+                        except Exception as e:
+                            logger.exception("[GOOGLE_SYNC] Asset group assets fetch failed for %s: %s", grp.get("id"), e)
+                            errors.append(f"asset_group {grp.get('id')}: {e}")
+                except Exception as e:
+                    logger.exception("[GOOGLE_SYNC] Asset groups fetch failed for campaign %s: %s", c.get("id"), e)
+                    errors.append(f"campaign {c.get('id')}: {e}")
+            else:
+                # Standard campaigns: Ad groups and ads
+                try:
+                    ad_groups = client.list_ad_groups(customer_id, str(c["id"]))
+                    for ag in ad_groups:
+                        adset, ag_created = _upsert_entity(
+                            db=db,
+                            connection=connection,
+                            external_id=str(ag["id"]),
+                            level=LevelEnum.adset,
+                            name=ag.get("name") or f"Ad group {ag['id']}",
+                            status=_normalize_status(ag.get("status")),
+                            parent_id=camp.id,
+                        )
+                        if ag_created:
+                            stats.adsets_created += 1
+                        else:
+                            stats.adsets_updated += 1
+
+                        # Ads
+                        try:
+                            ads = client.list_ads(customer_id, str(ag["id"]))
+                            for ad in ads:
+                                _, ad_created = _upsert_entity(
+                                    db=db,
+                                    connection=connection,
+                                    external_id=str(ad["id"]),
+                                    level=LevelEnum.ad,
+                                    name=ad.get("name") or f"Ad {ad['id']}",
+                                    status=_normalize_status(ad.get("status")),
+                                    parent_id=adset.id,
+                                )
+                                if ad_created:
+                                    stats.ads_created += 1
+                                else:
+                                    stats.ads_updated += 1
+                        except Exception as e:
+                            logger.exception("[GOOGLE_SYNC] Ads fetch failed for ad group %s: %s", ag.get("id"), e)
+                            errors.append(f"ad_group {ag.get('id')}: {e}")
+                except Exception as e:
+                    logger.exception("[GOOGLE_SYNC] Ad groups fetch failed for campaign %s: %s", c.get("id"), e)
+                    errors.append(f"campaign {c.get('id')}: {e}")
     except Exception as e:
         logger.exception("[GOOGLE_SYNC] Campaigns fetch failed: %s", e)
         errors.append(str(e))
@@ -324,9 +369,45 @@ async def sync_metrics(
     customer_id = _normalize_customer_id(connection.external_account_id)
     client = GAdsClient()
 
+    # Safeguard: ensure hierarchy exists to avoid orphaned placeholders
+    # Build maps for known entities in this connection
+    ad_rows = (
+        db.query(Entity.external_id, Entity.id)
+        .filter(Entity.connection_id == connection.id)
+        .filter(Entity.level == LevelEnum.ad)
+        .all()
+    )
+    ad_map: Dict[str, UUID] = {str(ext): eid for ext, eid in ad_rows}
+    asset_group_rows = (
+        db.query(Entity.external_id, Entity.id)
+        .filter(Entity.connection_id == connection.id)
+        .filter(Entity.level == LevelEnum.adset)
+        .all()
+    )
+    asset_group_map: Dict[str, UUID] = {str(ext): eid for ext, eid in asset_group_rows}
+    creative_rows = (
+        db.query(Entity.external_id, Entity.id)
+        .filter(Entity.connection_id == connection.id)
+        .filter(Entity.level == LevelEnum.creative)
+        .all()
+    )
+    creative_map: Dict[str, UUID] = {str(ext): eid for ext, eid in creative_rows}
+    if not ad_map and not asset_group_map and not creative_map:
+        # Mirror Meta behavior: allow metrics sync to succeed with zero work
+        stats = MetricsSyncStats(
+            facts_ingested=0,
+            facts_skipped=0,
+            date_range=DateRange(start=start_d, end=end_d),
+            ads_processed=0,
+            duration_seconds=(datetime.utcnow() - started).total_seconds(),
+        )
+        logger.info("[GOOGLE_SYNC] No entities found for connection %s; metrics sync is a no-op.", connection.id)
+        return MetricsSyncResponse(success=True, synced=stats, errors=[])
+
     total_ingested = 0
     total_skipped = 0
-    ads_seen: set[str] = set()
+    ads_processed: set[str] = set()
+    missing_entity_count = 0
 
     for s, e in chunks:
         try:
@@ -340,10 +421,15 @@ async def sync_metrics(
                 except Exception:
                     # Fallback: cannot parse id → skip
                     continue
-                ads_seen.add(ext_id)
+                # Resolve to existing entity_id to prevent placeholder creation
+                entity_id = ad_map.get(ext_id)
+                if not entity_id:
+                    missing_entity_count += 1
+                    continue  # Skip rows for unknown ads to avoid orphan facts
+                ads_processed.add(ext_id)
                 ev_date = datetime.combine(date.fromisoformat(row["date"]), datetime.min.time())
                 facts.append(MetricFactCreate(
-                    external_entity_id=ext_id,
+                    entity_id=entity_id,
                     provider=ProviderEnum.google,
                     level=LevelEnum.ad,
                     event_at=ev_date,
@@ -362,11 +448,78 @@ async def sync_metrics(
             logger.exception("[GOOGLE_SYNC] Metrics fetch failed for %s to %s: %s", s, e, ex)
             errors.append(f"{s}..{e}: {ex}")
 
+        # PMax: asset_group level metrics → adset entities
+        try:
+            rows_ag = client.fetch_daily_metrics(customer_id, s, e, level="asset_group")
+            facts_ag: List[MetricFactCreate] = []
+            for row in rows_ag:
+                ext_id = str(row.get("resource_id"))
+                entity_id = asset_group_map.get(ext_id)
+                if not entity_id:
+                    missing_entity_count += 1
+                    continue
+                ev_date = datetime.combine(date.fromisoformat(row["date"]), datetime.min.time())
+                facts_ag.append(MetricFactCreate(
+                    entity_id=entity_id,
+                    provider=ProviderEnum.google,
+                    level=LevelEnum.adset,
+                    event_at=ev_date,
+                    spend=row.get("spend", 0.0),
+                    impressions=row.get("impressions", 0),
+                    clicks=row.get("clicks", 0),
+                    conversions=row.get("conversions", 0.0),
+                    revenue=row.get("revenue", 0.0),
+                    currency=connection.currency_code or "USD",
+                ))
+            if facts_ag:
+                res = await ingest_metrics_internal(workspace_id=workspace_id, facts=facts_ag, db=db)
+                total_ingested += res.get("ingested", 0)
+                total_skipped += res.get("skipped", 0)
+        except Exception as ex:
+            logger.exception("[GOOGLE_SYNC] Asset group metrics fetch failed for %s to %s: %s", s, e, ex)
+            errors.append(f"asset_group {s}..{e}: {ex}")
+
+        # PMax: asset_group_asset level metrics → creative entities
+        try:
+            rows_cre = client.fetch_daily_metrics(customer_id, s, e, level="asset_group_asset")
+            facts_cre: List[MetricFactCreate] = []
+            for row in rows_cre:
+                ext_id = str(row.get("resource_id"))
+                entity_id = creative_map.get(ext_id)
+                if not entity_id:
+                    missing_entity_count += 1
+                    continue
+                ev_date = datetime.combine(date.fromisoformat(row["date"]), datetime.min.time())
+                facts_cre.append(MetricFactCreate(
+                    entity_id=entity_id,
+                    provider=ProviderEnum.google,
+                    level=LevelEnum.creative,
+                    event_at=ev_date,
+                    spend=row.get("spend", 0.0),
+                    impressions=row.get("impressions", 0),
+                    clicks=row.get("clicks", 0),
+                    conversions=row.get("conversions", 0.0),
+                    revenue=row.get("revenue", 0.0),
+                    currency=connection.currency_code or "USD",
+                ))
+            if facts_cre:
+                res = await ingest_metrics_internal(workspace_id=workspace_id, facts=facts_cre, db=db)
+                total_ingested += res.get("ingested", 0)
+                total_skipped += res.get("skipped", 0)
+        except Exception as ex:
+            logger.exception("[GOOGLE_SYNC] Asset group asset metrics fetch failed for %s to %s: %s", s, e, ex)
+            errors.append(f"asset_group_asset {s}..{e}: {ex}")
+
     stats = MetricsSyncStats(
         facts_ingested=total_ingested,
         facts_skipped=total_skipped,
         date_range=DateRange(start=start_d, end=end_d),
-        ads_processed=len(ads_seen),
+        ads_processed=len(ads_processed),
         duration_seconds=(datetime.utcnow() - started).total_seconds(),
     )
+    if missing_entity_count:
+        errors.append(
+            f"Skipped {missing_entity_count} ad rows because entities were missing. "
+            "Run entity sync to create hierarchy before metrics."
+        )
     return MetricsSyncResponse(success=len(errors) == 0, synced=stats, errors=errors)

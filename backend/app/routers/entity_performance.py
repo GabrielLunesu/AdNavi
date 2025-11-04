@@ -112,14 +112,19 @@ def _base_query(
     still appear with $0 values. This is critical for newly synced campaigns.
     """
 
-    if level not in (models.LevelEnum.campaign, models.LevelEnum.adset, models.LevelEnum.ad):
+    if level not in (
+        models.LevelEnum.campaign,
+        models.LevelEnum.adset,
+        models.LevelEnum.ad,
+        models.LevelEnum.creative,
+    ):
         raise HTTPException(status_code=400, detail="Unsupported entity level")
 
     MF = models.MetricFact
     Connection = models.Connection
     
-    # For ads (leaf level), start from Entity and LEFT JOIN MetricFact
-    if level == models.LevelEnum.ad:
+    # For leaf levels (ads/creatives), start from Entity and LEFT JOIN MetricFact
+    if level in (models.LevelEnum.ad, models.LevelEnum.creative):
         entity = aliased(models.Entity)
         query = (
             db.query(
@@ -142,7 +147,7 @@ def _base_query(
                 (func.date(MF.event_date) < end)
             )
             .filter(entity.workspace_id == workspace_id)
-            .filter(entity.level == models.LevelEnum.ad)
+            .filter(entity.level == level)
         )
     else:
         # For campaigns and adsets, use hierarchy CTEs
@@ -179,7 +184,7 @@ def _base_query(
         )
 
     # Apply filters - use the appropriate entity alias
-    entity_alias = entity if level == models.LevelEnum.ad else ancestor
+    entity_alias = entity if level in (models.LevelEnum.ad, models.LevelEnum.creative) else ancestor
     
     if platform:
         try:
@@ -213,7 +218,7 @@ def _base_query(
     ]
     
     # Add provider to group_by - use connection provider since we're joining it
-    if level == models.LevelEnum.ad:
+    if level in (models.LevelEnum.ad, models.LevelEnum.creative):
         group_columns.append(Connection.provider)
     else:
         group_columns.append(connection.provider)
@@ -428,6 +433,24 @@ def list_entities_performance(
     trend_series = _fetch_trend(db, entity_ids, trend_metric, start, end, level)
 
     response_rows: List[EntityPerformanceRow] = []
+    # For campaign rows, determine a simple kind label (e.g., PMax) based on children
+    kind_by_entity: dict[str, str] = {}
+    if level == models.LevelEnum.campaign and rows:
+        campaign_ids = [row.entity_id for row in rows]
+        adset_alias = aliased(models.Entity)
+        creative_alias = aliased(models.Entity)
+        creative_campaigns = (
+            db.query(adset_alias.parent_id)
+            .join(creative_alias, creative_alias.parent_id == adset_alias.id)
+            .filter(adset_alias.parent_id.in_(campaign_ids))
+            .filter(creative_alias.level == models.LevelEnum.creative)
+            .distinct()
+            .all()
+        )
+        for cid_row in creative_campaigns:
+            if cid_row[0]:
+                kind_by_entity[str(cid_row[0])] = "PMax"
+
     for row in rows:
         spend = float(row.spend or 0)
         revenue = float(row.revenue or 0)
@@ -452,6 +475,7 @@ def list_entities_performance(
                 last_updated_at=row.last_updated,
                 trend=trend_series.get(str(row.entity_id), []),
                 trend_metric="revenue" if trend_metric == "revenue" else "roas",
+                kind_label=kind_by_entity.get(str(row.entity_id)) if level == models.LevelEnum.campaign else None,
             )
         )
 
@@ -460,6 +484,8 @@ def list_entities_performance(
         title = "Campaigns"
     elif level == models.LevelEnum.adset:
         title = "Ad Sets"
+    elif level == models.LevelEnum.creative:
+        title = "Creatives"
     else:
         title = "Ads"
     meta = EntityPerformanceMeta(title=title, level=level.value, last_updated_at=latest_update)
@@ -493,7 +519,18 @@ def list_child_entities(
     if not db_entity or str(db_entity.workspace_id) != str(current_user.workspace_id):
         raise HTTPException(status_code=404, detail="Entity not found")
 
-    child_level = models.LevelEnum.adset if db_entity.level == models.LevelEnum.campaign else models.LevelEnum.ad
+    if db_entity.level == models.LevelEnum.campaign:
+        child_level = models.LevelEnum.adset
+    else:
+        # Prefer creative level if creatives exist under this adset (PMax)
+        has_creatives = (
+            db.query(models.Entity.id)
+            .filter(models.Entity.parent_id == db_entity.id)
+            .filter(models.Entity.level == models.LevelEnum.creative)
+            .limit(1)
+            .first()
+        )
+        child_level = models.LevelEnum.creative if has_creatives else models.LevelEnum.ad
     start, end = _date_range(date_start, date_end, timeframe)
 
     base = _base_query(
@@ -543,11 +580,17 @@ def list_child_entities(
         )
 
     latest_update = max((row.last_updated_at for row in response_rows if row.last_updated_at), default=None)
-    meta = EntityPerformanceMeta(title=db_entity.name, level=child_level.value, last_updated_at=latest_update)
+    # Title reflects child level: Ad Sets / Ads / Creatives
+    if child_level == models.LevelEnum.adset:
+        title = "Ad Sets"
+    elif child_level == models.LevelEnum.creative:
+        title = "Creatives"
+    else:
+        title = "Ads"
+    meta = EntityPerformanceMeta(title=title, level=child_level.value, last_updated_at=latest_update)
 
     return EntityPerformanceResponse(
         meta=meta,
         pagination=PageMeta(total=total, page=page, page_size=page_size),
         rows=response_rows,
     )
-

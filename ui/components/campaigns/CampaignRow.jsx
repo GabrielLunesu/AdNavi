@@ -6,8 +6,15 @@ export default function CampaignRow({ row }) {
   const display = row.display || {};
   return (
     <div className="grid grid-cols-[2fr_1fr_repeat(6,1fr)_1fr_1fr] items-center px-3 py-3 text-sm">
-      <div className="flex flex-col">
-        <span className="text-slate-200">{row.name}</span>
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center gap-2">
+          <span className="text-slate-200">{row.name}</span>
+          {row.kindLabel && (
+            <span className="px-2 py-0.5 text-[10px] uppercase tracking-wide rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
+              {row.kindLabel}
+            </span>
+          )}
+        </div>
         <span className="text-xs text-slate-400">{display.subtitle}</span>
       </div>
       <div className="flex items-center gap-2"><PlatformBadge platform={row.platform} /><span className="text-slate-400 text-xs">{row.platform || "—"}</span></div>
