@@ -61,12 +61,14 @@ export const adaptEntityPerformance = (payload) => {
     const fillWith = trendMetric === 'revenue' ? 0 : null;
     // Infer level from meta if not present on row
     const level = row.level || payload.meta?.level;
+    const kind = row.kind_label ? `${row.kind_label} • ` : '';
     return {
       id: row.id,
       name: row.name,
       platform: row.platform,
       status: row.status,
       level: level, // Used to determine if entity has children
+      kindLabel: row.kind_label || null,
       revenueRaw: row.revenue,
       spendRaw: row.spend,
       roasRaw: row.roas,
@@ -83,7 +85,7 @@ export const adaptEntityPerformance = (payload) => {
         conversions: formatNumber(row.conversions),
         cpc: formatCurrency(row.cpc),
         ctr: row.ctr_pct == null ? '—' : `${Number(row.ctr_pct).toFixed(2)}%`,
-        subtitle: relativeTime(row.last_updated_at),
+        subtitle: `${kind}${relativeTime(row.last_updated_at)}`,
       },
     };
   });
@@ -106,5 +108,3 @@ export const adaptEntityPerformance = (payload) => {
 
   return { rows, meta, pagination };
 };
-
-

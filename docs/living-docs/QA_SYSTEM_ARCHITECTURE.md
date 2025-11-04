@@ -2052,3 +2052,15 @@ Try the `/qa` endpoint with:
 _This is the single source of truth for QA system documentation._  
 _For build history and project-wide changes, see: `docs/ADNAVI_BUILD_LOG.md`_
 
+
+
+---
+
+## Updates: Google / Performance Max Integration
+- Provider validation now merges providers from `metric_facts` and workspace `connections` so Copilot recognizes Google immediately after connect.
+- Entity queries support a new `creative` level (PMax asset group assets), so questions about creatives return meaningful rows.
+- Translation prompt/examples extended for Google/PMax phrasing (e.g., provider filter questions, creatives).
+- Executor providers branch returns a sorted union of providers from facts and connections.
+
+## Changelog Addendum
+- 2025-11-04: Google/PMax awareness across validation, executor, and entity levels (creative), with prompt examples updated.

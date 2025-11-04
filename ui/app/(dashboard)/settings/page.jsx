@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react';
 import { Settings, RefreshCw, ExternalLink, Calendar } from 'lucide-react';
 import { currentUser } from '@/lib/auth';
-import { fetchConnections } from '@/lib/api';
+import { fetchConnections, ensureGoogleConnectionFromEnv } from '@/lib/api';
 import MetaSyncButton from '@/components/MetaSyncButton';
+import GoogleSyncButton from '@/components/GoogleSyncButton';
 
 /**
  * Settings Page
@@ -36,12 +37,16 @@ export default function SettingsPage() {
         setUser(currentUserData);
 
         if (currentUserData?.workspace_id) {
-          const connectionsData = await fetchConnections({ 
-            workspaceId: currentUserData.workspace_id 
-          });
-          if (mounted) {
-            setConnections(connectionsData.connections || []);
+          let connectionsData = await fetchConnections({ workspaceId: currentUserData.workspace_id });
+
+          // If Google connection missing, attempt to create from env (no-op if env missing)
+          const hasGoogle = (connectionsData.connections || []).some(c => c.provider === 'google');
+          if (!hasGoogle) {
+            await ensureGoogleConnectionFromEnv();
+            connectionsData = await fetchConnections({ workspaceId: currentUserData.workspace_id });
           }
+
+          if (mounted) setConnections(connectionsData.connections || []);
         }
       } catch (err) {
         if (mounted) {
@@ -89,6 +94,18 @@ export default function SettingsPage() {
       other: 'Other'
     };
     return labels[provider] || provider;
+  };
+
+  const formatAccountId = (provider, externalId) => {
+    if (!externalId) return '';
+    if (provider === 'google') {
+      // Hyphenate Google customer ID as ###-###-####
+      const digits = String(externalId).replace(/\D/g, '');
+      const m = digits.match(/(\d{3})(\d{3})(\d{4})/);
+      if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+      return digits;
+    }
+    return externalId;
   };
 
   const getProviderIcon = (provider) => {
@@ -177,7 +194,7 @@ export default function SettingsPage() {
                         {getProviderLabel(connection.provider)}
                         {connection.external_account_id && (
                           <span className="ml-2 font-mono text-xs">
-                            ({connection.external_account_id})
+                            ({formatAccountId(connection.provider, connection.external_account_id)})
                           </span>
                         )}
                       </p>
@@ -195,6 +212,17 @@ export default function SettingsPage() {
                 {connection.provider === 'meta' && connection.status === 'active' && (
                   <div className="mt-4 pt-4 border-t border-neutral-200">
                     <MetaSyncButton
+                      workspaceId={user.workspace_id}
+                      connectionId={connection.id}
+                      onSyncComplete={handleSyncComplete}
+                    />
+                  </div>
+                )}
+
+                {/* Sync Button for Google Ads */}
+                {connection.provider === 'google' && connection.status === 'active' && (
+                  <div className="mt-4 pt-4 border-t border-neutral-200">
+                    <GoogleSyncButton
                       workspaceId={user.workspace_id}
                       connectionId={connection.id}
                       onSyncComplete={handleSyncComplete}
@@ -222,4 +250,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-

@@ -74,7 +74,7 @@ export default function AdSetDetailPage() {
       />
       <div className="mb-6" />
       <EntityTable 
-        title="Ads" 
+        title={meta?.title || 'Ads'} 
         rows={rows} 
         loading={isPending}
         error={error}
@@ -83,4 +83,3 @@ export default function AdSetDetailPage() {
     </div>
   );
 }
-

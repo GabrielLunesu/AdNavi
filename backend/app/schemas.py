@@ -607,6 +607,8 @@ class EntityPerformanceRow(BaseModel):
     last_updated_at: Optional[datetime] = None
     trend: List[EntityTrendPoint] = Field(default_factory=list)
     trend_metric: Literal["revenue", "roas"] = "revenue"
+    # Optional descriptive label for campaign type (e.g., "PMax")
+    kind_label: Optional[str] = None
 
 
 class EntityPerformanceMeta(BaseModel):
@@ -617,7 +619,7 @@ class EntityPerformanceMeta(BaseModel):
     """
 
     title: str
-    level: Literal["campaign", "adset", "ad"]
+    level: Literal["campaign", "adset", "ad", "creative"]
     last_updated_at: Optional[datetime] = None
 
 

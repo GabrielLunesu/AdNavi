@@ -9,7 +9,11 @@ from sqlalchemy.orm import Session
 from .. import schemas
 from ..database import get_db
 from ..deps import get_current_user
-from ..models import User, Connection, Workspace
+from ..models import User, Connection, Workspace, ProviderEnum
+from ..services.token_service import store_connection_token
+from ..services.google_ads_client import GAdsClient
+import os
+from datetime import datetime
 
 
 router = APIRouter(
@@ -64,6 +68,96 @@ def list_connections(
         connections=connections,
         total=total
     )
+
+
+@router.post(
+    "/google/from-env",
+    response_model=schemas.ConnectionOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create/ensure Google Ads connection from environment",
+    description="""
+    Creates a Google Ads connection for the current workspace using env vars:
+    - GOOGLE_CUSTOMER_ID (required)
+    - GOOGLE_REFRESH_TOKEN (required)
+    - GOOGLE_LOGIN_CUSTOMER_ID (optional)
+    - GOOGLE_DEVELOPER_TOKEN / GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET (required by SDK)
+
+    Stores the refresh token encrypted. If a connection already exists, updates
+    its token. Fetches timezone/currency when possible.
+    """
+)
+def ensure_google_connection_from_env(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    customer_id = os.getenv("GOOGLE_CUSTOMER_ID")
+    refresh_token = os.getenv("GOOGLE_REFRESH_TOKEN")
+    developer_token = os.getenv("GOOGLE_DEVELOPER_TOKEN")
+    client_id = os.getenv("GOOGLE_CLIENT_ID")
+    client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
+
+    # Basic validation and clear error messaging
+    missing = []
+    if not customer_id:
+        missing.append("GOOGLE_CUSTOMER_ID")
+    if not refresh_token:
+        missing.append("GOOGLE_REFRESH_TOKEN")
+    for k, v in {"GOOGLE_DEVELOPER_TOKEN": developer_token, "GOOGLE_CLIENT_ID": client_id, "GOOGLE_CLIENT_SECRET": client_secret}.items():
+        if not v:
+            missing.append(k)
+    if missing:
+        raise HTTPException(status_code=400, detail=f"Missing env vars: {', '.join(sorted(set(missing)))}")
+
+    # Normalize ID to digits only for storage; UI can format with dashes
+    norm_id = "".join(ch for ch in customer_id if ch.isdigit())
+
+    # Upsert connection
+    connection = db.query(Connection).filter(
+        Connection.workspace_id == current_user.workspace_id,
+        Connection.provider == ProviderEnum.google,
+        Connection.external_account_id == norm_id,
+    ).first()
+
+    if connection is None:
+        connection = Connection(
+            provider=ProviderEnum.google,
+            external_account_id=norm_id,
+            name=f"Google Ads - {norm_id}",
+            status="active",
+            connected_at=datetime.utcnow(),
+            workspace_id=current_user.workspace_id,
+        )
+        db.add(connection)
+        db.flush()
+
+    # Store encrypted refresh token; access token remains nullable
+    store_connection_token(
+        db,
+        connection,
+        access_token=None,
+        refresh_token=refresh_token,
+        expires_at=None,
+        scope="google-refresh-token",
+        ad_account_ids=[norm_id],
+    )
+
+    # Attempt to fetch timezone/currency for nicer display (best-effort)
+    try:
+        meta = GAdsClient().get_customer_metadata(norm_id)
+        tz = meta.get("time_zone")
+        cur = meta.get("currency_code")
+        if tz:
+            connection.timezone = tz
+        if cur:
+            connection.currency_code = cur
+        db.flush()
+    except Exception:
+        # Non-fatal; leave as None
+        pass
+
+    db.commit()
+    db.refresh(connection)
+    return connection
 
 
 @router.post(
