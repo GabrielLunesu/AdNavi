@@ -76,7 +76,11 @@ def get_available_platforms(db: Session, workspace_id: str) -> List[str]:
     """
     E = models.Entity
     MF = models.MetricFact
-    
+    C = models.Connection
+
+    providers_set = set()
+
+    # Providers with metric facts
     result = (
         db.query(MF.provider)
         .join(E, E.id == MF.entity_id)
@@ -84,8 +88,18 @@ def get_available_platforms(db: Session, workspace_id: str) -> List[str]:
         .distinct()
         .all()
     )
-    
-    return [r[0].value for r in result]
+    providers_set.update([r[0].value for r in result if r[0]])
+
+    # Providers with connections (even if zero facts)
+    connection_rows = (
+        db.query(C.provider)
+        .filter(C.workspace_id == workspace_id)
+        .distinct()
+        .all()
+    )
+    providers_set.update([r[0].value for r in connection_rows if r[0]])
+
+    return sorted(list(providers_set))
 
 
 # =====================================================================
@@ -162,6 +176,8 @@ def execute_plan(
     # Returns: {"providers": ["google", "meta", ...]}
     # Example question: "Which platforms am I advertising on?"
     if query.query_type == "providers":
+        providers_set = set()
+        # Providers with metric facts
         rows = (
             db.query(models.MetricFact.provider)
             .join(models.Entity, models.Entity.id == models.MetricFact.entity_id)
@@ -169,7 +185,16 @@ def execute_plan(
             .distinct()
             .all()
         )
-        return {"providers": [row.provider.value for row in rows]}
+        providers_set.update([row.provider.value for row in rows if row.provider])
+        # Providers with connections (even if zero facts)
+        conn_rows = (
+            db.query(models.Connection.provider)
+            .filter(models.Connection.workspace_id == workspace_id)
+            .distinct()
+            .all()
+        )
+        providers_set.update([r[0].value for r in conn_rows if r[0]])
+        return {"providers": sorted(list(providers_set))}
     
     # ENTITIES: List entities (campaigns/adsets/ads) with optional filters
     # Returns: {"entities": [{"name": "...", "status": "...", "level": "..."}, ...]}

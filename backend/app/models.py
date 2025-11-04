@@ -154,6 +154,13 @@ class Connection(Base):
     status = Column(String, nullable=False)  # active, paused, disconnected, etc.
     connected_at = Column(DateTime, default=datetime.utcnow)
 
+    # Google-specific connection metadata (also useful across providers)
+    # WHAT: Persist account timezone and currency for accurate windowing/formatting
+    # WHY: Google Ads stats and segments are in account timezone; currency is set per account
+    # REFERENCES: docs/living-docs/GOOGLE_INTEGRATION_STATUS.MD (Date & timezone, Currency model)
+    timezone = Column(String, nullable=True)
+    currency_code = Column(String, nullable=True)
+
     # Foreign key - EVERY connection belongs to exactly ONE workspace
     # This ensures data isolation between different companies
     workspace_id = Column(UUID(as_uuid=True), ForeignKey("workspaces.id"), nullable=False)
@@ -186,7 +193,7 @@ class Token(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     provider = Column(Enum(ProviderEnum, values_callable=lambda obj: [e.value for e in obj]), nullable=False)
-    access_token_enc = Column(String, nullable=False)
+    access_token_enc = Column(String, nullable=True)
     refresh_token_enc = Column(String, nullable=True)
     expires_at = Column(DateTime, nullable=True)
     scope = Column(String, nullable=True)

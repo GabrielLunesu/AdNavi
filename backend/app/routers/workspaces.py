@@ -276,19 +276,27 @@ def get_workspace_providers(
             detail="Access denied to this workspace"
         )
     
-    # Query distinct providers that have metric facts
-    providers = (
+    # Providers from metric facts
+    providers_fact = (
         db.query(MetricFact.provider)
         .join(Entity, Entity.id == MetricFact.entity_id)
         .filter(Entity.workspace_id == workspace_uuid)
         .distinct()
         .all()
     )
-    
-    # Extract provider values (they're enum objects)
-    provider_list = [p[0].value for p in providers if p[0]]
-    
-    return {"providers": provider_list}
+    fact_list = [p[0].value for p in providers_fact if p[0]]
+
+    # Providers from connections (include those without facts yet)
+    providers_conn = (
+        db.query(Connection.provider)
+        .filter(Connection.workspace_id == workspace_uuid)
+        .distinct()
+        .all()
+    )
+    conn_list = [p[0].value for p in providers_conn if p[0]]
+
+    merged = sorted(list(set(fact_list) | set(conn_list)))
+    return {"providers": merged}
 
 
 @router.get(

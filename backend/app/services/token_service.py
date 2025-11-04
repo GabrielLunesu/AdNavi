@@ -31,7 +31,7 @@ def store_connection_token(
     db: Session,
     connection: Connection,
     *,
-    access_token: str,
+    access_token: Optional[str] = None,
     refresh_token: Optional[str] = None,
     expires_at: Optional[datetime] = None,
     scope: Optional[str] = None,
@@ -50,7 +50,10 @@ def store_connection_token(
         The Token ORM instance associated with the connection.
     """
     label = f"{connection.provider.value}:{connection.external_account_id}"
-    encrypted_access = encrypt_secret(access_token, context=f"{label}:access")
+    encrypted_access = (
+        encrypt_secret(access_token, context=f"{label}:access")
+        if access_token else None
+    )
     encrypted_refresh = (
         encrypt_secret(refresh_token, context=f"{label}:refresh") if refresh_token else None
     )

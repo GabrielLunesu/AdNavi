@@ -216,6 +216,22 @@ export async function fetchConnections({ workspaceId, provider = null, status = 
   return res.json();
 }
 
+// Ensure Google connection exists using server-side env.
+// WHAT: Creates or updates a Google connection and stores encrypted refresh token.
+// WHY: Temporary path before OAuth UI; enables sync button to appear.
+export async function ensureGoogleConnectionFromEnv() {
+  const res = await fetch(`${BASE}/connections/google/from-env`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" }
+  });
+  if (!res.ok) {
+    // Return null on failure to avoid blocking Settings load
+    return null;
+  }
+  return res.json();
+}
+
 // Sync Meta Ads entities (campaigns, adsets, ads).
 // WHY: UI sync button triggers entity sync.
 // Returns: { success: boolean, synced: { campaigns_created, campaigns_updated, adsets_created, adsets_updated, ads_created, ads_updated, duration_seconds }, errors: [] }
@@ -254,3 +270,41 @@ export async function syncMetaMetrics({ workspaceId, connectionId, startDate = n
   return res.json();
 }
 
+// Sync Google Ads entities (customers' campaigns, ad groups, ads).
+// WHAT: Same endpoint shape as Meta, routed to Google sync on backend.
+// WHY: Parity in UI; separation of concerns via shared path per connection.
+// REFERENCES: backend/app/routers (google_sync planned)
+export async function syncGoogleEntities({ workspaceId, connectionId }) {
+  const res = await fetch(`${BASE}/workspaces/${workspaceId}/connections/${connectionId}/sync-google-entities`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" }
+  });
+  if (!res.ok) {
+    const msg = await res.text();
+    throw new Error(`Failed to sync entities: ${res.status} ${msg}`);
+  }
+  return res.json();
+}
+
+// Sync Google Ads metrics (daily performance).
+// WHAT: 90-day backfill + incremental; same path shape.
+// WHY: Keep UI consistent across providers.
+export async function syncGoogleMetrics({ workspaceId, connectionId, startDate = null, endDate = null, forceRefresh = false }) {
+  const body = {};
+  if (startDate) body.start_date = startDate;
+  if (endDate) body.end_date = endDate;
+  if (forceRefresh) body.force_refresh = forceRefresh;
+  
+  const res = await fetch(`${BASE}/workspaces/${workspaceId}/connections/${connectionId}/sync-google-metrics`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) {
+    const msg = await res.text();
+    throw new Error(`Failed to sync metrics: ${res.status} ${msg}`);
+  }
+  return res.json();
+}
