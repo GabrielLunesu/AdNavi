@@ -6,168 +6,97 @@ Principles: Separation of concerns, single responsibility, modular and elegant c
 
 ---
 
+## How It Works (Non-Technical Overview)
+
+- Two-step sync (like Meta):
+  - Step 1 pulls your Google account structure (campaigns, ad groups, ads, and for Performance Max: asset groups and creative assets). We use UPSERT so re-running the sync simply refreshes names/status.
+  - Step 2 ingests daily performance metrics only after the hierarchy exists. We ingest at the right level (ads for standard campaigns, asset groups and creatives for PMax) and skip unknown IDs to avoid placeholder/orphan rows.
+- Performance Max support:
+  - Asset groups are mapped to AdNavi’s `adset` level; asset group assets are mapped to `creative` level. This makes the UI and QA reflect what you see in Google Ads.
+- Safe ingestion prevents bad data:
+  - If the hierarchy isn’t present, metrics sync completes as a no‑op (0 ingested) instead of creating "unknown" entities. This mirrors Meta and avoids endless backfills.
+- Manual today, automation next:
+  - Settings page auto‑creates a Google connection from env credentials and triggers entities → metrics in the right order. Scheduler automation is the next step.
+
+
+---
+
 ## Quick Status
 
-- Current Phase: Phase 1 — Client Service (in progress)
-- Overall Progress: 10% (Week 1 of 3–4)
+- Current Phase: Phase 2/3 complete — hierarchy + metrics live; automation & OAuth next
+- Overall Progress: ~60% (Week 2 of 3–4)
 - Env Ready: Yes (vars in `.env`)
-- Token Model: DB encryption available (shared), Google OAuth TBD
+- Token Model: Encrypted storage available; OAuth still pending
 
 | Component | Status | Notes |
 |-----------|--------|-------|
 | Dev token + OAuth client | ✅ Ready | Provided via env vars |
 | Google Ads Python SDK | ✅ Added | `backend/requirements.txt` pinned to 23.0.0 |
-| Client service | ✅ Complete (skeleton + tests) | `app/services/google_ads_client.py` |
-| Entity sync endpoints | ✅ Added | Mirror Meta pattern (UPSERT) |
-| Metrics sync endpoints | ✅ Added | 90-day backfill + incremental |
-| Connection metadata (tz/currency) | ✅ Columns added | Alembic migration `20251104_000001` |
-| UI sync button | ✅ Added | Settings page parity with Meta |
-| Connect from env | ✅ Added | `POST /connections/google/from-env` + UI auto-connect |
+| Client service | ✅ Complete (with tests) | `app/services/google_ads_client.py` |
+| Entity sync | ✅ Complete | Campaign → AdGroup → Ad; PMax AssetGroup → AssetGroupAsset |
+| Metrics sync | ✅ Complete | Ad + Asset Group + Creative metrics, 90‑day backfill |
+| Connection metadata | ✅ Complete | Stores timezone/currency on connection |
+| UI sync button | ✅ Complete | Settings page parity with Meta |
+| Auto‑connect from env | ✅ Complete | `POST /connections/google/from-env` |
 
-Env keys (configured):
-- `GOOGLE_DEVELOPER_TOKEN`
-- `GOOGLE_CLIENT_ID`
-- `GOOGLE_CLIENT_SECRET`
-- `GOOGLE_REFRESH_TOKEN`
-- `GOOGLE_LOGIN_CUSTOMER_ID` (MCC)
-- `GOOGLE_CUSTOMER_ID` (target account)
-- `GOOGLE_ADS_ENVIRONMENT=SANDBOX`
 
 ---
 
 ## Phases & Tasks
 
 ### Phase 0 — Accounts & Credentials (Complete)
-- MCC + Developer token configured (uses SANDBOX/test accounts)
-- GCP project and Google Ads API enabled
-- OAuth client created; refresh token present (env)
+- MCC + developer token configured (SANDBOX/test accounts)
+- Google Cloud project + Google Ads API enabled
+- OAuth client created; refresh token present in env
 
-Verification (manual):
-- Build `GoogleAdsClient` from env and run GAQL to list customers and basic campaign fields
+Manual verification: build `GoogleAdsClient` from env and run GAQL to list customers/campaigns.
 
-### Phase 1 — Client Service (In Progress)
-
-Goal: Provider-agnostic service encapsulating Google Ads SDK usage (auth, GAQL, pagination, retries, rate limits).
-
-Deliverables:
-- `app/services/google_ads_client.py` with:
-  - Client factory from env or DB token (future OAuth)
-  - GAQL search helpers (stream + paginated)
-  - Entity listing: campaigns, ad groups, ads
-  - Metrics query: daily performance (cost_micros → spend, clicks/impressions/conversions/value)
-  - Robust retries (RESOURCE_EXHAUSTED, backoff+jitter), rate limit guard
-  - Campaign type → Goal mapping covering all channel types
-
-Tests:
-- `app/tests/test_google_ads_client.py` (mocked SDK, no network)
+### Phase 1 — Client Service (Complete)
+- `app/services/google_ads_client.py` includes env‑based factory, GAQL helpers, rate limiting, retries, and level‑specific metric fetchers.
+- Tests: `app/tests/test_google_ads_client.py`, `app/tests/test_google_sync_helpers.py`.
 
 ### Phase 2 — Entity Sync (Complete)
- - Router: `google_sync.py`
- - Endpoint: `POST /workspaces/{id}/connections/{id}/sync-google-entities`
-- UPSERT entities: Campaign → AdGroup → Ad (map AdGroup → `adset`)
-- Persist campaign statuses: `status`, `serving_status`, `primary_status[_reasons]`
- - Stores timezone/currency on Connection during first sync
- - Tests: helper coverage for ID normalization and chunking
+- Endpoint: `POST /workspaces/{id}/connections/{id}/sync-google-entities`
+- UPSERT hierarchy: campaign → ad group → ad; PMax asset group → asset group asset (stored as creative level).
+- Persists status, timezone, currency; robust logging.
 
 ### Phase 3 — Metrics Sync (Complete)
- - Endpoint: `POST /workspaces/{id}/connections/{id}/sync-google-metrics`
-- 90-day backfill (7-day chunks), then incremental
-- Ingest via existing `ingest_metrics_internal`
- - Level: Ad (ad_group_ad); spend from cost_micros; conversions/value mapped
- - Tests: service + helpers; end-to-end to be added with fixtures
+- Endpoint: `POST /workspaces/{id}/connections/{id}/sync-google-metrics`
+- 90-day backfill, 7‑day chunks, incremental.
+- Standard campaigns: ad‑level metrics.
+- Performance Max: additionally fetch asset group (adset level) and asset group asset (creative level) metrics.
+- Safeguards: zero‑op if hierarchy missing; skip unknown IDs to avoid placeholders.
 
-### Phase 4 — Connection Metadata (Pending)
-- Store `timezone` and `currency_code` on `Connection`
-- Alembic migration + model update
-- Populate during first entity sync per connection
+### Phase 4 — Connection Metadata (Complete)
+- Alembic migration `20251104_000001` adds timezone/currency columns.
+- Populated during first entity sync per connection.
 
 ### Phase 5 — UI Integration (Complete)
-- Settings page parity with Meta
-- “Sync Google Ads” button with progress feedback
-- Auto-connect from env on Settings load (fallbacks + error-safe)
+- Settings page auto‑connects from env, shows Google sync widget.
+- Campaigns page displays PMax label; ad set detail page shows creatives when present.
 
-### Phase 6 — Reliability & Quotas (Pending)
-- Exponential backoff using recommended retry delays
-- Monitor quotas and version deprecations
+### Phase 6 — Reliability & Quotas (In Progress)
+- Backoff + retries implemented. TODO: automated jobs, quota telemetry.
 
 ### Phase 7 — OAuth Flow (Planned)
-- Backend authorize/callback
-- Store tokens encrypted (reuse Token model)
+- Implement authorize/callback endpoints, encrypted token storage per connection, and update UI flow.
+
 
 ---
 
-## Design Decisions
+## Next Actions
 
-- Two-step sync (entities → metrics) identical to Meta for idempotency and reliability
-- Base measures only; derived metrics calculated by `UnifiedMetricService`
-- AdGroup mapped to `LevelEnum.adset` for cross-provider consistency
-- Campaign goal mapping from `advertising_channel_type` to `GoalEnum` (see below)
-- Timezone/currency persisted on `Connection` for accurate windows and display
+1) Integration tests for google_sync router with mocked client.
+2) Scheduler automation for nightly entity + metrics sync (with alerting).
+3) OAuth handshake to replace env‑based refresh token (Phase 7).
+4) Optional: richer creative UI (previews) and quota telemetry dashboards.
 
-Goal mapping (initial):
-- SEARCH → conversions
-- DISPLAY → awareness
-- VIDEO → awareness
-- PERFORMANCE_MAX → purchases
-- SHOPPING → purchases
-- HOTEL → purchases
-- LOCAL → traffic
-- SMART → conversions
-- DISCOVERY → traffic
-- AUDIO → awareness
-- APP → app_installs
-
-Notes: mapping can be refined with sub-types and bidding strategies.
-
----
-
-## Reference GAQL
-
-Campaign statuses (delivery signals):
-
-SELECT
-  campaign.id,
-  campaign.name,
-  campaign.status,
-  campaign.serving_status,
-  campaign.primary_status,
-  campaign.primary_status_reasons,
-  campaign.advertising_channel_type
-FROM campaign
-ORDER BY campaign.name
-
-Basic performance (no segments → includes zero rows):
-
-SELECT
-  campaign.id, campaign.name,
-  metrics.impressions, metrics.clicks, metrics.cost_micros,
-  metrics.conversions, metrics.conversions_value
-FROM campaign
-WHERE segments.date DURING LAST_7_DAYS
-
----
-
-## Testing & Logging
-
-- Unit tests mock SDK; no network in CI
-- Log markers: use `[GOOGLE_SYNC]`, `[GOOGLE_CLIENT]` for filtering
-- Follow existing comprehensive logging style used in Meta integration
-
-Local test commands:
-- `cd backend && pytest app/tests/test_google_ads_client.py app/tests/test_google_sync_helpers.py -q`
-- (Migrations) `alembic upgrade head` to add `timezone`/`currency_code` on connections
-
----
-
-## Next Actions (This Week)
-
-1) Wire UI “Sync Google Ads” button (now active with endpoints)
-2) Add integration tests for router with mocked GAdsClient
-3) Expand goal mapping with subtypes if needed
 
 ---
 
 ## Changelog
+
+- 2025-11-04: Added PMax hierarchy + metrics, safe ingestion, QA provider awareness, PMax label UI.
 
 - 2025-11-04: Converted doc into updateable plan; defined phases, tests, mappings
 - 2025-11-04: Added google-ads dependency; added connection tz/currency columns; implemented client service and tests

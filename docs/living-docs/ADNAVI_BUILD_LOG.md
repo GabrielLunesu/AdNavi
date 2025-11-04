@@ -2010,3 +2010,21 @@ Keep the Monorepo Map accurate as soon as new folders (like api/) appear.
 Prefer concise bullets; link code paths when helpful.
 
 
+
+
+---
+
+## Google Ads Integration (Phase 3 Complete)
+- Service: `app/services/google_ads_client.py` with GAQL helpers, rate limiting, retries, and support for campaign/ad_group/ad/asset_group/asset_group_asset.
+- Endpoints: `sync-google-entities` (UPSERT hierarchy including PMax) and `sync-google-metrics` (ad + asset group + creative metrics, 90‑day chunked backfill, incremental).
+- Safeguards: Metrics only ingest onto known entities (skip unknown IDs); metrics run no‑op if hierarchy missing to mirror Meta behaviour.
+- Connection metadata: timezone/currency captured on entity sync (migration `20251104_000001`).
+- Token model: `access_token_enc` made nullable (migration `20251104_000002`) and token service updated to handle refresh‑only tokens.
+- UI: Settings auto‑connect from env; Campaigns shows PMax label; ad set drill‑down shows creatives.
+
+## QA & UI Alignment
+- QA now recognizes providers based on both connections and facts to avoid false negatives for newly connected Google.
+- Entity performance router supports `creative` leaf level; child routing selects creatives when present under PMax asset groups.
+
+## Changelog Addendum
+- 2025-11-04: Google Ads integration shipped with PMax hierarchy + metrics, provider awareness improvements, and UI updates.
