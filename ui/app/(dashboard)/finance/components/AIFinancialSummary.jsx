@@ -10,6 +10,7 @@
 import { useState, useEffect } from "react";
 import { Sparkles, TrendingUp } from "lucide-react";
 import { fetchQA } from "@/lib/api";
+import { renderMarkdownLite } from "@/lib/markdown";
 
 export default function AIFinancialSummary({ workspaceId, selectedPeriod }) {
   const [insight, setInsight] = useState(null);
@@ -104,9 +105,7 @@ export default function AIFinancialSummary({ workspaceId, selectedPeriod }) {
         
         {insight && (
           <div className="mb-6">
-            <p className="text-base text-neutral-700 leading-relaxed whitespace-pre-wrap">
-              {insight}
-            </p>
+            <div className="text-base text-neutral-700 leading-relaxed" dangerouslySetInnerHTML={{ __html: renderMarkdownLite(insight) }} />
           </div>
         )}
       </div>
