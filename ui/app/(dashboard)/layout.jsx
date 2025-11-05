@@ -44,16 +44,30 @@ export default function DashboardLayout({ children }) {
   }
 
   return (
-    <div className="flex min-h-screen">
-      {/* Sidebar */}
-      <Sidebar />
+    <div className="min-h-screen w-full bg-white relative overflow-hidden">
+      {/* Blue Corner Glow Background */}
+      <div
+        className="absolute inset-0 z-0"
+        style={{
+          backgroundImage: `
+            radial-gradient(circle 600px at 0% 200px, #bfdbfe, transparent),
+            radial-gradient(circle 600px at 100% 200px, #bfdbfe, transparent)
+          `,
+        }}
+      />
 
-      {/* Main Content */}
-      <main className="flex-1 ml-72 p-8 pt-12">
-        <div className="max-w-7xl mx-auto">
-          {children}
-        </div>
-      </main>
+      {/* Dashboard Shell */}
+      <div className="flex min-h-screen relative z-10">
+        {/* Sidebar */}
+        <Sidebar />
+
+        {/* Main Content */}
+        <main className="flex-1 ml-72 p-8 pt-12">
+          <div className="max-w-7xl mx-auto">
+            {children}
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

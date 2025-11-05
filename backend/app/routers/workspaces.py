@@ -10,7 +10,7 @@ from sqlalchemy import desc
 from .. import schemas
 from ..database import get_db
 from ..deps import get_current_user
-from ..models import User, Workspace, Fetch, ComputeRun, MetricFact, Entity, LevelEnum
+from ..models import User, Workspace, Fetch, ComputeRun, MetricFact, Entity, LevelEnum, Connection
 
 
 router = APIRouter(

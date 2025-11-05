@@ -20,6 +20,20 @@ export default function PlatformBreakdown({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const normalizeProviderLabel = (label) => {
+    if (!label) return label;
+    const lowered = String(label).toLowerCase();
+    // Common case: "ProviderEnum.meta" → "meta"
+    if (lowered.includes("providerenum")) {
+      return lowered.split(".").pop();
+    }
+    // Fallback: take last segment if any dotted string
+    if (lowered.includes(".")) {
+      return lowered.split(".").pop();
+    }
+    return lowered;
+  };
+
   useEffect(() => {
     if (!workspaceId) return;
 
@@ -43,7 +57,11 @@ export default function PlatformBreakdown({
         
         // Extract breakdown data from QA response
         if (data.data && data.data.breakdown) {
-          setBreakdown(data.data.breakdown);
+          const normalized = data.data.breakdown.map((item) => ({
+            ...item,
+            label: normalizeProviderLabel(item.label),
+          }));
+          setBreakdown(normalized);
         } else {
           setBreakdown([]);
         }
@@ -136,4 +154,3 @@ export default function PlatformBreakdown({
     </div>
   );
 }
-

@@ -7,6 +7,7 @@ import SnapshotHeader from "./components/SnapshotHeader";
 import InsightCards from "./components/InsightCards";
 import FactWidgets from "./components/FactWidgets";
 import ConversationThread from "./components/ConversationThread";
+import { renderMarkdownLite } from "@/lib/markdown";
 import ChatConsole from "./components/ChatConsole";
 
 export default function CopilotPage() {
@@ -61,7 +62,7 @@ export default function CopilotPage() {
         // Add AI response with timestamp
         const aiMessage = {
           type: 'ai',
-          text: res.answer,
+          text: renderMarkdownLite(res.answer),
           timestamp: Date.now()
         };
         setMessages((prev) => [...prev, aiMessage]);

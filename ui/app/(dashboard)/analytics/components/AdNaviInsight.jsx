@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { fetchQA } from "@/lib/api";
+import { renderMarkdownLite } from "@/lib/markdown";
 import { Sparkles } from "lucide-react";
 
 export default function AdNaviInsight({
@@ -90,7 +91,7 @@ export default function AdNaviInsight({
             <div className="space-y-4">
               {/* AI Answer */}
               <div className="bg-gradient-to-br from-cyan-50 to-white border border-cyan-200/60 rounded-2xl p-6">
-                <p className="text-neutral-800 leading-relaxed">{insight.answer}</p>
+                <div className="text-neutral-800 leading-relaxed" dangerouslySetInnerHTML={{ __html: renderMarkdownLite(insight.answer) }} />
               </div>
               
               {/* Metadata (optional, can be hidden) */}
@@ -107,5 +108,4 @@ export default function AdNaviInsight({
     </div>
   );
 }
-
 
