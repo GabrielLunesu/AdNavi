@@ -37,6 +37,7 @@ services:
           memory: 512M
 
   frontend:
+    domainname: www.adnavi.app
     build:
       context: ./ui
       dockerfile: Dockerfile
