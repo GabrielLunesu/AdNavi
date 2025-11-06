@@ -24,6 +24,7 @@ REFERENCES:
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
+from app.models import MetricFact
 from typing import List
 from uuid import UUID, uuid4
 from datetime import datetime, timezone
@@ -110,48 +111,64 @@ async def ingest_metrics_internal(
             # Extract event_date (date part of event_at)
             event_date = fact.event_at.replace(hour=0, minute=0, second=0, microsecond=0)
             
-            # Create MetricFact
-            metric_fact = MetricFact(
-                id=uuid4(),
-                entity_id=entity_id,
-                provider=fact.provider,
-                level=fact.level,
-                event_at=fact.event_at,
-                event_date=event_date,
-                spend=fact.spend,
-                impressions=fact.impressions,
-                clicks=fact.clicks,
-                conversions=fact.conversions,
-                revenue=fact.revenue,
-                leads=fact.leads,
-                installs=fact.installs,
-                purchases=fact.purchases,
-                visitors=fact.visitors,
-                profit=fact.profit,
-                currency=fact.currency,
-                natural_key=natural_key,
-                import_id=import_record.id,
-                ingested_at=datetime.now(timezone.utc)
-            )
+            # Check if fact already exists (UPSERT pattern for Meta sync)
+            existing_fact = db.query(MetricFact).filter(
+                MetricFact.natural_key == natural_key
+            ).first()
             
-            db.add(metric_fact)
+            if existing_fact:
+                # Update existing fact instead of skipping
+                existing_fact.spend = fact.spend
+                existing_fact.impressions = fact.impressions
+                existing_fact.clicks = fact.clicks
+                existing_fact.conversions = fact.conversions
+                existing_fact.revenue = fact.revenue
+                existing_fact.leads = fact.leads
+                existing_fact.installs = fact.installs
+                existing_fact.purchases = fact.purchases
+                existing_fact.visitors = fact.visitors
+                existing_fact.profit = fact.profit
+                existing_fact.currency = fact.currency
+                existing_fact.import_id = import_record.id
+                existing_fact.ingested_at = datetime.now(timezone.utc)
+                ingested += 1
+                logger.debug(f"[INGEST] Updated existing fact: {natural_key}")
+            else:
+                # Create new MetricFact
+                metric_fact = MetricFact(
+                    id=uuid4(),
+                    entity_id=entity_id,
+                    provider=fact.provider,
+                    level=fact.level,
+                    event_at=fact.event_at,
+                    event_date=event_date,
+                    spend=fact.spend,
+                    impressions=fact.impressions,
+                    clicks=fact.clicks,
+                    conversions=fact.conversions,
+                    revenue=fact.revenue,
+                    leads=fact.leads,
+                    installs=fact.installs,
+                    purchases=fact.purchases,
+                    visitors=fact.visitors,
+                    profit=fact.profit,
+                    currency=fact.currency,
+                    natural_key=natural_key,
+                    import_id=import_record.id,
+                    ingested_at=datetime.now(timezone.utc)
+                )
+                
+                db.add(metric_fact)
+                ingested += 1
             
             try:
-                db.flush()  # Detect unique constraint violations
-                ingested += 1
-                
+                db.flush()
             except IntegrityError as e:
                 db.rollback()
-                
-                # Check if it's a duplicate natural_key
-                if "uq_metric_facts_natural_key" in str(e):
-                    logger.debug(f"[INGEST] Skipping duplicate: {natural_key}")
-                    skipped += 1
-                else:
-                    # Other integrity error
-                    error_msg = f"Fact {idx}: Database error - {str(e)}"
-                    logger.error(f"[INGEST] {error_msg}")
-                    errors.append(error_msg)
+                error_msg = f"Fact {idx}: Database error - {str(e)}"
+                logger.error(f"[INGEST] {error_msg}")
+                errors.append(error_msg)
+                ingested -= 1  # Rollback the count
         
         except Exception as e:
             error_msg = f"Fact {idx}: {type(e).__name__} - {str(e)}"
@@ -396,48 +413,64 @@ def ingest_metrics(
             # Extract event_date (date part of event_at)
             event_date = fact.event_at.replace(hour=0, minute=0, second=0, microsecond=0)
             
-            # Create MetricFact
-            metric_fact = MetricFact(
-                id=uuid4(),
-                entity_id=entity_id,
-                provider=fact.provider,
-                level=fact.level,
-                event_at=fact.event_at,
-                event_date=event_date,
-                spend=fact.spend,
-                impressions=fact.impressions,
-                clicks=fact.clicks,
-                conversions=fact.conversions,
-                revenue=fact.revenue,
-                leads=fact.leads,
-                installs=fact.installs,
-                purchases=fact.purchases,
-                visitors=fact.visitors,
-                profit=fact.profit,
-                currency=fact.currency,
-                natural_key=natural_key,
-                import_id=import_record.id,
-                ingested_at=datetime.now(timezone.utc)
-            )
+            # Check if fact already exists (UPSERT pattern for Meta sync)
+            existing_fact = db.query(MetricFact).filter(
+                MetricFact.natural_key == natural_key
+            ).first()
             
-            db.add(metric_fact)
+            if existing_fact:
+                # Update existing fact instead of skipping
+                existing_fact.spend = fact.spend
+                existing_fact.impressions = fact.impressions
+                existing_fact.clicks = fact.clicks
+                existing_fact.conversions = fact.conversions
+                existing_fact.revenue = fact.revenue
+                existing_fact.leads = fact.leads
+                existing_fact.installs = fact.installs
+                existing_fact.purchases = fact.purchases
+                existing_fact.visitors = fact.visitors
+                existing_fact.profit = fact.profit
+                existing_fact.currency = fact.currency
+                existing_fact.import_id = import_record.id
+                existing_fact.ingested_at = datetime.now(timezone.utc)
+                ingested += 1
+                logger.debug(f"[INGEST] Updated existing fact: {natural_key}")
+            else:
+                # Create new MetricFact
+                metric_fact = MetricFact(
+                    id=uuid4(),
+                    entity_id=entity_id,
+                    provider=fact.provider,
+                    level=fact.level,
+                    event_at=fact.event_at,
+                    event_date=event_date,
+                    spend=fact.spend,
+                    impressions=fact.impressions,
+                    clicks=fact.clicks,
+                    conversions=fact.conversions,
+                    revenue=fact.revenue,
+                    leads=fact.leads,
+                    installs=fact.installs,
+                    purchases=fact.purchases,
+                    visitors=fact.visitors,
+                    profit=fact.profit,
+                    currency=fact.currency,
+                    natural_key=natural_key,
+                    import_id=import_record.id,
+                    ingested_at=datetime.now(timezone.utc)
+                )
+                
+                db.add(metric_fact)
+                ingested += 1
             
             try:
-                db.flush()  # Detect unique constraint violations
-                ingested += 1
-                
+                db.flush()
             except IntegrityError as e:
                 db.rollback()
-                
-                # Check if it's a duplicate natural_key
-                if "uq_metric_facts_natural_key" in str(e):
-                    logger.debug(f"[INGEST] Skipping duplicate: {natural_key}")
-                    skipped += 1
-                else:
-                    # Other integrity error
-                    error_msg = f"Fact {idx}: Database error - {str(e)}"
-                    logger.error(f"[INGEST] {error_msg}")
-                    errors.append(error_msg)
+                error_msg = f"Fact {idx}: Database error - {str(e)}"
+                logger.error(f"[INGEST] {error_msg}")
+                errors.append(error_msg)
+                ingested -= 1  # Rollback the count
         
         except Exception as e:
             error_msg = f"Fact {idx}: {type(e).__name__} - {str(e)}"

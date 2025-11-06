@@ -232,6 +232,22 @@ export async function ensureGoogleConnectionFromEnv() {
   return res.json();
 }
 
+// Ensure Meta connection exists using server-side env.
+// WHAT: Creates or updates a Meta connection and stores encrypted access token.
+// WHY: Temporary path before OAuth UI; enables sync button to appear.
+export async function ensureMetaConnectionFromEnv() {
+  const res = await fetch(`${BASE}/connections/meta/from-env`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" }
+  });
+  if (!res.ok) {
+    // Return null on failure to avoid blocking Settings load
+    return null;
+  }
+  return res.json();
+}
+
 // Sync Meta Ads entities (campaigns, adsets, ads).
 // WHY: UI sync button triggers entity sync.
 // Returns: { success: boolean, synced: { campaigns_created, campaigns_updated, adsets_created, adsets_updated, ads_created, ads_updated, duration_seconds }, errors: [] }

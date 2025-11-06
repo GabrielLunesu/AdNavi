@@ -65,98 +65,122 @@ def clean_db(keep_manual_costs=True):
         print("   💰 Deleting P&L snapshots (based on mock data)...")
         # Delete Pnl that reference mock entities OR all Pnl if we're cleaning everything
         if entity_ids:
-            pnl_to_delete = db.query(models.Pnl).filter(
+            pnl_count = db.query(models.Pnl).filter(
                 models.Pnl.entity_id.in_(entity_ids)
-            ).all()
+            ).delete(synchronize_session=False)
         else:
-            pnl_to_delete = db.query(models.Pnl).all()
-        
-        pnl_count = len(pnl_to_delete)
-        for pnl in pnl_to_delete:
-            db.delete(pnl)
+            pnl_count = db.query(models.Pnl).delete(synchronize_session=False)
         db.flush()  # Commit Pnl deletions before proceeding
         print(f"   ✅ Deleted {pnl_count} P&L snapshots")
         
         # 4. Delete metric facts (ALL that reference mock entities OR imports)
         print("   📊 Deleting metric facts from mock connections and test data...")
-        mock_facts = db.query(models.MetricFact).join(
-            models.Entity
-        ).filter(
-            models.Entity.connection_id.in_(mock_connection_ids)
-        ).all()
         
-        test_facts = []
-        if entity_ids:
-            test_facts = db.query(models.MetricFact).filter(
-                models.MetricFact.entity_id.in_(entity_ids)
-            ).all()
+        # Use bulk delete for performance (much faster than loading into memory)
+        # Note: We need to get entity_ids first because bulk delete doesn't work with joins
+        all_entity_ids_for_facts = set(entity_ids) if entity_ids else set()
         
-        # Also delete facts that reference mock imports
-        import_facts = []
+        # Add entity IDs from mock connections (can't use join with bulk delete)
+        if mock_connection_ids:
+            mock_entity_ids = [
+                e.id for e in db.query(models.Entity).filter(
+                    models.Entity.connection_id.in_(mock_connection_ids)
+                ).all()
+            ]
+            all_entity_ids_for_facts.update(mock_entity_ids)
+        
+        total_deleted = 0
+        
+        # Delete facts by entity_id (combines both mock and test entities)
+        if all_entity_ids_for_facts:
+            fact_count = db.query(models.MetricFact).filter(
+                models.MetricFact.entity_id.in_(list(all_entity_ids_for_facts))
+            ).delete(synchronize_session=False)
+            total_deleted += fact_count
+            db.flush()
+            if fact_count > 0:
+                print(f"   ✅ Deleted {fact_count} metric facts by entity_id")
+        
+        # Delete facts that reference mock imports
         if import_ids:
-            import_facts = db.query(models.MetricFact).filter(
+            import_fact_count = db.query(models.MetricFact).filter(
                 models.MetricFact.import_id.in_(import_ids)
-            ).all()
+            ).delete(synchronize_session=False)
+            total_deleted += import_fact_count
+            db.flush()
+            if import_fact_count > 0:
+                print(f"   ✅ Deleted {import_fact_count} metric facts from mock imports")
         
-        # Combine and deduplicate
-        all_facts_dict = {f.id: f for f in (mock_facts + test_facts + import_facts)}
-        all_facts = list(all_facts_dict.values())
-        fact_count = len(all_facts)
-        
-        for fact in all_facts:
-            db.delete(fact)
-        db.flush()  # Commit fact deletions
-        print(f"   ✅ Deleted {fact_count} metric facts ({len(mock_facts)} from mock, {len(test_facts)} test, {len(import_facts)} from imports)")
+        print(f"   ✅ Total deleted: {total_deleted} metric facts")
         
         # 5. Delete entities
         print("   🏗️  Deleting entities from mock connections and test data...")
         entity_count = len(all_entities)
-        for entity in all_entities:
-            db.delete(entity)
-        db.flush()  # Commit entity deletions
-        print(f"   ✅ Deleted {entity_count} entities ({len(mock_entities)} from mock, {len(test_entities)} test)")
+        if entity_ids:
+            # Use bulk delete for better performance
+            deleted_count = db.query(models.Entity).filter(
+                models.Entity.id.in_(entity_ids)
+            ).delete(synchronize_session=False)
+            db.flush()
+            print(f"   ✅ Deleted {deleted_count} entities ({len(mock_entities)} from mock, {len(test_entities)} test)")
+        else:
+            print(f"   ℹ️  No entities to delete")
         
         # 6. Delete imports (now safe since all referencing facts are deleted)
         print("   📥 Deleting imports...")
         import_count = len(mock_imports)
-        for imp in mock_imports:
-            db.delete(imp)
-        db.flush()  # Commit import deletions
-        print(f"   ✅ Deleted {import_count} imports")
+        if import_ids:
+            deleted_imports = db.query(models.Import).filter(
+                models.Import.id.in_(import_ids)
+            ).delete(synchronize_session=False)
+            db.flush()
+            print(f"   ✅ Deleted {deleted_imports} imports")
+        else:
+            print(f"   ℹ️  No imports to delete")
         
         # 7. Delete fetches
         print("   📥 Deleting fetches...")
         fetch_count = len(mock_fetches)
-        for fetch in mock_fetches:
-            db.delete(fetch)
-        db.flush()  # Commit fetch deletions
-        print(f"   ✅ Deleted {fetch_count} fetches")
+        if fetch_ids:
+            deleted_fetches = db.query(models.Fetch).filter(
+                models.Fetch.id.in_(fetch_ids)
+            ).delete(synchronize_session=False)
+            db.flush()
+            print(f"   ✅ Deleted {deleted_fetches} fetches")
+        else:
+            print(f"   ℹ️  No fetches to delete")
         
         # 8. Delete compute runs (after Pnl is deleted)
         print("   ⚙️  Deleting compute runs (based on mock data)...")
         compute_count = db.query(models.ComputeRun).count()
-        compute_runs = db.query(models.ComputeRun).all()
-        for run in compute_runs:
-            db.delete(run)
-        db.flush()  # Commit compute run deletions
-        print(f"   ✅ Deleted {compute_count} compute runs")
+        if compute_count > 0:
+            deleted_runs = db.query(models.ComputeRun).delete(synchronize_session=False)
+            db.flush()
+            print(f"   ✅ Deleted {deleted_runs} compute runs")
+        else:
+            print(f"   ℹ️  No compute runs to delete")
         
         # 9. Delete mock connections
         print("   🔗 Deleting mock connections...")
-        for connection in mock_connections:
-            db.delete(connection)
-        db.flush()  # Commit connection deletions
-        print(f"   ✅ Deleted {len(mock_connections)} mock connection(s)")
+        if mock_connection_ids:
+            deleted_connections = db.query(models.Connection).filter(
+                models.Connection.id.in_(mock_connection_ids)
+            ).delete(synchronize_session=False)
+            db.flush()
+            print(f"   ✅ Deleted {deleted_connections} mock connection(s)")
+        else:
+            print(f"   ℹ️  No mock connections to delete")
         
         # 10. Optionally delete manual costs
         if not keep_manual_costs:
             print("   💵 Deleting manual costs...")
-            manual_costs = db.query(models.ManualCost).all()
-            manual_cost_count = len(manual_costs)
-            for cost in manual_costs:
-                db.delete(cost)
-            db.flush()
-            print(f"   ✅ Deleted {manual_cost_count} manual costs")
+            manual_cost_count = db.query(models.ManualCost).count()
+            if manual_cost_count > 0:
+                deleted_costs = db.query(models.ManualCost).delete(synchronize_session=False)
+                db.flush()
+                print(f"   ✅ Deleted {deleted_costs} manual costs")
+            else:
+                print(f"   ℹ️  No manual costs to delete")
         else:
             manual_cost_count = db.query(models.ManualCost).count()
             print(f"   ℹ️  Keeping {manual_cost_count} manual costs (use --delete-manual-costs to remove)")

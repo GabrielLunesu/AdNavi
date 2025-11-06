@@ -2,12 +2,14 @@
 "use client";
 import Sidebar from "./dashboard/components/Sidebar";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { currentUser } from "../../lib/auth";
 
 export default function DashboardLayout({ children }) {
   const [authed, setAuthed] = useState(null);
   const router = useRouter();
+  const pathname = usePathname();
+  const immersive = pathname === "/canvas";
 
   useEffect(() => {
     let mounted = true;
@@ -57,13 +59,13 @@ export default function DashboardLayout({ children }) {
       />
 
       {/* Dashboard Shell */}
-      <div className="flex min-h-screen relative z-10">
+      <div className={`flex min-h-screen relative z-10 ${immersive ? "" : ""}`}>
         {/* Sidebar */}
-        <Sidebar />
+        {!immersive && <Sidebar />}
 
         {/* Main Content */}
-        <main className="flex-1 ml-72 p-8 pt-12">
-          <div className="max-w-7xl mx-auto">
+        <main className={`flex-1 ${immersive ? "p-0" : "ml-72 p-8 pt-12"}`}>
+          <div className={immersive ? "w-full" : "max-w-7xl mx-auto"}>
             {children}
           </div>
         </main>
