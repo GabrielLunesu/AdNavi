@@ -161,6 +161,67 @@ def ensure_google_connection_from_env(
 
 
 @router.post(
+    "/meta/from-env",
+    response_model=schemas.ConnectionOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create/ensure Meta Ads connection from environment",
+    description="""
+    Creates a Meta Ads connection for the current workspace using env vars:
+    - META_ACCESS_TOKEN (required)
+    - META_AD_ACCOUNT_ID (required)
+
+    Stores the access token encrypted. If a connection already exists, updates
+    its token.
+    """
+)
+def ensure_meta_connection_from_env(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    access_token = os.getenv("META_ACCESS_TOKEN")
+    ad_account_id = os.getenv("META_AD_ACCOUNT_ID")
+    
+    if not access_token:
+        raise HTTPException(status_code=400, detail="Missing env var: META_ACCESS_TOKEN")
+    if not ad_account_id:
+        raise HTTPException(status_code=400, detail="Missing env var: META_AD_ACCOUNT_ID")
+    
+    # Upsert connection
+    connection = db.query(Connection).filter(
+        Connection.workspace_id == current_user.workspace_id,
+        Connection.provider == ProviderEnum.meta,
+        Connection.external_account_id == ad_account_id,
+    ).first()
+    
+    if connection is None:
+        connection = Connection(
+            provider=ProviderEnum.meta,
+            external_account_id=ad_account_id,
+            name=f"Meta Ads - {ad_account_id}",
+            status="active",
+            connected_at=datetime.utcnow(),
+            workspace_id=current_user.workspace_id,
+        )
+        db.add(connection)
+        db.flush()
+    
+    # Store encrypted access token
+    store_connection_token(
+        db,
+        connection,
+        access_token=access_token,
+        refresh_token=None,
+        expires_at=None,
+        scope="system-user",
+        ad_account_ids=[ad_account_id],
+    )
+    
+    db.commit()
+    db.refresh(connection)
+    return connection
+
+
+@router.post(
     "/",
     response_model=schemas.ConnectionOut,
     status_code=status.HTTP_201_CREATED,

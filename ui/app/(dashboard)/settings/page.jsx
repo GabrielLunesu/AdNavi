@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Settings, RefreshCw, ExternalLink, Calendar } from 'lucide-react';
 import { currentUser } from '@/lib/auth';
-import { fetchConnections, ensureGoogleConnectionFromEnv } from '@/lib/api';
+import { fetchConnections, ensureGoogleConnectionFromEnv, ensureMetaConnectionFromEnv } from '@/lib/api';
 import MetaSyncButton from '@/components/MetaSyncButton';
 import GoogleSyncButton from '@/components/GoogleSyncButton';
 
@@ -43,6 +43,13 @@ export default function SettingsPage() {
           const hasGoogle = (connectionsData.connections || []).some(c => c.provider === 'google');
           if (!hasGoogle) {
             await ensureGoogleConnectionFromEnv();
+            connectionsData = await fetchConnections({ workspaceId: currentUserData.workspace_id });
+          }
+
+          // If Meta connection missing, attempt to create from env (no-op if env missing)
+          const hasMeta = (connectionsData.connections || []).some(c => c.provider === 'meta');
+          if (!hasMeta) {
+            await ensureMetaConnectionFromEnv();
             connectionsData = await fetchConnections({ workspaceId: currentUserData.workspace_id });
           }
 

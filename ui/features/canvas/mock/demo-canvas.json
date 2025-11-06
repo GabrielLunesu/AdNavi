@@ -1,0 +1,115 @@
+{
+  "nodes": [
+    {
+      "id": "campaign:1",
+      "type": "campaign",
+      "position": { "x": 80, "y": 40 },
+      "data": { "name": "Meta Spring Boost", "status": "active", "platform": "meta", "kpis": { "roas": "3.2×", "spend": "€540", "cpa": "€12", "ctr": "2.1%", "conversions": 42 } }
+    },
+    {
+      "id": "adset:1a",
+      "type": "adset",
+      "position": { "x": 420, "y": -20 },
+      "data": { "name": "Prospecting", "status": "active", "kpis": { "spend": "€240", "roas": "3.5×", "ctr": "3.0%", "conversions": 18 } }
+    },
+    {
+      "id": "adset:1b",
+      "type": "adset",
+      "position": { "x": 420, "y": 140 },
+      "data": { "name": "Retargeting", "status": "active", "kpis": { "spend": "€300", "roas": "2.9×", "ctr": "2.8%", "conversions": 26 } }
+    },
+    {
+      "id": "ad:1a1",
+      "type": "ad",
+      "position": { "x": 700, "y": -40 },
+      "data": { "name": "Carousel Variant A", "kpis": { "ctr": "3.2%" } }
+    },
+    {
+      "id": "ad:1a2",
+      "type": "ad",
+      "position": { "x": 700, "y": 80 },
+      "data": { "name": "Carousel Variant B", "kpis": { "ctr": "2.6%" } }
+    },
+    {
+      "id": "ad:1b1",
+      "type": "ad",
+      "position": { "x": 700, "y": 200 },
+      "data": { "name": "Video Story", "kpis": { "ctr": "2.8%" } }
+    },
+    {
+      "id": "campaign:2",
+      "type": "campaign",
+      "position": { "x": 80, "y": 320 },
+      "data": { "name": "Google Search Pro", "status": "paused", "platform": "google", "kpis": { "roas": "2.8×", "spend": "€680", "cpa": "€18", "ctr": "4.1%", "conversions": 31 } }
+    },
+    {
+      "id": "adset:2a",
+      "type": "adset",
+      "position": { "x": 420, "y": 280 },
+      "data": { "name": "Brand Keywords", "status": "active", "kpis": { "spend": "€180", "roas": "3.1×", "ctr": "4.9%", "conversions": 22 } }
+    },
+    {
+      "id": "adset:2b",
+      "type": "adset",
+      "position": { "x": 420, "y": 440 },
+      "data": { "name": "Competitor Terms", "status": "paused", "kpis": { "spend": "€220", "roas": "1.9×", "ctr": "3.4%", "conversions": 9 } }
+    },
+    {
+      "id": "ad:2a1",
+      "type": "ad",
+      "position": { "x": 700, "y": 260 },
+      "data": { "name": "Responsive Search A", "kpis": { "ctr": "4.2%" } }
+    },
+    {
+      "id": "ad:2a2",
+      "type": "ad",
+      "position": { "x": 700, "y": 360 },
+      "data": { "name": "Responsive Search B", "kpis": { "ctr": "3.8%" } }
+    },
+    {
+      "id": "ad:2b1",
+      "type": "ad",
+      "position": { "x": 700, "y": 460 },
+      "data": { "name": "Promo Group", "kpis": { "ctr": "2.1%" } }
+    },
+    {
+      "id": "campaign:3",
+      "type": "campaign",
+      "position": { "x": 80, "y": 620 },
+      "data": { "name": "TikTok Product Launch", "status": "active", "platform": "tiktok", "kpis": { "roas": "1.8×", "spend": "€420", "cpa": "€21", "ctr": "2.3%", "conversions": 14 } }
+    },
+    {
+      "id": "adset:3a",
+      "type": "adset",
+      "position": { "x": 420, "y": 600 },
+      "data": { "name": "Spark Ads", "status": "active", "kpis": { "spend": "€210", "roas": "2.0×" } }
+    },
+    {
+      "id": "ad:3a1",
+      "type": "ad",
+      "position": { "x": 700, "y": 580 },
+      "data": { "name": "UGC Clip A", "kpis": { "ctr": "1.9%" } }
+    },
+    {
+      "id": "ad:3a2",
+      "type": "ad",
+      "position": { "x": 700, "y": 680 },
+      "data": { "name": "UGC Clip B", "kpis": { "ctr": "2.2%" } }
+    }
+  ],
+  "edges": [
+    { "id": "campaign:1->adset:1a", "source": "campaign:1", "target": "adset:1a" },
+    { "id": "campaign:1->adset:1b", "source": "campaign:1", "target": "adset:1b" },
+    { "id": "adset:1a->ad:1a1", "source": "adset:1a", "target": "ad:1a1" },
+    { "id": "adset:1a->ad:1a2", "source": "adset:1a", "target": "ad:1a2" },
+    { "id": "adset:1b->ad:1b1", "source": "adset:1b", "target": "ad:1b1" },
+    { "id": "campaign:2->adset:2a", "source": "campaign:2", "target": "adset:2a" },
+    { "id": "campaign:2->adset:2b", "source": "campaign:2", "target": "adset:2b" },
+    { "id": "adset:2a->ad:2a1", "source": "adset:2a", "target": "ad:2a1" },
+    { "id": "adset:2a->ad:2a2", "source": "adset:2a", "target": "ad:2a2" },
+    { "id": "adset:2b->ad:2b1", "source": "adset:2b", "target": "ad:2b1" },
+    { "id": "campaign:3->adset:3a", "source": "campaign:3", "target": "adset:3a" },
+    { "id": "adset:3a->ad:3a1", "source": "adset:3a", "target": "ad:3a1" },
+    { "id": "adset:3a->ad:3a2", "source": "adset:3a", "target": "ad:3a2" }
+  ]
+}

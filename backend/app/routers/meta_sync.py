@@ -467,6 +467,8 @@ def _determine_date_range(
     # Default end: yesterday (today's data incomplete in Meta)
     end_date = request.end_date or (datetime.utcnow().date() - timedelta(days=1))
     
+    logger.debug(f"[META_SYNC] Date calculation: end_date={end_date}, connection.connected_at={connection.connected_at}")
+    
     if request.force_refresh:
         # Full 90-day refresh
         start_date = end_date - timedelta(days=90)
@@ -490,23 +492,40 @@ def _determine_date_range(
                 f"last date was {last_date}, starting from {start_date}"
             )
         else:
-            # First sync: 90 days from connection date
-            start_date = connection.connected_at.date()
-            # But cap at 90 days ago
-            min_start = end_date - timedelta(days=90)
-            start_date = max(start_date, min_start)
+            # First sync: Always go back 90 days from end_date
+            # This ensures we get historical data even if connection was created today
+            # Use min 30 days to ensure we get data even if Meta has limited history
+            days_back = 90
+            # Safety: if connection was just created today, use 30 days instead
+            if connection.connected_at.date() >= end_date:
+                days_back = 30
+                logger.info(
+                    f"[META_SYNC] Connection created today ({connection.connected_at.date()}), "
+                    f"using {days_back}-day range for first sync"
+                )
+            start_date = end_date - timedelta(days=days_back)
             logger.info(
                 f"[META_SYNC] First sync: "
-                f"90-day historical backfill {start_date} to {end_date}"
+                f"{days_back}-day historical backfill {start_date} to {end_date} "
+                f"({(end_date - start_date).days + 1} days total)"
             )
     
     # Ensure start <= end
     if start_date > end_date:
         logger.warning(
-            f"[META_SYNC] No new data to sync: "
-            f"start {start_date} > end {end_date}"
+            f"[META_SYNC] Invalid date range: start {start_date} > end {end_date}. "
+            f"Adjusting to sync last 30 days as fallback."
         )
-        start_date = end_date
+        # If start > end (shouldn't happen with new logic, but safety fallback)
+        # Use last 30 days to ensure we get data
+        start_date = end_date - timedelta(days=29)  # 30 days total (inclusive)
+        if start_date > end_date:
+            start_date = end_date
+    
+    logger.info(
+        f"[META_SYNC] Final date range: {start_date} to {end_date} "
+        f"({(end_date - start_date).days + 1} days)"
+    )
     
     return start_date, end_date
 
@@ -687,19 +706,19 @@ async def sync_metrics(
         # 2. Determine date range
         start_date, end_date = _determine_date_range(connection, db, request)
         
-        if start_date > end_date:
-            logger.info("[META_SYNC] No new data to sync")
-            return MetricsSyncResponse(
-                success=True,
-                synced=MetricsSyncStats(
-                    facts_ingested=0,
-                    facts_skipped=0,
-                    date_range=DateRange(start=start_date, end=end_date),
-                    ads_processed=0,
-                    duration_seconds=0.0
-                ),
-                errors=["No new data to sync (start date > end date)"]
+        # Safety check: if range is still invalid or too small, force a 30-day range
+        if start_date > end_date or (end_date - start_date).days < 1:
+            logger.warning(
+                f"[META_SYNC] Date range invalid or too small ({start_date} to {end_date}), "
+                f"forcing 30-day range for first sync"
             )
+            end_date = datetime.utcnow().date() - timedelta(days=1)
+            start_date = end_date - timedelta(days=29)
+        
+        logger.info(
+            f"[META_SYNC] Using date range: {start_date} to {end_date} "
+            f"({(end_date - start_date).days + 1} days)"
+        )
         
         # 3. Get all ad-level entities
         ad_entities = db.query(Entity).filter(
@@ -753,29 +772,65 @@ async def sync_metrics(
                         )
                         
                         if not insights:
-                            logger.debug(
-                                f"[META_SYNC] No insights for ad {ad_entity.external_id} "
-                                f"({chunk_start} to {chunk_end})"
-                            )
-                            continue
+                            # If no insights for this date range, try last 7 days as fallback
+                            # Meta sometimes doesn't have data for recent dates or single days
+                            fallback_end = datetime.utcnow().date() - timedelta(days=1)
+                            fallback_start = fallback_end - timedelta(days=6)
+                            
+                            if chunk_start != fallback_start or chunk_end != fallback_end:
+                                logger.info(
+                                    f"[META_SYNC] No insights for {chunk_start} to {chunk_end}, "
+                                    f"trying fallback range: {fallback_start} to {fallback_end}"
+                                )
+                                insights = client.get_insights(
+                                    entity_id=ad_entity.external_id,
+                                    start_date=fallback_start.isoformat(),
+                                    end_date=fallback_end.isoformat(),
+                                    level="ad",
+                                    time_increment=1
+                                )
+                            
+                            if not insights:
+                                logger.warning(
+                                    f"[META_SYNC] No insights returned from Meta API for ad {ad_entity.external_id} "
+                                    f"even with fallback range. This may indicate no spend/data for this ad."
+                                )
+                                continue
+                        
+                        logger.info(
+                            f"[META_SYNC] Meta API returned {len(insights)} insights for ad {ad_entity.external_id} "
+                            f"({chunk_start} to {chunk_end})"
+                        )
                         
                         # ii. Parse insights into MetricFactCreate objects
                         facts_to_ingest = []
                         
                         for insight in insights:
-                            # Parse basic metrics
-                            spend = float(insight.get("spend", 0))
-                            impressions = int(insight.get("impressions", 0))
-                            clicks = int(insight.get("clicks", 0))
+                            # Parse basic metrics (handle empty strings and None from Meta API)
+                            spend_str = insight.get("spend", "0") or "0"
+                            spend = float(spend_str) if spend_str else 0.0
                             
-                            # Parse actions (conversions/leads/purchases/revenue)
-                            parsed_actions = _parse_actions(insight)
+                            impressions_str = insight.get("impressions", "0") or "0"
+                            impressions = int(float(impressions_str)) if impressions_str else 0
+                            
+                            clicks_str = insight.get("clicks", "0") or "0"
+                            clicks = int(float(clicks_str)) if clicks_str else 0
                             
                             # Get date from insight
                             date_start = insight.get("date_start")
                             if not date_start:
                                 logger.warning("[META_SYNC] Insight missing date_start, skipping")
                                 continue
+                            
+                            # Debug logging for spend issues
+                            if spend > 0:
+                                logger.debug(
+                                    f"[META_SYNC] Ad {ad_entity.external_id} on {date_start}: "
+                                    f"spend=${spend}, impressions={impressions}, clicks={clicks}"
+                                )
+                            
+                            # Parse actions (conversions/leads/purchases/revenue)
+                            parsed_actions = _parse_actions(insight)
                             
                             # Create MetricFactCreate
                             fact = MetricFactCreate(

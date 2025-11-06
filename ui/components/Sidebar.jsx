@@ -5,7 +5,8 @@ import SidebarSection from "./SidebarSection";
 import NavItem from "./NavItem";
 import WorkspaceSummary from "./WorkspaceSummary";
 import { usePathname } from "next/navigation";
-import { Home, BarChart3, MessageSquare, Banknote, Target, Settings } from "lucide-react";
+import { Home, BarChart3, MessageSquare, Banknote, Target, Settings, GitBranch } from "lucide-react";
+import features from "../lib/features";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { currentUser, logout } from "../lib/auth";
@@ -64,6 +65,9 @@ export default function Sidebar() {
         <NavItem href="/copilot" label="Copilot" icon={<MessageSquare size={16} />} active={pathname?.startsWith('/copilot')} />
         <NavItem href="/finance" label="Finance (P&L)" icon={<Banknote size={16} />} active={pathname === "/finance"} />
         <NavItem href="/campaigns" label="Campaigns" icon={<Target size={16} />} active={pathname?.startsWith('/campaigns')} />
+        {features.canvas && (
+          <NavItem href="/canvas" label="Canvas" icon={<GitBranch size={16} />} active={pathname === "/canvas"} />
+        )}
         <NavItem href="#" label="Settings" icon={<Settings size={16} />} active={false} />
       </SidebarSection>
     </aside>

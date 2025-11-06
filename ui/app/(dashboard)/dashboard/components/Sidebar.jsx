@@ -1,9 +1,10 @@
 'use client'
 
 import { usePathname } from "next/navigation";
-import { Home, BarChart3, Bot, Receipt, Megaphone, Settings } from "lucide-react";
+import { Home, BarChart3, Bot, Receipt, Megaphone, Settings, GitBranch } from "lucide-react";
 import { useEffect, useState } from "react";
 import { currentUser, logout } from "../../../../lib/auth";
+import features from "../../../../lib/features";
 import { fetchWorkspaceInfo } from "../../../../lib/api";
 
 export default function Sidebar() {
@@ -38,6 +39,7 @@ export default function Sidebar() {
     { href: "/copilot", label: "Copilot", icon: Bot, active: pathname?.startsWith('/copilot') },
     { href: "/finance", label: "Finance (P&L)", icon: Receipt, active: pathname === "/finance" },
     { href: "/campaigns", label: "Campaigns", icon: Megaphone, active: pathname?.startsWith('/campaigns') },
+    ...(features.canvas ? [{ href: "/canvas", label: "Canvas", icon: GitBranch, active: pathname === "/canvas" }] : []),
     { href: "/settings", label: "Settings", icon: Settings, active: pathname === "/settings" },
   ];
 
@@ -114,4 +116,3 @@ export default function Sidebar() {
     </aside>
   );
 }
-
