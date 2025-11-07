@@ -9,8 +9,8 @@ export default function PrivacyPolicy() {
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 glass-nav border-b border-neutral-200/40 bg-white/80 backdrop-blur-lg">
         <div className="max-w-7xl mx-auto px-8 py-4 flex items-center justify-between">
-          <a href="/" className="text-2xl font-semibold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-black to-cyan-600" style={{ letterSpacing: '-0.05em' }}>
-            AdNavi
+          <a href="/" className="flex items-center">
+            <img src="/adnavi.png" alt="AdNavi" className="h-12 w-auto" style={{ maxHeight: '48px' }} />
           </a>
           <div className="flex items-center gap-8">
             <a href="/#features" className="text-sm font-medium text-neutral-600 hover:text-cyan-600 transition-colors">Features</a>
@@ -326,15 +326,13 @@ export default function PrivacyPolicy() {
       <footer className="py-12 px-8 border-t border-neutral-200/60">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-between flex-wrap gap-8">
-            <p className="text-2xl font-semibold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-black to-cyan-600" style={{ letterSpacing: '-0.05em' }}>
-              AdNavi
-            </p>
+            <a href="/" className="flex items-center">
+              <img src="/adnavi.png" alt="AdNavi" className="h-12 w-auto" style={{ maxHeight: '48px' }} />
+            </a>
             <nav className="flex items-center gap-8 flex-wrap">
-              <a href="/dashboard" className="text-sm font-medium text-neutral-500 hover:text-cyan-600 transition-colors">Dashboard</a>
-              <a href="/analytics" className="text-sm font-medium text-neutral-500 hover:text-cyan-600 transition-colors">Analytics</a>
-              <a href="/copilot" className="text-sm font-medium text-neutral-500 hover:text-cyan-600 transition-colors">Copilot</a>
-              <a href="/finance" className="text-sm font-medium text-neutral-500 hover:text-cyan-600 transition-colors">Finance</a>
-              <a href="/campaigns" className="text-sm font-medium text-neutral-500 hover:text-cyan-600 transition-colors">Campaigns</a>
+              <a href="/#features" className="text-sm font-medium text-neutral-500 hover:text-cyan-600 transition-colors">Features</a>
+              <a href="/#how-it-works" className="text-sm font-medium text-neutral-500 hover:text-cyan-600 transition-colors">How It Works</a>
+              <a href="/#showcase" className="text-sm font-medium text-neutral-500 hover:text-cyan-600 transition-colors">Showcase</a>
               <a href="/#contact" className="text-sm font-medium text-neutral-500 hover:text-cyan-600 transition-colors">Contact</a>
             </nav>
           </div>
