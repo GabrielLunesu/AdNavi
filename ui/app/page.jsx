@@ -354,8 +354,8 @@ export default function HomePage() {
           <div className="mt-8 pt-8 border-t border-neutral-200/60 flex items-center justify-between flex-wrap gap-4">
             <p className="text-sm text-neutral-500">© 2024 AdNavi. All rights reserved.</p>
             <div className="flex items-center gap-6">
-              <a href="#" className="text-sm text-neutral-500 hover:text-cyan-600 transition-colors">Privacy Policy</a>
-              <a href="#" className="text-sm text-neutral-500 hover:text-cyan-600 transition-colors">Terms of Service</a>
+              <a href="/privacy" className="text-sm text-neutral-500 hover:text-cyan-600 transition-colors">Privacy Policy</a>
+              <a href="/terms" className="text-sm text-neutral-500 hover:text-cyan-600 transition-colors">Terms of Service</a>
             </div>
           </div>
         </div>

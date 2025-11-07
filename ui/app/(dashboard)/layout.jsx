@@ -1,6 +1,7 @@
 // Dashboard-scoped layout. Provides the shell (sidebar + content area).
 "use client";
 import Sidebar from "./dashboard/components/Sidebar";
+import FooterDashboard from "../../components/FooterDashboard";
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { currentUser } from "../../lib/auth";
@@ -67,6 +68,7 @@ export default function DashboardLayout({ children }) {
         <main className={`flex-1 ${immersive ? "p-0" : "ml-72 p-8 pt-12"}`}>
           <div className={immersive ? "w-full" : "max-w-7xl mx-auto"}>
             {children}
+            {!immersive && <FooterDashboard />}
           </div>
         </main>
       </div>
