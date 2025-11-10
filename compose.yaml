@@ -24,10 +24,10 @@ services:
       REDIS_URL: ${REDIS_URL:-redis://localhost:6379/0}
       
       # CORS Configuration - allow both versions
-      BACKEND_CORS_ORIGINS: "https://t8zgrthold5r2-frontend--3000.prod1.defang.dev"
+      BACKEND_CORS_ORIGINS: "https://www.adnavi.app"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 3s
+      interval: 10s
       timeout: 5s
       retries: 3
       start_period: 20s
@@ -43,14 +43,14 @@ services:
       dockerfile: Dockerfile
       args:
         # Backend URL passed at build time for Next.js
-        NEXT_PUBLIC_API_BASE: https://t8zgrthold5r2-backend--8000.prod1.defang.dev
+        NEXT_PUBLIC_API_BASE: https://t8zgrthold5r2-backend--8000.prod2.defang.dev
     ports:
       - mode: ingress
         target: 3000
     environment:
       # Backend API URL
      
-      NEXT_PUBLIC_API_BASE: https://t8zgrthold5r2-backend--8000.prod1.defang.dev
+      NEXT_PUBLIC_API_BASE: https://t8zgrthold5r2-backend--8000.prod2.defang.dev
       NODE_ENV: production
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/"]
