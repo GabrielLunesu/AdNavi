@@ -1,5 +1,7 @@
 """Authentication endpoints: register, login, me, logout."""
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
@@ -8,6 +10,8 @@ from ..database import get_db
 from ..deps import get_current_user, get_settings
 from ..models import User, Workspace, AuthCredential, RoleEnum
 from ..security import create_access_token, get_password_hash, verify_password
+
+logger = logging.getLogger(__name__)
 
 
 router = APIRouter(
@@ -283,5 +287,161 @@ def logout_user(response: Response):
     response.set_cookie(**cookie_kwargs)
     return schemas.SuccessResponse(detail="logged out")
 
+
+@router.delete(
+    "/delete-account",
+    response_model=schemas.SuccessResponse,
+    summary="Delete user account",
+    description="""
+    Permanently delete the current user's account and all associated data.
+    
+    This endpoint:
+    - Deletes the user account
+    - Deletes all workspace data (if user is the only member)
+    - Deletes all connections, entities, metrics, and queries
+    - Deletes authentication credentials
+    - This action cannot be undone
+    
+    GDPR/CCPA Compliance:
+    - Fulfills user's right to erasure
+    - Permanently removes all personal and activity data
+    - Complies with Privacy Policy section 7.3
+    """,
+    responses={
+        200: {
+            "model": schemas.SuccessResponse,
+            "description": "Account successfully deleted",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Account deleted successfully"}
+                }
+            }
+        },
+        401: {
+            "model": schemas.ErrorResponse,
+            "description": "Not authenticated",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Not authenticated"}
+                }
+            }
+        }
+    }
+)
+def delete_account(
+    response: Response,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Delete user account and all associated data (GDPR/CCPA compliant).
+    
+    WHAT:
+        Permanently deletes user account, workspace (if sole user), and all related data.
+    WHY:
+        Users have the right to delete their data per GDPR/CCPA regulations.
+    REFERENCES:
+        - docs/PRIVACY_POLICY.md (Section 7.3 - Deletion)
+        - Privacy Policy page (/privacy)
+    """
+    from app.models import (
+        AuthCredential, QaQueryLog, MetricFact, Entity, 
+        Connection, Token, Workspace, ManualCost
+    )
+    
+    user_id = current_user.id
+    workspace_id = current_user.workspace_id
+    
+    logger.info(f"[DELETE_ACCOUNT] Starting account deletion for user {user_id}")
+    
+    try:
+        # Check if user is the only one in the workspace
+        users_in_workspace = db.query(User).filter(User.workspace_id == workspace_id).all()
+        delete_workspace = len(users_in_workspace) == 1
+        
+        # Delete user's query logs
+        db.query(QaQueryLog).filter(QaQueryLog.user_id == user_id).delete()
+        logger.info(f"[DELETE_ACCOUNT] Deleted query logs for user {user_id}")
+        
+        # Delete auth credentials
+        db.query(AuthCredential).filter(AuthCredential.user_id == user_id).delete()
+        logger.info(f"[DELETE_ACCOUNT] Deleted auth credentials for user {user_id}")
+        
+        if delete_workspace:
+            logger.info(f"[DELETE_ACCOUNT] User is sole member, deleting workspace {workspace_id}")
+            
+            # Delete all workspace data
+            # 1. Delete metric facts
+            db.query(MetricFact).filter(
+                MetricFact.entity_id.in_(
+                    db.query(Entity.id).filter(Entity.workspace_id == workspace_id)
+                )
+            ).delete(synchronize_session=False)
+            
+            # 2. Delete entities
+            db.query(Entity).filter(Entity.workspace_id == workspace_id).delete()
+            
+            # 3. Delete manual costs
+            db.query(ManualCost).filter(ManualCost.workspace_id == workspace_id).delete()
+            
+            # 4. Delete tokens associated with connections
+            connection_ids = [c.id for c in db.query(Connection.id).filter(
+                Connection.workspace_id == workspace_id
+            ).all()]
+            
+            if connection_ids:
+                # Get token IDs from connections
+                token_ids = [t[0] for t in db.query(Connection.token_id).filter(
+                    Connection.id.in_(connection_ids),
+                    Connection.token_id.isnot(None)
+                ).all()]
+                
+                # Delete connections
+                db.query(Connection).filter(Connection.workspace_id == workspace_id).delete()
+                
+                # Delete orphaned tokens
+                if token_ids:
+                    db.query(Token).filter(Token.id.in_(token_ids)).delete(synchronize_session=False)
+            
+            # 5. Delete all query logs for workspace
+            db.query(QaQueryLog).filter(QaQueryLog.workspace_id == workspace_id).delete()
+            
+            # 6. Delete the workspace
+            db.query(Workspace).filter(Workspace.id == workspace_id).delete()
+            
+            logger.info(f"[DELETE_ACCOUNT] Deleted workspace {workspace_id} and all associated data")
+        
+        # Delete the user
+        db.query(User).filter(User.id == user_id).delete()
+        
+        db.commit()
+        logger.info(f"[DELETE_ACCOUNT] Successfully deleted user {user_id}")
+        
+        # Clear the authentication cookie
+        settings = get_settings()
+        cookie_kwargs = {
+            "key": "access_token",
+            "value": "",
+            "max_age": 0,
+            "httponly": True,
+            "samesite": "none",
+            "secure": True,
+            "path": "/",
+        }
+        
+        if settings.COOKIE_DOMAIN:
+            cookie_kwargs["domain"] = settings.COOKIE_DOMAIN
+        
+        response.set_cookie(**cookie_kwargs)
+        
+        return schemas.SuccessResponse(detail="Account deleted successfully")
+        
+    except Exception as e:
+        db.rollback()
+        logger.exception(f"[DELETE_ACCOUNT] Failed to delete account for user {user_id}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete account: {str(e)}"
+        )
 
 

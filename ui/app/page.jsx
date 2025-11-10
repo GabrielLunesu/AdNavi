@@ -33,8 +33,8 @@ export default function HomePage() {
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 glass-nav border-b border-neutral-200/40">
         <div className="max-w-7xl mx-auto px-8 py-4 flex items-center justify-between">
-          <a href="#" className="text-2xl font-semibold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-black to-cyan-600" style={{ letterSpacing: '-0.05em' }}>
-            AdNavi
+          <a href="/" className="flex items-center">
+            <img src="/adnavi.png" alt="AdNavi" className="h-14" />
           </a>
           <div className="flex items-center gap-8">
             <a href="#features" className="text-sm font-medium text-neutral-600 hover:text-cyan-600 transition-colors">Features</a>
@@ -339,23 +339,22 @@ export default function HomePage() {
       <footer className="py-12 px-8 border-t border-neutral-200/60">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-between flex-wrap gap-8">
-            <p className="text-2xl font-semibold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-black to-cyan-600" style={{ letterSpacing: '-0.05em' }}>
-              AdNavi
-            </p>
+            <a href="/" className="flex items-center">
+              <img src="/adnavi.png" alt="AdNavi" className="h-8" />
+            </a>
             <nav className="flex items-center gap-8 flex-wrap">
-              <a href="/dashboard" className="text-sm font-medium text-neutral-500 hover:text-cyan-600 transition-colors">Dashboard</a>
-              <a href="/analytics" className="text-sm font-medium text-neutral-500 hover:text-cyan-600 transition-colors">Analytics</a>
-              <a href="/copilot" className="text-sm font-medium text-neutral-500 hover:text-cyan-600 transition-colors">Copilot</a>
-              <a href="/finance" className="text-sm font-medium text-neutral-500 hover:text-cyan-600 transition-colors">Finance</a>
-              <a href="/campaigns" className="text-sm font-medium text-neutral-500 hover:text-cyan-600 transition-colors">Campaigns</a>
+              <a href="#features" className="text-sm font-medium text-neutral-500 hover:text-cyan-600 transition-colors">Features</a>
+              <a href="#how-it-works" className="text-sm font-medium text-neutral-500 hover:text-cyan-600 transition-colors">How It Works</a>
+              <a href="#showcase" className="text-sm font-medium text-neutral-500 hover:text-cyan-600 transition-colors">Showcase</a>
               <a href="#contact" className="text-sm font-medium text-neutral-500 hover:text-cyan-600 transition-colors">Contact</a>
             </nav>
           </div>
           <div className="mt-8 pt-8 border-t border-neutral-200/60 flex items-center justify-between flex-wrap gap-4">
             <p className="text-sm text-neutral-500">© 2024 AdNavi. All rights reserved.</p>
             <div className="flex items-center gap-6">
-              <a href="#" className="text-sm text-neutral-500 hover:text-cyan-600 transition-colors">Privacy Policy</a>
-              <a href="#" className="text-sm text-neutral-500 hover:text-cyan-600 transition-colors">Terms of Service</a>
+              <a href="/privacy" className="text-sm text-neutral-500 hover:text-cyan-600 transition-colors">Privacy Policy</a>
+              <a href="/terms" className="text-sm text-neutral-500 hover:text-cyan-600 transition-colors">Terms of Service</a>
+              <a href="/settings" className="text-sm text-neutral-500 hover:text-cyan-600 transition-colors">Delete My Data</a>
             </div>
           </div>
         </div>

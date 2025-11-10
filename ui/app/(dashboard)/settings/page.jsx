@@ -1,11 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react';
-import { Settings, RefreshCw, ExternalLink, Calendar } from 'lucide-react';
+import { Settings, RefreshCw, ExternalLink, Calendar, Trash2, AlertTriangle } from 'lucide-react';
 import { currentUser } from '@/lib/auth';
-import { fetchConnections, ensureGoogleConnectionFromEnv, ensureMetaConnectionFromEnv } from '@/lib/api';
+import { fetchConnections, ensureGoogleConnectionFromEnv, ensureMetaConnectionFromEnv, deleteUserAccount } from '@/lib/api';
 import MetaSyncButton from '@/components/MetaSyncButton';
 import GoogleSyncButton from '@/components/GoogleSyncButton';
+import GoogleConnectButton from '@/components/GoogleConnectButton';
 
 /**
  * Settings Page
@@ -25,6 +26,8 @@ export default function SettingsPage() {
   const [connections, setConnections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -80,6 +83,20 @@ export default function SettingsPage() {
       fetchConnections({ workspaceId: user.workspace_id })
         .then(data => setConnections(data.connections || []))
         .catch(err => console.error('Failed to refresh connections:', err));
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!showDeleteConfirm) return;
+    
+    setDeleteLoading(true);
+    try {
+      await deleteUserAccount();
+      // Redirect to home after successful deletion
+      window.location.href = '/';
+    } catch (err) {
+      alert('Failed to delete account: ' + (err.message || 'Unknown error'));
+      setDeleteLoading(false);
     }
   };
 
@@ -163,6 +180,22 @@ export default function SettingsPage() {
         <h1 className="text-2xl font-semibold text-neutral-900">Settings</h1>
       </div>
 
+      {/* Connect New Account Section */}
+      <div className="mb-8">
+        <h2 className="text-lg font-semibold text-neutral-900 mb-4">Connect Ad Accounts</h2>
+        <div className="p-6 bg-white border border-neutral-200 rounded-xl">
+          <div className="flex items-start gap-4">
+            <div className="flex-1">
+              <h3 className="text-base font-semibold text-neutral-900 mb-2">Google Ads</h3>
+              <p className="text-sm text-neutral-600 mb-4">
+                Connect your Google Ads account to sync campaigns, performance data, and analytics.
+              </p>
+              <GoogleConnectButton onConnectionComplete={handleSyncComplete} />
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Connected Accounts Section */}
       <div className="mb-8">
         <h2 className="text-lg font-semibold text-neutral-900 mb-4">Connected Ad Accounts</h2>
@@ -170,7 +203,7 @@ export default function SettingsPage() {
         {connections.length === 0 ? (
           <div className="p-8 bg-neutral-50 border border-neutral-200 rounded-xl text-center text-neutral-600">
             <p className="mb-2">No ad accounts connected yet.</p>
-            <p className="text-sm">Connect your ad platforms to start syncing data.</p>
+            <p className="text-sm">Use the "Connect Ad Accounts" section above to get started.</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -243,16 +276,72 @@ export default function SettingsPage() {
       </div>
 
       {/* Info Section */}
-      <div className="p-6 bg-neutral-50 border border-neutral-200 rounded-xl">
+      <div className="mb-8 p-6 bg-neutral-50 border border-neutral-200 rounded-xl">
         <h3 className="text-sm font-semibold text-neutral-900 mb-2">About Syncing</h3>
         <p className="text-sm text-neutral-600 mb-2">
-          Syncing fetches the latest campaigns, ad sets, and ads from your Meta Ads account,
+          Syncing fetches the latest campaigns, ad sets, and ads from your ad accounts,
           along with performance metrics for the last 90 days.
         </p>
         <p className="text-sm text-neutral-600">
           The sync process may take a few minutes depending on the size of your account.
           Large accounts with many campaigns may take longer.
         </p>
+      </div>
+
+      {/* Delete Account Section */}
+      <div className="mb-8 p-6 bg-red-50 border border-red-200 rounded-xl">
+        <div className="flex items-start gap-3 mb-4">
+          <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <h3 className="text-sm font-semibold text-red-900 mb-2">Delete Account & Data</h3>
+            <p className="text-sm text-red-800 mb-4">
+              Permanently delete your account and all associated data. This action cannot be undone.
+              All connections, campaigns, and analytics data will be permanently removed.
+            </p>
+            
+            {!showDeleteConfirm ? (
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                className="px-4 py-2 bg-white border border-red-300 text-red-700 rounded-lg text-sm font-medium hover:bg-red-50 transition-colors flex items-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete My Account
+              </button>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm font-semibold text-red-900">
+                  Are you absolutely sure? This cannot be undone.
+                </p>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handleDeleteAccount}
+                    disabled={deleteLoading}
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {deleteLoading ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        Deleting...
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="w-4 h-4" />
+                        Yes, Delete Everything
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setShowDeleteConfirm(false)}
+                    disabled={deleteLoading}
+                    className="px-4 py-2 bg-white border border-neutral-300 text-neutral-700 rounded-lg text-sm font-medium hover:bg-neutral-50 transition-colors disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
