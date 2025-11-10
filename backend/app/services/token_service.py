@@ -36,6 +36,7 @@ def store_connection_token(
     expires_at: Optional[datetime] = None,
     scope: Optional[str] = None,
     ad_account_ids: Optional[Sequence[str]] = None,
+    parent_mcc_id: Optional[str] = None,  # For Google Ads: parent MCC ID when connecting client accounts
 ) -> Token:
     """Encrypt and persist tokens for a connection.
 
@@ -58,13 +59,27 @@ def store_connection_token(
         encrypt_secret(refresh_token, context=f"{label}:refresh") if refresh_token else None
     )
 
+    # Store parent_mcc_id in ad_account_ids JSON if provided
+    # Format: {"account_ids": [...], "parent_mcc_id": "..."} or just list for backward compatibility
+    token_ad_account_ids = None
+    if ad_account_ids or parent_mcc_id:
+        if parent_mcc_id:
+            # Store as dict with metadata
+            token_ad_account_ids = {
+                "account_ids": list(ad_account_ids) if ad_account_ids else [],
+                "parent_mcc_id": parent_mcc_id
+            }
+        else:
+            # Backward compatibility: just store list
+            token_ad_account_ids = list(ad_account_ids) if ad_account_ids else None
+    
     if connection.token:
         token = connection.token
         token.access_token_enc = encrypted_access
         token.refresh_token_enc = encrypted_refresh
         token.expires_at = expires_at
         token.scope = scope
-        token.ad_account_ids = list(ad_account_ids) if ad_account_ids else None
+        token.ad_account_ids = token_ad_account_ids
         logger.info("[TOKEN_SERVICE] Updated encrypted token for %s", label)
     else:
         token = Token(
@@ -73,7 +88,7 @@ def store_connection_token(
             refresh_token_enc=encrypted_refresh,
             expires_at=expires_at,
             scope=scope,
-            ad_account_ids=list(ad_account_ids) if ad_account_ids else None,
+            ad_account_ids=token_ad_account_ids,
         )
         db.add(token)
         db.flush()

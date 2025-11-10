@@ -141,28 +141,93 @@ GOOGLE_DEVELOPER_TOKEN="[Your Developer Token]"
 6. **Verification Video**: Required for sensitive/restricted scopes
 
 **Verification Video Requirements**:
-Record a 2-3 minute video demonstrating:
-1. User lands on AdNavi homepage
-2. User clicks "Get Started" → registers/logs in
-3. User navigates to Settings
-4. User clicks "Connect Google Ads"
-5. Google OAuth consent screen appears
-6. User grants permissions
-7. User redirected back to Settings
-8. Google Ads account shows as connected
-9. User can view campaigns/data from Google Ads
-10. Demonstrate secure data handling (no exposed tokens)
+Record a **3-5 minute** video demonstrating the complete OAuth flow and data usage. The video should be clear, professional, and show real functionality.
+
+**Video Script (Step-by-Step)**:
+
+**Part 1: Introduction & Account Setup (30 seconds)**
+1. Start on AdNavi homepage (`https://www.adnavi.app`)
+2. Show Privacy Policy and Terms of Service links in footer
+3. Click "Get Started" or "Sign In"
+4. Register a new account or log in with existing credentials
+5. Navigate to Settings page (`/settings`)
+
+**Part 2: OAuth Connection Flow (1-2 minutes)**
+6. Show "Connect Ad Accounts" section
+7. Click "Connect Google Ads" button
+8. **Google OAuth Consent Screen appears** - Show the consent screen clearly
+   - Highlight that it requests `https://www.googleapis.com/auth/adwords` scope
+   - Explain what permissions are being requested
+9. Click "Allow" to grant permissions
+10. **Account Selection Modal appears** (this is unique to AdNavi)
+    - Show MCC accounts (Manager Accounts) displayed as headers
+    - Show child ad accounts listed under each MCC
+    - Demonstrate selecting which ad accounts to connect
+    - Explain that users can choose specific accounts, not all accounts automatically
+    - Click "Connect Selected Accounts"
+11. Show success message: "Successfully connected X Google Ads account(s)"
+12. Show connected account(s) appearing in the connections list
+
+**Part 3: Data Usage & Features (1-2 minutes)**
+13. Click "Sync Entities" button on a connected account
+14. Show sync process completing successfully
+15. Navigate to dashboard or campaigns view
+16. **Demonstrate actual Google Ads data being used**:
+    - Show campaigns synced from Google Ads
+    - Show ad groups and ads
+    - Show metrics (impressions, clicks, spend, conversions)
+    - Explain how this data is used for analysis/reporting
+17. Show connection management:
+    - Delete a connection (trash icon)
+    - Confirm deletion
+    - Show connection removed from list
+
+**Part 4: Security & Compliance (30 seconds)**
+18. Open browser Developer Tools → Network tab
+19. Show that tokens are never exposed in API responses
+20. Show that all API calls use encrypted tokens
+21. Navigate to Privacy Policy page
+22. Highlight GDPR compliance features (account deletion, data export)
+
+**Video Production Tips**:
+- **Screen Resolution**: Record at 1920x1080 (1080p) minimum
+- **Audio**: Clear narration explaining each step
+- **Pacing**: Don't rush - pause briefly at important screens
+- **Zoom**: Zoom in on important UI elements (consent screen, account selection modal)
+- **Editing**: Remove any pauses or errors, keep it smooth
+- **Duration**: Aim for 3-5 minutes total
+- **Format**: MP4, H.264 codec recommended
+- **File Size**: Keep under 100MB if possible
+
+**What to Emphasize**:
+✅ **User Control**: Show that users explicitly select which accounts to connect
+✅ **Data Usage**: Clearly demonstrate how Google Ads data is used (campaigns, metrics, reporting)
+✅ **Security**: Show that tokens are encrypted and never exposed
+✅ **Compliance**: Show Privacy Policy and Terms of Service
+✅ **Real Functionality**: Use real Google Ads accounts with actual data
+
+**What NOT to Show**:
+❌ Don't show any API keys, tokens, or secrets
+❌ Don't show backend code or database contents
+❌ Don't show test/development environments (use production or staging)
+❌ Don't show error messages or broken functionality
 
 **Upload Video**:
-- YouTube (unlisted) or Google Drive link
-- Include in OAuth verification submission form
+- Upload to YouTube as **Unlisted** (not private, not public)
+- Or upload to Google Drive with shareable link
+- Include the video URL in OAuth verification submission form
+- Video title: "AdNavi - Google Ads OAuth Integration Demo"
 
 **Submit for Verification**:
 Navigate to: [Google Cloud Console - OAuth Verification](https://console.cloud.google.com/apis/credentials/consent)
-- Click "Prepare for Verification"
-- Complete verification questionnaire
-- Submit verification video
-- Wait for Google review (typically 3-7 business days)
+1. Click "Prepare for Verification" or "Submit for Verification"
+2. Complete verification questionnaire:
+   - **App Purpose**: "AdNavi is a marketing analytics platform that helps businesses analyze and optimize their Google Ads campaigns. We sync campaign data, ad groups, ads, and performance metrics to provide unified reporting and insights."
+   - **Data Usage**: "We use Google Ads API to read campaign data, ad performance metrics, and account information. This data is used to generate reports, calculate ROI, and provide optimization recommendations."
+   - **Data Storage**: "We store encrypted OAuth tokens securely. Campaign and performance data is stored in our database for analysis and reporting purposes."
+   - **User Control**: "Users can connect/disconnect accounts at any time. They can select which specific ad accounts to connect from their MCC accounts."
+3. Paste video URL
+4. Submit and wait for Google review (typically 3-7 business days)
 
 ## 🔒 Security Checklist
 
@@ -231,9 +296,18 @@ curl http://localhost:8000/auth/google/callback?error=access_denied \
 ## 📚 References
 
 - **Backend OAuth Router**: `backend/app/routers/google_oauth.py`
+  - Account selection endpoints: `GET /auth/google/accounts`, `POST /auth/google/connect-selected`
 - **Frontend Connect Button**: `ui/components/GoogleConnectButton.jsx`
+- **Account Selection Modal**: `ui/components/GoogleAccountSelectionModal.jsx`
 - **Settings Page**: `ui/app/(dashboard)/settings/page.jsx`
+- **Google Sync Router**: `backend/app/routers/google_sync.py`
+  - Sync endpoints with MCC support: `POST /sync-google-entities`, `POST /sync-google-metrics`
+- **Token Service**: `backend/app/services/token_service.py`
+  - Stores parent MCC ID for client accounts
+- **Google Ads Client**: `backend/app/services/google_ads_client.py`
+  - `_build_client_from_tokens()` with `login_customer_id` support
 - **Delete Account Endpoint**: `backend/app/routers/auth.py` (DELETE `/auth/delete-account`)
+- **Connection Deletion**: `DELETE /connections/{connection_id}` (in `backend/app/routers/connections.py`)
 - **Privacy Policy**: `docs/PRIVACY_POLICY.md` + `ui/app/privacy/page.jsx`
 - **Terms of Service**: `docs/TERMS_OF_SERVICE.md` + `ui/app/terms/page.jsx`
 
@@ -247,27 +321,59 @@ curl http://localhost:8000/auth/google/callback?error=access_denied \
 - ✅ Token encryption and storage via `token_service`
 - ✅ Connection creation/update logic
 - ✅ Google Ads API integration for customer data fetching
+- ✅ Account selection flow with Redis temporary storage
+- ✅ MCC (Manager Account) detection and child account fetching
+- ✅ Parent MCC ID storage for client account sync
+- ✅ `login-customer-id` header support for MCC hierarchy
+- ✅ Connection deletion endpoint (`DELETE /connections/{connection_id}`)
 - ✅ Missing logger import fixed in `auth.py`
 - ✅ Test script created (`backend/test_google_oauth.py`)
 
 **Frontend Implementation**:
 - ✅ GoogleConnectButton component
+- ✅ GoogleAccountSelectionModal component (MCC/child account selection)
 - ✅ Error message handling for all error cases
 - ✅ Success/error state management
 - ✅ Settings page integration
+- ✅ Connection deletion UI with confirmation dialog
 
 **Ready for**:
 - ✅ Google Cloud Console OAuth configuration
 - ✅ Local testing of OAuth flow
 - ✅ Production deployment
+- ✅ Account selection modal with MCC/child account support
+- ✅ Parent MCC ID storage for sync operations
+- ✅ Connection deletion functionality
 - ⏳ Verification video recording
 - ⏳ Google OAuth verification submission
 
 **Not Yet Done**:
 - ⏳ Update environment variables with OAuth credentials
 - ⏳ Domain verification for `adnavi.app` in Google Cloud Console
-- ⏳ Record verification video
+- ⏳ Record verification video (see detailed script above)
 - ⏳ Submit for Google verification
+
+## 🎬 Next Steps: Verification Video
+
+**Priority**: Record and submit verification video before going to production.
+
+**Timeline**:
+1. **Week 1**: Record verification video (follow script above)
+2. **Week 1**: Upload video to YouTube (unlisted) or Google Drive
+3. **Week 1**: Submit OAuth verification request in Google Cloud Console
+4. **Week 2-3**: Wait for Google review (3-7 business days typical)
+5. **After Approval**: Deploy to production with verified OAuth credentials
+
+**Video Recording Checklist**:
+- [ ] Test OAuth flow end-to-end on staging/production
+- [ ] Prepare demo Google Ads account with real campaigns/data
+- [ ] Record screen capture video (3-5 minutes)
+- [ ] Add clear narration explaining each step
+- [ ] Edit video to remove errors/pauses
+- [ ] Upload to YouTube (unlisted) or Google Drive
+- [ ] Get shareable video URL
+- [ ] Complete OAuth verification questionnaire
+- [ ] Submit verification request with video URL
 
 ## 🚀 Deployment Notes
 

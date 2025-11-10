@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Settings, RefreshCw, ExternalLink, Calendar, Trash2, AlertTriangle } from 'lucide-react';
 import { currentUser } from '@/lib/auth';
-import { fetchConnections, ensureGoogleConnectionFromEnv, ensureMetaConnectionFromEnv, deleteUserAccount } from '@/lib/api';
+import { fetchConnections, ensureGoogleConnectionFromEnv, ensureMetaConnectionFromEnv, deleteUserAccount, deleteConnection } from '@/lib/api';
 import MetaSyncButton from '@/components/MetaSyncButton';
 import GoogleSyncButton from '@/components/GoogleSyncButton';
 import GoogleConnectButton from '@/components/GoogleConnectButton';
@@ -28,6 +28,7 @@ export default function SettingsPage() {
   const [error, setError] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deletingConnectionId, setDeletingConnectionId] = useState(null);
 
   useEffect(() => {
     let mounted = true;
@@ -83,6 +84,26 @@ export default function SettingsPage() {
       fetchConnections({ workspaceId: user.workspace_id })
         .then(data => setConnections(data.connections || []))
         .catch(err => console.error('Failed to refresh connections:', err));
+    }
+  };
+
+  const handleDeleteConnection = async (connectionId) => {
+    if (!confirm('Are you sure you want to disconnect this ad account? This will remove all synced data for this connection.')) {
+      return;
+    }
+    
+    setDeletingConnectionId(connectionId);
+    try {
+      await deleteConnection(connectionId);
+      // Refresh connections list
+      if (user?.workspace_id) {
+        const data = await fetchConnections({ workspaceId: user.workspace_id });
+        setConnections(data.connections || []);
+      }
+    } catch (err) {
+      alert('Failed to delete connection: ' + (err.message || 'Unknown error'));
+    } finally {
+      setDeletingConnectionId(null);
     }
   };
 
@@ -213,7 +234,7 @@ export default function SettingsPage() {
                 className="p-6 bg-white border border-neutral-200 rounded-xl shadow-sm hover:shadow-md transition-shadow"
               >
                 <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-start gap-4">
+                  <div className="flex items-start gap-4 flex-1">
                     <div className="text-3xl">{getProviderIcon(connection.provider)}</div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
@@ -246,6 +267,16 @@ export default function SettingsPage() {
                       </div>
                     </div>
                   </div>
+                  
+                  {/* Delete Connection Button */}
+                  <button
+                    onClick={() => handleDeleteConnection(connection.id)}
+                    disabled={deletingConnectionId === connection.id}
+                    className="p-2 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Disconnect account"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                  </button>
                 </div>
 
                 {/* Sync Button for Meta Ads */}

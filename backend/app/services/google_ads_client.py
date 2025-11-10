@@ -158,6 +158,46 @@ class GAdsClient:
         if missing:
             raise ValueError(f"Missing required Google Ads env vars: {', '.join(missing)}")
         return _SdkClient.load_from_dict(config)
+    
+    @staticmethod
+    def _build_client_from_tokens(
+        refresh_token: str,
+        login_customer_id: Optional[str] = None
+    ) -> Any:
+        """Build GoogleAdsClient from OAuth tokens (for connections).
+        
+        WHAT:
+            Creates SDK client using refresh token from connection instead of env vars.
+        WHY:
+            Supports OAuth connections where tokens are stored in database.
+        """
+        if _SdkClient is None:  # pragma: no cover
+            raise RuntimeError("google-ads SDK not installed")
+        
+        developer_token = os.getenv("GOOGLE_DEVELOPER_TOKEN")
+        client_id = os.getenv("GOOGLE_CLIENT_ID")
+        client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
+        
+        if not developer_token or not client_id or not client_secret:
+            raise ValueError("Missing required Google Ads env vars: GOOGLE_DEVELOPER_TOKEN, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET")
+        
+        # Normalize optional login customer id (digits only)
+        if login_customer_id:
+            login_customer_id = "".join(ch for ch in login_customer_id if ch.isdigit())
+            if len(login_customer_id) != 10:
+                login_customer_id = None
+        
+        config = {
+            "developer_token": developer_token,
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "refresh_token": refresh_token,
+            "use_proto_plus": True,
+        }
+        if login_customer_id:
+            config["login_customer_id"] = login_customer_id
+        
+        return _SdkClient.load_from_dict(config)
 
     # --- Low-level GAQL -------------------------------------------------
     def _service(self):
