@@ -130,37 +130,25 @@ Ensure you have:
 GOOGLE_DEVELOPER_TOKEN="[Your Developer Token]"
 ```
 
-### 4. Google OAuth Verification Status
+### 4. Google OAuth Verification Submission
 
-**Good News**: The scope `https://www.googleapis.com/auth/adwords` used for Google Ads API is **NOT classified as sensitive or restricted**, so **verification is NOT required** for your OAuth consent screen.
+**Important**: When publishing your OAuth consent screen for external users, Google **requires verification** for the `https://www.googleapis.com/auth/adwords` scope. You'll need to provide:
 
-**Verification Status Check**:
-1. Navigate to [Google Cloud Console - OAuth Consent Screen](https://console.cloud.google.com/apis/credentials/consent)
-2. Check the "Verification Status" section
-3. If it shows **"Verification not required"**, you can proceed without submitting for verification
+1. **Scope Justification** - Explain why you need this scope
+2. **Demo Video** - Show how your app uses Google Ads data
 
-**What "Verification not required" means**:
-- ✅ Your OAuth consent screen will be shown to users
-- ✅ Users can grant permissions and connect their Google Ads accounts
-- ✅ You can use the scope `https://www.googleapis.com/auth/adwords` without verification
-- ⚠️ Users may see a warning that your app hasn't been verified by Google (this is normal and doesn't block functionality)
-- ⚠️ You won't be able to request certain restricted OAuth scopes (but you don't need them for Google Ads API)
-
-**Requirements for OAuth Consent Screen** (still needed even without verification):
+**Verification Requirements**:
 1. **App Homepage**: Live at `https://www.adnavi.app` ✅
 2. **Privacy Policy**: Live at `https://www.adnavi.app/privacy` ✅
 3. **Terms of Service**: Live at `https://www.adnavi.app/terms` ✅
 4. **OAuth Consent Screen**: Configured as above
-5. **Authorized Domains**: Verified ownership of `adnavi.app` (if using custom domain)
+5. **Authorized Domains**: Verified ownership of `adnavi.app`
+6. **Scope Justification**: Written explanation of why you need the scope
+7. **Verification Video**: 3-5 minute demo video showing OAuth flow and data usage
 
-## 📹 Optional: Verification Video (Only if Needed)
+## 📹 Verification Video (Required)
 
-**Note**: Since verification is NOT required for the `auth/adwords` scope, you **do NOT need to create a verification video** unless:
-- Google changes the scope classification in the future
-- You want to add additional scopes that require verification
-- You want to remove the "unverified app" warning for users
-
-**If you do need verification in the future**, here's the video script:
+**Required**: You must create and submit a verification video to publish your OAuth consent screen. Here's the complete guide:
 
 **Video Script (Step-by-Step)**:
 
@@ -237,13 +225,29 @@ GOOGLE_DEVELOPER_TOKEN="[Your Developer Token]"
 - Include the video URL in OAuth verification submission form
 - Video title: "AdNavi - Google Ads OAuth Integration Demo"
 
-**If Verification Becomes Required** (Future):
-If Google changes scope classifications or you add restricted scopes, you would need to:
-1. Navigate to: [Google Cloud Console - OAuth Verification](https://console.cloud.google.com/apis/credentials/consent)
-2. Click "Prepare for Verification" or "Submit for Verification"
-3. Complete verification questionnaire:
-   - **App Purpose**: "AdNavi is a marketing analytics platform that helps businesses analyze and optimize their Google Ads campaigns. We sync campaign data, ad groups, ads, and performance metrics to provide unified reporting and insights."
-   - **Data Usage**: "We use Google Ads API to read campaign data, ad performance metrics, and account information. This data is used to generate reports, calculate ROI, and provide optimization recommendations."
+**Scope Justification** (Required Text):
+When submitting for verification, you'll need to provide a justification for why you need the `auth/adwords` scope. Use this text:
+
+```
+AdNavi is a marketing analytics platform that helps businesses analyze and optimize their Google Ads campaigns. 
+
+We require the Google Ads API scope (https://www.googleapis.com/auth/adwords) to:
+- Read campaign data, ad groups, ads, and performance metrics from users' Google Ads accounts
+- Sync this data into our platform for unified reporting and analysis
+- Calculate ROI, ROAS, and other key performance indicators
+- Provide optimization recommendations based on campaign performance
+
+Users explicitly grant permission through OAuth and can select which specific ad accounts to connect from their MCC accounts. Users can disconnect accounts at any time through the settings page.
+
+We store encrypted OAuth tokens securely and only use the data for analysis and reporting purposes within the user's workspace.
+```
+
+**Submit for Verification**:
+1. Navigate to: [Google Cloud Console - OAuth Consent Screen](https://console.cloud.google.com/apis/credentials/consent)
+2. Click "Publish App" or "Submit for Verification"
+3. Complete the verification form:
+   - **App Purpose**: Use the scope justification text above
+   - **Data Usage**: Explain how you use Google Ads data (see justification above)
    - **Data Storage**: "We store encrypted OAuth tokens securely. Campaign and performance data is stored in our database for analysis and reporting purposes."
    - **User Control**: "Users can connect/disconnect accounts at any time. They can select which specific ad accounts to connect from their MCC accounts."
 4. Upload verification video (follow script above)
@@ -360,35 +364,49 @@ curl http://localhost:8000/auth/google/callback?error=access_denied \
 **Ready for**:
 - ✅ Google Cloud Console OAuth configuration
 - ✅ Local testing of OAuth flow
-- ✅ Production deployment
 - ✅ Account selection modal with MCC/child account support
 - ✅ Parent MCC ID storage for sync operations
 - ✅ Connection deletion functionality
-- ✅ **Verification NOT required** - Can proceed directly to production
+- ⏳ **Verification submission** - Required before production
 
 **Not Yet Done**:
+- ⏳ Record verification video
+- ⏳ Submit OAuth verification request
+- ⏳ Wait for Google approval (3-7 business days)
 - ⏳ Update environment variables with OAuth credentials
-- ⏳ Domain verification for `adnavi.app` in Google Cloud Console (if using custom domain)
-- ⏳ Deploy to production
+- ⏳ Domain verification for `adnavi.app` in Google Cloud Console
+- ⏳ Deploy to production (after verification approval)
 
-## 🚀 Next Steps: Production Deployment
+## 🎬 Next Steps: Verification & Production Deployment
 
-**Priority**: Configure OAuth credentials and deploy to production.
+**Priority**: Record verification video and submit for Google review BEFORE deploying to production.
 
 **Timeline**:
-1. **Day 1**: Configure OAuth consent screen in Google Cloud Console
-2. **Day 1**: Create OAuth 2.0 Client ID credentials
-3. **Day 1**: Update environment variables with OAuth credentials
-4. **Day 2**: Test OAuth flow on staging/production
-5. **Day 2**: Deploy to production
-6. **Day 3+**: Monitor OAuth flow and user connections
+1. **Week 1, Day 1**: Configure OAuth consent screen in Google Cloud Console
+2. **Week 1, Day 1**: Create OAuth 2.0 Client ID credentials
+3. **Week 1, Day 2**: Record verification video (follow script above)
+4. **Week 1, Day 2**: Upload video to YouTube (unlisted) or Google Drive
+5. **Week 1, Day 2**: Submit OAuth verification request with scope justification and video
+6. **Week 2-3**: Wait for Google review (3-7 business days typical)
+7. **After Approval**: Update environment variables and deploy to production
+8. **After Deployment**: Monitor OAuth flow and user connections
 
-**Deployment Checklist**:
+**Pre-Verification Checklist**:
 - [ ] Configure OAuth consent screen (App name, logo, Privacy Policy, Terms of Service)
 - [ ] Create OAuth 2.0 Client ID (Web application type)
 - [ ] Add authorized redirect URIs (production callback URL)
+- [ ] Test OAuth flow end-to-end on staging/localhost
+- [ ] Prepare demo Google Ads account with real campaigns/data
+- [ ] Record verification video (3-5 minutes, follow script above)
+- [ ] Edit video to remove errors/pauses
+- [ ] Upload video to YouTube (unlisted) or Google Drive
+- [ ] Prepare scope justification text (see above)
+- [ ] Submit verification request in Google Cloud Console
+
+**Post-Verification Checklist** (After Google Approval):
 - [ ] Update backend `.env` with `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`
 - [ ] Update frontend `.env` with production API URL
+- [ ] Deploy to production
 - [ ] Test OAuth flow end-to-end on production
 - [ ] Verify account selection modal works correctly
 - [ ] Test sync functionality with connected accounts

@@ -11,6 +11,7 @@ from starlette.middleware.sessions import SessionMiddleware
 import os
 import logging
 logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 from .authentication import SimpleAuth
 from .database import engine
@@ -354,10 +355,28 @@ def create_app() -> FastAPI:
         secret_key=settings.ADMIN_SECRET_KEY
     )
     
-    ALLOWED_ORIGINS = [
-    "https://t8zgrthold5r2-frontend--3000.prod1.defang.dev",
-    "http://localhost:3000",
-]
+    # CORS configuration - support multiple origins from environment variable
+    # BACKEND_CORS_ORIGINS can be a comma-separated list: "https://www.adnavi.app,http://localhost:3000"
+    cors_origins_str = os.getenv("BACKEND_CORS_ORIGINS", "http://localhost:3000")
+    ALLOWED_ORIGINS = [origin.strip() for origin in cors_origins_str.split(",") if origin.strip()]
+    
+    # Always include localhost for development
+    if "http://localhost:3000" not in ALLOWED_ORIGINS:
+        ALLOWED_ORIGINS.append("http://localhost:3000")
+    
+    # Always include production domain
+    if "https://www.adnavi.app" not in ALLOWED_ORIGINS:
+        ALLOWED_ORIGINS.append("https://www.adnavi.app")
+    
+    # Get backend URL from environment (for Swagger UI same-origin requests)
+    backend_url = os.getenv("BACKEND_URL") or os.getenv("DEFANG_SERVICE_URL")
+    if backend_url:
+        # Remove trailing slash and ensure it's in the list
+        backend_url = backend_url.rstrip("/")
+        if backend_url not in ALLOWED_ORIGINS:
+            ALLOWED_ORIGINS.append(backend_url)
+    
+    logger.info(f"[CORS] Allowed origins: {ALLOWED_ORIGINS}")
     
     app.add_middleware(
         CORSMiddleware,

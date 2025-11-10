@@ -23,8 +23,8 @@ services:
       # Railway Redis URL configured via environment variable
       REDIS_URL: ${REDIS_URL:-redis://localhost:6379/0}
       
-      # CORS Configuration - allow both versions
-      BACKEND_CORS_ORIGINS: "https://www.adnavi.app"
+      # CORS Configuration - allow production frontend and localhost for development
+      BACKEND_CORS_ORIGINS: "https://www.adnavi.app,http://localhost:3000"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 10s
