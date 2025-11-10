@@ -324,3 +324,20 @@ export async function syncGoogleMetrics({ workspaceId, connectionId, startDate =
   }
   return res.json();
 }
+
+// Delete user account and all associated data
+// WHAT: GDPR/CCPA compliant data deletion
+// WHY: Users have the right to delete their data
+// REFERENCES: Privacy Policy section 7.3
+export async function deleteUserAccount() {
+  const res = await fetch(`${BASE}/auth/delete-account`, {
+    method: "DELETE",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" }
+  });
+  if (!res.ok) {
+    const msg = await res.text();
+    throw new Error(`Failed to delete account: ${res.status} ${msg}`);
+  }
+  return res.json();
+}

@@ -341,6 +341,7 @@ export default function PrivacyPolicy() {
             <div className="flex items-center gap-6">
               <a href="/privacy" className="text-sm text-neutral-500 hover:text-cyan-600 transition-colors">Privacy Policy</a>
               <a href="/terms" className="text-sm text-neutral-500 hover:text-cyan-600 transition-colors">Terms of Service</a>
+              <a href="/settings" className="text-sm text-neutral-500 hover:text-cyan-600 transition-colors">Delete My Data</a>
             </div>
           </div>
         </div>

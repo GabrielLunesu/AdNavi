@@ -21,6 +21,12 @@ export default function FooterDashboard() {
           >
             Terms
           </Link>
+          <Link 
+            href="/settings" 
+            className="hover:text-cyan-600 transition-colors"
+          >
+            Delete My Data
+          </Link>
         </div>
         <div>
           © {currentYear} AdNavi
