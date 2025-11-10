@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { ExternalLink } from 'lucide-react';
+import GoogleAccountSelectionModal from './GoogleAccountSelectionModal';
 
 /**
  * GoogleConnectButton Component
@@ -18,6 +19,8 @@ import { ExternalLink } from 'lucide-react';
 export default function GoogleConnectButton({ onConnectionComplete }) {
   const [message, setMessage] = useState(null);
   const [messageType, setMessageType] = useState(null); // 'success' or 'error'
+  const [showSelectionModal, setShowSelectionModal] = useState(false);
+  const [selectionSessionId, setSelectionSessionId] = useState(null);
 
   useEffect(() => {
     // Check for OAuth callback parameters
@@ -25,9 +28,22 @@ export default function GoogleConnectButton({ onConnectionComplete }) {
     const oauthStatus = params.get('google_oauth');
     const errorMessage = params.get('message');
     const connectionId = params.get('connection_id');
+    const connectionsCount = params.get('connections_count');
+    const sessionId = params.get('session_id');
 
-    if (oauthStatus === 'success') {
-      setMessage('Google Ads account connected successfully!');
+    if (oauthStatus === 'select' && sessionId) {
+      // Show account selection modal
+      setSelectionSessionId(sessionId);
+      setShowSelectionModal(true);
+      
+      // Clear URL parameters
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (oauthStatus === 'success') {
+      if (connectionsCount && parseInt(connectionsCount) > 1) {
+        setMessage(`Successfully connected ${connectionsCount} Google Ads accounts!`);
+      } else {
+        setMessage('Google Ads account connected successfully!');
+      }
       setMessageType('success');
       
       // Clear URL parameters
@@ -54,6 +70,7 @@ export default function GoogleConnectButton({ onConnectionComplete }) {
         'developer_token_missing': 'Google Ads developer token is not configured.',
         'sdk_not_installed': 'Google Ads SDK is not installed on the server.',
         'no_customers': 'No Google Ads accounts found for this Google account.',
+        'no_ad_accounts': 'No ad accounts available. Only MCC accounts were found. Please add ad accounts under your MCC first.',
         'customer_fetch_failed': 'Failed to fetch Google Ads account details.',
         'connection_save_failed': 'Failed to save connection. Please try again.',
       };
@@ -101,6 +118,35 @@ export default function GoogleConnectButton({ onConnectionComplete }) {
       <p className="mt-2 text-xs text-neutral-500">
         You'll be redirected to Google to authorize access to your Google Ads account.
       </p>
+
+      {/* Account Selection Modal */}
+      {showSelectionModal && (
+        <GoogleAccountSelectionModal
+          open={showSelectionModal}
+          onClose={() => {
+            setShowSelectionModal(false);
+            setSelectionSessionId(null);
+          }}
+          sessionId={selectionSessionId}
+          onSuccess={(data) => {
+            setMessage(`Successfully connected ${data.total} Google Ads account${data.total !== 1 ? 's' : ''}!`);
+            setMessageType('success');
+            setShowSelectionModal(false);
+            setSelectionSessionId(null);
+            
+            // Notify parent to refresh connections
+            if (onConnectionComplete) {
+              onConnectionComplete();
+            }
+            
+            // Clear message after 5 seconds
+            setTimeout(() => {
+              setMessage(null);
+              setMessageType(null);
+            }, 5000);
+          }}
+        />
+      )}
     </div>
   );
 }

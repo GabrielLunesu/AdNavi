@@ -216,6 +216,24 @@ export async function fetchConnections({ workspaceId, provider = null, status = 
   return res.json();
 }
 
+/**
+ * Delete a connection
+ */
+export async function deleteConnection(connectionId) {
+  const res = await fetch(`${BASE}/connections/${connectionId}`, {
+    method: 'DELETE',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' }
+  });
+
+  if (!res.ok) {
+    const msg = await res.text();
+    throw new Error(`Failed to delete connection: ${res.status} ${msg}`);
+  }
+
+  return res.json();
+}
+
 // Ensure Google connection exists using server-side env.
 // WHAT: Creates or updates a Google connection and stores encrypted refresh token.
 // WHY: Temporary path before OAuth UI; enables sync button to appear.

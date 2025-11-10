@@ -40,6 +40,7 @@ from app.schemas import (
 )
 from app.routers.ingest import ingest_metrics_internal
 from app.services.google_ads_client import GAdsClient, map_channel_to_goal
+from app.security import decrypt_secret
 
 
 logger = logging.getLogger(__name__)
@@ -150,6 +151,51 @@ def _update_connection_metadata(db: Session, connection: Connection, meta: Dict[
         db.flush()
 
 
+def _get_google_ads_client(connection: Connection) -> GAdsClient:
+    """Get Google Ads client from connection tokens or env vars.
+    
+    WHAT:
+        Uses encrypted tokens from connection if available, otherwise falls back to env vars.
+        For client accounts (accessed through MCC), sets login_customer_id header.
+    WHY:
+        Supports OAuth connections where tokens are stored in database.
+        Handles MCC hierarchy by setting login-customer-id header.
+    """
+    # OAuth: Use connection.token
+    if connection.token and connection.token.refresh_token_enc:
+        try:
+            refresh_token = decrypt_secret(
+                connection.token.refresh_token_enc,
+                context=f"google-connection:{connection.id}",
+            )
+            logger.info("[GOOGLE_SYNC] Using decrypted refresh token for connection %s", connection.id)
+            
+            # Check if this is a client account (has parent MCC)
+            parent_mcc_id = None
+            if connection.token.ad_account_ids:
+                # Check if ad_account_ids is a dict with parent_mcc_id
+                if isinstance(connection.token.ad_account_ids, dict):
+                    parent_mcc_id = connection.token.ad_account_ids.get("parent_mcc_id")
+                    logger.info("[GOOGLE_SYNC] Connection %s has parent MCC: %s", connection.id, parent_mcc_id)
+            
+            # Build client from connection tokens with parent MCC if needed
+            sdk_client = GAdsClient._build_client_from_tokens(
+                refresh_token,
+                login_customer_id=parent_mcc_id  # Set parent MCC as login customer
+            )
+            return GAdsClient(client=sdk_client)
+        except ValueError:
+            logger.exception("[GOOGLE_SYNC] Stored token for connection %s could not be decrypted", connection.id)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Stored Google Ads token is invalid or corrupted."
+            )
+    
+    # Fallback: Use env vars (for backward compatibility)
+    logger.info("[GOOGLE_SYNC] Using refresh token from environment variables")
+    return GAdsClient()
+
+
 # --- Endpoints -----------------------------------------------------------
 
 @router.post("/sync-google-entities", response_model=EntitySyncResponse)
@@ -186,7 +232,32 @@ async def sync_entities(
         raise HTTPException(status_code=400, detail=f"Connection is not a Google connection (provider={connection.provider})")
 
     customer_id = _normalize_customer_id(connection.external_account_id)
-    client = GAdsClient()
+    client = _get_google_ads_client(connection)
+
+    # Check if this is a manager account (MCC) - MCC accounts don't have campaigns
+    try:
+        query = f"""
+            SELECT customer.manager
+            FROM customer
+            WHERE customer.id = {customer_id}
+        """
+        response = client.search(customer_id, query)
+        is_manager = False
+        for row in response:
+            is_manager = getattr(row.customer, 'manager', False)
+            break
+        
+        if is_manager:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Connection {connection.name} ({customer_id}) is a Manager Account (MCC). "
+                       f"MCC accounts don't contain campaigns directly. Please sync individual ad accounts instead."
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.warning("[GOOGLE_SYNC] Failed to check manager status: %s", e)
+        # Continue - assume it's not an MCC if check fails
 
     # Update connection metadata (timezone/currency)
     try:
@@ -367,7 +438,32 @@ async def sync_metrics(
 
     chunks = _compute_date_chunks(start_d, end_d, 7)
     customer_id = _normalize_customer_id(connection.external_account_id)
-    client = GAdsClient()
+    client = _get_google_ads_client(connection)
+
+    # Check if this is a manager account (MCC) - MCC accounts don't have metrics
+    try:
+        query = f"""
+            SELECT customer.manager
+            FROM customer
+            WHERE customer.id = {customer_id}
+        """
+        response = client.search(customer_id, query)
+        is_manager = False
+        for row in response:
+            is_manager = getattr(row.customer, 'manager', False)
+            break
+        
+        if is_manager:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Connection {connection.name} ({customer_id}) is a Manager Account (MCC). "
+                       f"MCC accounts don't contain campaigns or metrics directly. Please sync individual ad accounts instead."
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.warning("[GOOGLE_SYNC] Failed to check manager status: %s", e)
+        # Continue - assume it's not an MCC if check fails
 
     # Safeguard: ensure hierarchy exists to avoid orphaned placeholders
     # Build maps for known entities in this connection
