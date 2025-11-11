@@ -337,7 +337,7 @@ def create_app() -> FastAPI:
                 "description": "Development server"
             },
             {
-                "url": "https://t8zgrthold5r2-backend--8000.prod1.defang.dev",
+                "url": "https://t8zgrthold5r2-backend--8000.prod2.defang.dev",
                 "description": "Production server"
             }
         ]
@@ -424,11 +424,13 @@ def create_app() -> FastAPI:
     @app.on_event("startup")
     async def startup_event():
         """Validate Redis connection on application startup."""
-        if state.context_manager.health_check():
+        if state.context_manager and state.context_manager.health_check():
             logging.info("[STARTUP] Redis context manager is healthy")
         else:
-            logging.error("[STARTUP] Redis context manager health check failed")
-            raise RuntimeError("Redis unavailable - application cannot start without Redis")
+            logging.warning("[STARTUP] Redis context manager health check failed - app will start but QA features may be unavailable")
+            logging.warning("[STARTUP] Check REDIS_URL environment variable - currently: " + str(settings.REDIS_URL))
+            # Don't raise - allow app to start even if Redis is temporarily unavailable
+            # Individual requests will handle Redis failures gracefully
 
     # Initialize authentication backend for admin panel
     authentication_backend = SimpleAuth(secret_key=settings.ADMIN_SECRET_KEY)

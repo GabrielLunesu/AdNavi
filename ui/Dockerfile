@@ -5,16 +5,26 @@ WORKDIR /app
 # Accept build arguments for Next.js public env vars
 ARG NEXT_PUBLIC_API_BASE
 ENV NEXT_PUBLIC_API_BASE=${NEXT_PUBLIC_API_BASE}
+ENV NEXT_TELEMETRY_DISABLED=1
 
 # Install dependencies first (better caching)
+# Note: Don't set NODE_ENV=production yet - we need devDependencies for the build
 COPY package.json package-lock.json* ./
-RUN npm ci --no-audit --no-fund
+RUN npm ci --no-audit --no-fund --prefer-offline
 
-# Copy source
-COPY . .
-
-# Build Next.js app
+# Set NODE_ENV=production after installing dependencies (for the build step)
 ENV NODE_ENV=production
+
+# Copy source files needed for build (specific files first for better caching)
+COPY next.config.mjs postcss.config.mjs jsconfig.json eslint.config.mjs ./
+COPY app ./app
+COPY components ./components
+COPY lib ./lib
+COPY public ./public
+COPY features ./features
+COPY data ./data
+
+# Build Next.js app with optimizations
 RUN npm run build
 
 # Runtime stage

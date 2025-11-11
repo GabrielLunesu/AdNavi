@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 # Singleton instance - shared across all requests
 # This persists for the lifetime of the FastAPI application
 # Uses Redis for distributed session storage across multiple instances
+context_manager = None
 try:
     settings = get_settings()
     context_manager = RedisContextManager(
@@ -41,5 +42,7 @@ try:
     logger.info("[STATE] Redis context manager initialized successfully")
 except Exception as e:
     logger.error(f"[STATE] Failed to initialize Redis context manager: {e}")
-    raise
+    logger.warning("[STATE] App will start but QA context features will be unavailable until Redis is configured")
+    logger.warning(f"[STATE] REDIS_URL was: {settings.REDIS_URL if 'settings' in locals() else 'not loaded'}")
+    # Don't raise - allow app to start. Individual requests will handle None context_manager
 

@@ -168,11 +168,15 @@ class QAService:
             # Step 1: Fetch prior context (last N Q&A for this user+workspace)
             # WHY: Enables follow-up questions like "Which one performed best?"
             logger.info(f"[QA_PIPELINE] Step 1: Fetching conversation context")
-            context = self.context_manager.get_context(
-                user_id or "anon", 
-                workspace_id
-            )
-            logger.info(f"[QA_PIPELINE] Context retrieved: {len(context)} previous queries")
+            if self.context_manager:
+                context = self.context_manager.get_context(
+                    user_id or "anon", 
+                    workspace_id
+                )
+                logger.info(f"[QA_PIPELINE] Context retrieved: {len(context)} previous queries")
+            else:
+                context = []
+                logger.warning("[QA_PIPELINE] Context manager unavailable - no conversation history")
             
             # Step 1.5: Build entity catalog for LLM to choose from
             # WHY: Let LLM handle entity recognition without hardcoded patterns
@@ -342,13 +346,17 @@ class QAService:
             # Convert Decimal values to floats for JSON serialization
             result_data = convert_decimals_to_floats(result_data)
             
-            self.context_manager.add_entry(
-                user_id=user_id or "anon",
-                workspace_id=workspace_id,
-                question=question,
-                dsl=dsl.model_dump(mode='json'),  # Changed: added mode='json' to serialize dates
-                result=result_data
-            )
+            # Store context for future follow-up questions (if Redis is available)
+            if self.context_manager:
+                self.context_manager.add_entry(
+                    user_id=user_id or "anon",
+                    workspace_id=workspace_id,
+                    question=question,
+                    dsl=dsl.model_dump(mode='json'),  # Changed: added mode='json' to serialize dates
+                    result=result_data
+                )
+            else:
+                logger.debug("[QA_PIPELINE] Context manager unavailable - skipping context storage")
             
             # Step 7: Build context summary for response (for debugging in Swagger)
             # WHY: Makes it visible what context was used for this query

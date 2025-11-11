@@ -419,6 +419,12 @@ async def google_callback(
     import uuid
     from app import state as app_state
     
+    if not app_state.context_manager:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Redis is required for OAuth flow but is currently unavailable. Please configure REDIS_URL."
+        )
+    
     session_id = str(uuid.uuid4())
     workspace_id = state  # workspace_id from OAuth state parameter
     
@@ -453,6 +459,12 @@ async def get_oauth_accounts(
 ):
     """Get accounts available for selection from OAuth flow."""
     from app import state as app_state
+    
+    if not app_state.context_manager:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Redis is required for OAuth flow but is currently unavailable. Please configure REDIS_URL."
+        )
     
     # Retrieve selection data from Redis
     selection_data_json = app_state.context_manager.redis_client.get(f"google_oauth_selection:{session_id}")
@@ -492,6 +504,12 @@ async def connect_selected_accounts(
 ):
     """Create connections for selected Google Ads accounts."""
     from app import state as app_state
+    
+    if not app_state.context_manager:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Redis is required for OAuth flow but is currently unavailable. Please configure REDIS_URL."
+        )
     
     # Retrieve selection data from Redis
     selection_data_json = app_state.context_manager.redis_client.get(f"google_oauth_selection:{request.session_id}")
@@ -580,8 +598,9 @@ async def connect_selected_accounts(
         
         db.commit()
         
-        # Clean up session data
-        app_state.context_manager.redis_client.delete(f"google_oauth_selection:{request.session_id}")
+        # Clean up session data (if Redis is available)
+        if app_state.context_manager:
+            app_state.context_manager.redis_client.delete(f"google_oauth_selection:{request.session_id}")
         
         total_connections = len(created_connections) + len(updated_connections)
         logger.info(
