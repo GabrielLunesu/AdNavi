@@ -35,7 +35,7 @@ export async function fetchEntityPerformance({
   dateEnd = null,
   timeframe = '7d',
   platform = null,
-  status = 'active',
+  status = 'all',
   sortBy = 'roas',
   sortDir = 'desc',
   page = 1,
@@ -60,7 +60,8 @@ export async function fetchEntityPerformance({
     params.set('date_end', dateEnd);
   }
   if (platform) params.set('platform', platform);
-  if (status) params.set('status', status);
+  // Always send status (backend expects 'all' to show all statuses)
+  params.set('status', status);
 
   const key = buildKey(entityLevel, parentId, params.toString());
   if (cache.has(key)) {

@@ -7,6 +7,7 @@ import { fetchConnections, ensureGoogleConnectionFromEnv, ensureMetaConnectionFr
 import MetaSyncButton from '@/components/MetaSyncButton';
 import GoogleSyncButton from '@/components/GoogleSyncButton';
 import GoogleConnectButton from '@/components/GoogleConnectButton';
+import MetaConnectButton from '@/components/MetaConnectButton';
 
 /**
  * Settings Page
@@ -204,15 +205,26 @@ export default function SettingsPage() {
       {/* Connect New Account Section */}
       <div className="mb-8">
         <h2 className="text-lg font-semibold text-neutral-900 mb-4">Connect Ad Accounts</h2>
-        <div className="p-6 bg-white border border-neutral-200 rounded-xl">
-          <div className="flex items-start gap-4">
-            <div className="flex-1">
-              <h3 className="text-base font-semibold text-neutral-900 mb-2">Google Ads</h3>
-              <p className="text-sm text-neutral-600 mb-4">
-                Connect your Google Ads account to sync campaigns, performance data, and analytics.
-              </p>
-              <GoogleConnectButton onConnectionComplete={handleSyncComplete} />
-            </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Google Ads */}
+          <div className="p-6 bg-white border border-neutral-200 rounded-xl">
+            <h3 className="text-base font-semibold text-neutral-900 mb-2">Google Ads</h3>
+            <p className="text-sm text-neutral-600 mb-4">
+              Connect your Google Ads account to sync campaigns, performance data, and analytics.
+            </p>
+            <GoogleConnectButton onConnectionComplete={handleSyncComplete} />
+          </div>
+          
+          {/* Meta Ads */}
+          <div className="p-6 bg-white border border-neutral-200 rounded-xl">
+            <h3 className="text-base font-semibold text-neutral-900 mb-2">Meta Ads</h3>
+            <p className="text-sm text-neutral-600 mb-4">
+              Connect your Meta (Facebook/Instagram) ad accounts to sync campaigns, performance data, and analytics.
+            </p>
+            <MetaConnectButton 
+              onConnectionComplete={handleSyncComplete}
+              existingConnections={connections}
+            />
           </div>
         </div>
       </div>

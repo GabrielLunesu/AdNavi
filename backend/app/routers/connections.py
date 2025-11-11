@@ -361,7 +361,12 @@ def delete_connection(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Delete connection."""
+    """Delete connection and all associated data."""
+    import logging
+    from app.models import Entity, MetricFact, Token, Fetch, Import, Pnl
+    
+    logger = logging.getLogger(__name__)
+    
     # Only owners can delete connections due to data impact
     if current_user.role.value != "Owner":
         raise HTTPException(
@@ -380,7 +385,97 @@ def delete_connection(
             detail="Connection not found"
         )
     
-    db.delete(connection)
-    db.commit()
+    logger.info(f"[DELETE_CONNECTION] Starting deletion of connection {connection_id} ({connection.name})")
     
-    return schemas.SuccessResponse(detail="Connection deleted successfully")
+    try:
+        # Get all entity IDs and fetch IDs for this connection
+        entity_ids = [e.id for e in db.query(Entity.id).filter(
+            Entity.connection_id == connection_id
+        ).all()]
+        
+        fetch_ids = [f.id for f in db.query(Fetch.id).filter(
+            Fetch.connection_id == connection_id
+        ).all()]
+        
+        import_ids = []
+        if fetch_ids:
+            import_ids = [imp.id for imp in db.query(Import.id).filter(
+                Import.fetch_id.in_(fetch_ids)
+            ).all()]
+        
+        # 1. Delete P&L snapshots that reference these entities
+        if entity_ids:
+            pnl_count = db.query(Pnl).filter(
+                Pnl.entity_id.in_(entity_ids)
+            ).delete(synchronize_session=False)
+            logger.info(f"[DELETE_CONNECTION] Deleted {pnl_count} P&L snapshots")
+            db.flush()
+        
+        # 2. Delete metric facts that reference these entities OR imports
+        # MetricFact has FK to both Entity and Import, so delete all facts related to this connection
+        fact_count = 0
+        if entity_ids:
+            # Delete facts by entity_id
+            fact_count += db.query(MetricFact).filter(
+                MetricFact.entity_id.in_(entity_ids)
+            ).delete(synchronize_session=False)
+        if import_ids:
+            # Delete facts by import_id (in case some facts don't have entity_id)
+            fact_count += db.query(MetricFact).filter(
+                MetricFact.import_id.in_(import_ids)
+            ).delete(synchronize_session=False)
+        if fact_count > 0:
+            logger.info(f"[DELETE_CONNECTION] Deleted {fact_count} metric facts")
+            db.flush()
+        
+        # 3. Delete entities (no longer referenced by metric facts or P&L)
+        entity_count = db.query(Entity).filter(
+            Entity.connection_id == connection_id
+        ).delete(synchronize_session=False)
+        logger.info(f"[DELETE_CONNECTION] Deleted {entity_count} entities")
+        db.flush()
+        
+        # 4. Delete imports (no longer referenced by metric facts)
+        if import_ids:
+            import_count = db.query(Import).filter(
+                Import.id.in_(import_ids)
+            ).delete(synchronize_session=False)
+            logger.info(f"[DELETE_CONNECTION] Deleted {import_count} imports")
+            db.flush()
+        
+        # 5. Delete fetches (no longer referenced by imports)
+        if fetch_ids:
+            fetch_count = db.query(Fetch).filter(
+                Fetch.id.in_(fetch_ids)
+            ).delete(synchronize_session=False)
+            logger.info(f"[DELETE_CONNECTION] Deleted {fetch_count} fetches")
+            db.flush()
+        
+        # 6. Store token_id before deleting connection (need to nullify FK first)
+        token_id_to_delete = connection.token_id
+        
+        # 7. Delete the connection first (this removes the FK reference)
+        db.delete(connection)
+        db.flush()
+        
+        # 8. Now delete the token if it exists (FK reference is gone)
+        if token_id_to_delete:
+            token_count = db.query(Token).filter(
+                Token.id == token_id_to_delete
+            ).delete(synchronize_session=False)
+            logger.info(f"[DELETE_CONNECTION] Deleted {token_count} token(s)")
+            db.flush()
+        
+        db.commit()
+        
+        logger.info(f"[DELETE_CONNECTION] Successfully deleted connection {connection_id} and all associated data")
+        
+        return schemas.SuccessResponse(detail="Connection deleted successfully")
+        
+    except Exception as e:
+        db.rollback()
+        logger.exception(f"[DELETE_CONNECTION] Failed to delete connection {connection_id}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete connection: {str(e)}"
+        )
