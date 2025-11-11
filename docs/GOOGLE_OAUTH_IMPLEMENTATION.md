@@ -377,6 +377,15 @@ curl http://localhost:8000/auth/google/callback?error=access_denied \
 - ⏳ Domain verification for `adnavi.app` in Google Cloud Console
 - ⏳ Deploy to production (after verification approval)
 
+---
+
+## 📝 Related Implementations
+
+**Meta OAuth**: Similar OAuth implementation completed for Meta Ads. See `docs/META_OAUTH_IMPLEMENTATION.md` for complete guide.
+- ✅ Meta OAuth flow complete with account selection and deduplication
+- ✅ Follows same pattern as Google OAuth for consistency
+- ✅ Ready for Meta App Review (Advanced Access required for production)
+
 ## 🎬 Next Steps: Verification & Production Deployment
 
 **Priority**: Record verification video and submit for Google review BEFORE deploying to production.

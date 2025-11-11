@@ -113,8 +113,8 @@ tail -f qa_logs.txt | grep -E "\[UNIFIED_METRICS\]|Routing named-entity same-lev
 ## 2) Plan / Next Steps
 
 ### Meta Ads API Integration (Active)
-**Status**: Phase 2 Complete ✅ - Ready for Phase 3 (Automation)  
-**Progress**: 50% (Week 2 of 3-4 weeks)  
+**Status**: Phase 7 Complete ✅ - OAuth flow working, ready for Phase 3 (Automation)  
+**Progress**: 70% (Phase 0-2.5 + Phase 7 complete)  
 **Roadmap**: `backend/docs/roadmap/meta-ads-roadmap.md`  
 **Status Doc**: `docs/living-docs/META_INTEGRATION_STATUS.md`
 
@@ -125,6 +125,7 @@ tail -f qa_logs.txt | grep -E "\[UNIFIED_METRICS\]|Routing named-entity same-lev
 - ✅ Phase 2.2: MetaAdsClient service (rate limiting, pagination, error handling)
 - ✅ Phase 2.3: Entity sync endpoint (UPSERT pattern, hierarchy creation)
 - ✅ Phase 2.4: Metrics sync endpoint (90-day backfill, incremental, chunked)
+- ✅ Phase 7: OAuth user flow (click button → login → connected) - **COMPLETE** ✅
 
 **Current Phase**: Ready for Phase 3 - Automated Sync
 - Next: Phase 3.1: Metrics fetcher service (8-10 hours) - Automated daily/hourly sync
@@ -132,7 +133,6 @@ tail -f qa_logs.txt | grep -E "\[UNIFIED_METRICS\]|Routing named-entity same-lev
 
 **Next After Phase 3**:
 - Phase 4: Query layer enhancements (hourly breakdowns)
-- Phase 7: OAuth user flow (click button → login → connected) - **END GOAL**
 
 **Test Manual Sync**:
 ```bash
@@ -310,6 +310,104 @@ psql $DATABASE_URL -c "SELECT level, COUNT(*) FROM entities WHERE connection_id 
 ---
 
 ## 11) Changelog
+
+### 2025-01-XXT18:00:00Z — **IMPLEMENTATION**: Meta OAuth Complete ✅ — Full OAuth flow with account selection, deduplication, and cascade deletion.
+
+**Summary**: Completed Meta OAuth implementation following Google OAuth pattern. Users can now connect Meta ad accounts via OAuth flow with account selection, deduplication to prevent duplicates from Business portfolios, and proper cascade deletion.
+
+**Phase Completed**: Phase 7 (OAuth User Flow) - Meta OAuth
+
+**Time Spent**: 12-18 hours total
+- Backend implementation: 6-8 hours
+- Frontend implementation: 4-6 hours
+- Meta Dashboard setup: 2-4 hours
+
+**Files Created**:
+- `backend/app/routers/meta_oauth.py`: Complete OAuth router (400+ lines)
+  - `GET /auth/meta/authorize` - OAuth authorization endpoint
+  - `GET /auth/meta/callback` - OAuth callback with token exchange
+  - `GET /auth/meta/accounts` - Account listing endpoint
+  - `POST /auth/meta/connect-selected` - Account connection endpoint
+- `ui/components/MetaConnectButton.jsx`: OAuth initiation button component
+- `ui/components/MetaAccountSelectionModal.jsx`: Account selection modal with deduplication UI
+- `docs/META_OAUTH_IMPLEMENTATION.md`: Complete implementation guide (636 lines)
+
+**Files Modified**:
+- `backend/app/main.py`: Registered meta_oauth router
+- `backend/app/routers/connections.py`: Fixed cascade deletion order (Connection → Token)
+- `ui/app/(dashboard)/settings/page.jsx`: Added Meta OAuth button integration
+
+**Key Features**:
+- ✅ **OAuth Flow**: Complete authorization → callback → token exchange → account selection flow
+- ✅ **Token Management**: Short-lived → long-lived token exchange, encrypted storage
+- ✅ **Account Deduplication**: Prevents duplicate connections when same account appears through direct ownership + Business portfolio (deduplicates by numeric account_id)
+- ✅ **Account Selection**: Users can select which Meta ad accounts to connect
+- ✅ **Cascade Deletion**: Proper deletion order (P&L → MetricFacts → Entities → Imports → Fetches → Connection → Token)
+- ✅ **Already Connected Badge**: Frontend shows visual indicator for existing connections
+- ✅ **Error Handling**: Comprehensive error messages for all failure cases
+
+**Architecture**:
+```
+User clicks "Connect Meta Ads" button
+    ↓
+GET /auth/meta/authorize → Redirects to Meta OAuth consent screen
+    ↓
+User grants permissions → Meta redirects to callback
+    ↓
+GET /auth/meta/callback → Exchanges code for token → Fetches ad accounts → Deduplicates → Stores in Redis
+    ↓
+GET /auth/meta/accounts → Frontend retrieves accounts for selection
+    ↓
+POST /auth/meta/connect-selected → Creates/updates Connection records with encrypted tokens
+    ↓
+Settings page refreshes → Shows connected accounts
+```
+
+**Key Design Decisions**:
+- **Deduplication**: Deduplicates by numeric `account_id` (removes `act_` prefix) to handle Business portfolio duplicates
+- **Token Exchange**: Automatically exchanges short-lived tokens for long-lived (60 days)
+- **Redis Storage**: Temporary account storage in Redis for selection modal (same pattern as Google OAuth)
+- **Cascade Deletion**: Fixed FK constraint violations by deleting Connection before Token
+- **Error Handling**: User-friendly error messages with retry guidance
+
+**Testing Results**:
+- ✅ OAuth flow tested end-to-end with real Meta account
+- ✅ Account deduplication working (prevents duplicate connections)
+- ✅ Connection deletion working (proper cascade order)
+- ✅ Token encryption verified
+- ✅ Already connected badge displaying correctly
+
+**Known Issues Fixed**:
+1. **Duplicate Accounts**: Fixed by deduplicating accounts by numeric `account_id` before showing in selection modal
+2. **Deletion Cascade**: Fixed FK constraint violations by deleting in correct order:
+   - P&L snapshots → Metric facts → Entities → Imports → Fetches → Connection → Token
+3. **Token Deletion**: Fixed by deleting connection before token to remove FK reference
+
+**Benefits**:
+- **User Experience**: One-click OAuth flow eliminates manual token setup
+- **Data Integrity**: Deduplication prevents duplicate connections
+- **Security**: Encrypted token storage, proper cascade deletion
+- **Consistency**: Follows same pattern as Google OAuth for maintainability
+- **Production Ready**: Comprehensive error handling and logging
+
+**Next Steps**:
+- ⏳ **Meta App Review**: Submit for Meta App Review if deploying to production (Advanced Access required)
+- ⏳ **Production Testing**: Test OAuth flow on production domain
+- ⏳ **Token Refresh**: Consider implementing automatic token refresh (Meta tokens expire after 60 days)
+- ⏳ **Monitoring**: Monitor OAuth flow and connection creation in production logs
+
+**Migration**: None required - Uses existing Connection and Token models
+
+**Documentation**:
+- Complete implementation guide: `docs/META_OAUTH_IMPLEMENTATION.md`
+- Status: ✅ Complete, ready for production after App Review
+
+**References**:
+- Google OAuth implementation: `docs/GOOGLE_OAUTH_IMPLEMENTATION.md` (used as blueprint)
+- Meta OAuth router: `backend/app/routers/meta_oauth.py`
+- Google OAuth router: `backend/app/routers/google_oauth.py` (reference implementation)
+
+---
 
 ### 2025-10-31T18:00:00Z — **IMPLEMENTATION**: Phase 2 Complete - Meta Sync Endpoints ✅ — Entity and metrics synchronization working end-to-end with 90-day backfill.
 
