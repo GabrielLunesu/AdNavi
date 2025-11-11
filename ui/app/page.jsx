@@ -2,6 +2,10 @@
 "use client";
 import { useEffect } from "react";
 import { ArrowRight, Bot, LineChart, Receipt, Link as LinkIcon, Database, Zap, PlayCircle } from "lucide-react";
+import { FloatingNav } from "@/components/FloatingNav";
+import { AuroraBackground } from "@/components/AuroraBackground";
+import { CanvasShowcase } from "@/components/CanvasShowcase";
+import { IconSparkles, IconRoute, IconPresentation, IconMail } from "@tabler/icons-react";
 
 export default function HomePage() {
   useEffect(() => {
@@ -28,25 +32,33 @@ export default function HomePage() {
     return () => observer.disconnect();
   }, []);
 
+  const navItems = [
+    {
+      name: "Features",
+      link: "#features",
+      icon: <IconSparkles className="h-4 w-4 text-neutral-500" />,
+    },
+    {
+      name: "How It Works",
+      link: "#how-it-works",
+      icon: <IconRoute className="h-4 w-4 text-neutral-500" />,
+    },
+    {
+      name: "Showcase",
+      link: "#showcase",
+      icon: <IconPresentation className="h-4 w-4 text-neutral-500" />,
+    },
+    {
+      name: "Contact",
+      link: "#contact",
+      icon: <IconMail className="h-4 w-4 text-neutral-500" />,
+    },
+  ];
+
   return (
-    <div className="bg-white antialiased overflow-x-hidden">
+    <AuroraBackground className="relative w-full">
       {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 glass-nav border-b border-neutral-200/40">
-        <div className="max-w-7xl mx-auto px-8 py-4 flex items-center justify-between">
-          <a href="/" className="flex items-center">
-            <img src="/adnavi.png" alt="AdNavi" className="h-14" />
-          </a>
-          <div className="flex items-center gap-8">
-            <a href="#features" className="text-sm font-medium text-neutral-600 hover:text-cyan-600 transition-colors">Features</a>
-            <a href="#how-it-works" className="text-sm font-medium text-neutral-600 hover:text-cyan-600 transition-colors">How It Works</a>
-            <a href="#showcase" className="text-sm font-medium text-neutral-600 hover:text-cyan-600 transition-colors">Showcase</a>
-            <a href="#contact" className="text-sm font-medium text-neutral-600 hover:text-cyan-600 transition-colors">Contact</a>
-            <a href="/dashboard" className="px-6 py-2.5 rounded-full bg-black text-white text-sm font-medium btn-primary">
-              Launch Dashboard
-            </a>
-          </div>
-        </div>
-      </nav>
+      <FloatingNav navItems={navItems} />
 
       {/* Hero Section */}
       <section className="min-h-screen flex items-center justify-center pt-20 px-8 relative overflow-hidden">
@@ -55,11 +67,11 @@ export default function HomePage() {
           <div className="space-y-8">
             <div className="space-y-6">
               <h1 className="text-6xl lg:text-7xl font-semibold tracking-tight leading-[1.1]">
-                <span className="text-black">AdNavi — Your</span><br/>
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-black to-cyan-600">AI Marketing Copilot.</span>
+                <span className="text-black">The First</span><br/>
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-black to-cyan-600">Agentic CMO.</span>
               </h1>
-              <p className="text-xl text-neutral-600 leading-relaxed max-w-xl font-light">
-                Turn your marketing data into real-time insight, strategy, and results — all in one intuitive, AI-powered dashboard.
+              <p className="text-xl text-black leading-relaxed max-w-xl font-light">
+                Google & Meta, unified. Ask anything about your campaigns. See every dollar spent at granular level. Always know what's working — and what's not.
               </p>
             </div>
             
@@ -139,6 +151,19 @@ export default function HomePage() {
           <div className="text-center mb-20 reveal">
             <h2 className="text-5xl font-semibold tracking-tight text-black mb-4">Everything you need to succeed</h2>
             <p className="text-xl text-neutral-600 font-light">Three powerful modules, one intelligent platform</p>
+          </div>
+
+          {/* Canvas Showcase - Full Width */}
+          <div className="mb-16 reveal">
+            <div className="glass-card rounded-3xl p-8 border border-neutral-200/60 shadow-xl">
+              <div className="text-center mb-8">
+                <h3 className="text-3xl font-semibold text-black mb-3">Visual Campaign Canvas</h3>
+                <p className="text-base text-neutral-600">
+                  See your entire campaign structure at a glance. Every campaign, ad set, and creative — with spend and performance on every level.
+                </p>
+              </div>
+              <CanvasShowcase />
+            </div>
           </div>
           
           <div className="grid md:grid-cols-3 gap-8">
@@ -340,7 +365,7 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-between flex-wrap gap-8">
             <a href="/" className="flex items-center">
-              <img src="/adnavi.png" alt="AdNavi" className="h-8" />
+              <img src="/adnavi-logo.png" alt="AdNavi" className="h-12" />
             </a>
             <nav className="flex items-center gap-8 flex-wrap">
               <a href="#features" className="text-sm font-medium text-neutral-500 hover:text-cyan-600 transition-colors">Features</a>
@@ -359,6 +384,6 @@ export default function HomePage() {
           </div>
         </div>
       </footer>
-      </div>
+    </AuroraBackground>
   );
 }

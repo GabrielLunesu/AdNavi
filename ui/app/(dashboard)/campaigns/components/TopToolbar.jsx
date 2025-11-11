@@ -3,12 +3,15 @@ import { useState, useEffect } from "react";
 import { ChevronDown, ArrowDownUp } from "lucide-react";
 import { fetchWorkspaceProviders } from "@/lib/api";
 
-export default function TopToolbar({ meta, onPlatformChange, onStatusChange, onSortChange, onTimeRangeChange, loading, workspaceId, availableProviders, setAvailableProviders }) {
-  const [selectedPlatform, setSelectedPlatform] = useState('all');
-  const [selectedStatus, setSelectedStatus] = useState('all');
-  const [selectedSort, setSelectedSort] = useState('roas');
-  const [selectedTime, setSelectedTime] = useState('7d');
+export default function TopToolbar({ meta, filters, onPlatformChange, onStatusChange, onSortChange, onTimeRangeChange, loading, workspaceId, availableProviders, setAvailableProviders }) {
   const [providersLoading, setProvidersLoading] = useState(true);
+  
+  // Use filters from parent, with defaults
+  // Note: platform is null for "all", so we need to convert it
+  const selectedPlatform = filters?.platform === null || filters?.platform === 'all' ? 'all' : filters.platform;
+  const selectedStatus = filters?.status || 'all';
+  const selectedSort = filters?.sortBy || 'roas';
+  const selectedTime = filters?.timeframe || '7d';
 
   // Fetch available providers on mount
   useEffect(() => {
@@ -42,18 +45,16 @@ export default function TopToolbar({ meta, onPlatformChange, onStatusChange, onS
   const statusOptions = ['all', 'active', 'paused'];
 
   const handleTimeChange = (id) => {
-    setSelectedTime(id);
     onTimeRangeChange?.(id);
   };
 
   const handleStatusClick = (status) => {
-    setSelectedStatus(status);
     onStatusChange?.(status);
   };
 
   const handlePlatformClick = (platform) => {
-    setSelectedPlatform(platform);
-    onPlatformChange?.(platform);
+    // Convert 'all' to null for parent component
+    onPlatformChange?.(platform === 'all' ? null : platform);
   };
 
   return (
@@ -157,8 +158,7 @@ export default function TopToolbar({ meta, onPlatformChange, onStatusChange, onS
               <select
                 value={selectedSort}
                 onChange={(e) => {
-                  setSelectedSort(e.target.value);
-                  onSortChange?.(e.target.value);
+                  onSortChange?.(e.target.value, filters?.sortDir || 'desc');
                 }}
                 className="px-4 py-2.5 pr-10 rounded-full bg-white/60 text-neutral-900 text-sm font-medium border border-neutral-200/60 hover:border-cyan-400/40 transition-all appearance-none cursor-pointer"
               >

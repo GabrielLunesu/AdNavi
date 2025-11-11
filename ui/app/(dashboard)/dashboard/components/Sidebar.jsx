@@ -44,12 +44,10 @@ export default function Sidebar() {
   ];
 
   return (
-    <aside className="fixed left-4 top-4 bottom-4 w-64 glass-sidebar rounded-3xl border border-neutral-200/60 shadow-xl flex flex-col p-6 z-50">
+    <aside className="fixed left-4 top-4 bottom-4 w-64 glass-sidebar rounded-3xl border border-neutral-200/60 shadow-xl flex flex-col p-8 z-50">
       {/* Brand */}
-      <div className="mb-10">
-        <h1 className="text-2xl font-semibold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-black to-cyan-600" style={{ letterSpacing: '-0.05em' }}>
-          AdNavi
-        </h1>
+      <div className="mb-4">
+        <img src="/adnavi-logo.png" alt="AdNavi" className="h-12 w-auto" />
       </div>
       
       {/* Navigation */}

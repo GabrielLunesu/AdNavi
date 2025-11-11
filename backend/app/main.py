@@ -32,6 +32,7 @@ from .routers import ingest as ingest_router  # Phase 1.2: Meta ingestion API
 from .routers import meta_sync as meta_sync_router  # Phase 2: Meta entity and metrics sync
 from .routers import google_sync as google_sync_router  # Google Ads sync endpoints
 from .routers import google_oauth as google_oauth_router  # Google OAuth flow
+from .routers import meta_oauth as meta_oauth_router  # Meta OAuth flow
 from . import schemas
 
 # Import models so Alembic can discover metadata
@@ -402,6 +403,7 @@ def create_app() -> FastAPI:
     app.include_router(meta_sync_router.router)  # Phase 2: Meta sync endpoints
     app.include_router(google_sync_router.router)  # Google Ads sync endpoints
     app.include_router(google_oauth_router.router)  # Google OAuth flow
+    app.include_router(meta_oauth_router.router)  # Meta OAuth flow
 
     @app.get(
         "/health",

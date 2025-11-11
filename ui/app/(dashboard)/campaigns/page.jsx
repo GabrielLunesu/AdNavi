@@ -26,7 +26,7 @@ export default function CampaignsPage() {
 
   const [filters, setFilters] = useState({
     platform: null,
-    status: "active",
+    status: "all",
     timeframe: "7d",
     sortBy: "roas",
     sortDir: "desc",
@@ -65,7 +65,7 @@ export default function CampaignsPage() {
         workspaceId,
         entityLevel: "campaign",
         platform: filters.platform === "all" ? null : filters.platform,
-        status: filters.status === "all" ? null : filters.status,
+        status: filters.status,
         timeframe: filters.timeframe,
         sortBy: filters.sortBy,
         sortDir: filters.sortDir,
