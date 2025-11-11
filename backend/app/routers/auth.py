@@ -367,6 +367,14 @@ def delete_account(
         db.query(AuthCredential).filter(AuthCredential.user_id == user_id).delete()
         logger.info(f"[DELETE_ACCOUNT] Deleted auth credentials for user {user_id}")
         
+        # Nullify created_by_user_id in manual costs (they belong to workspace, not individual user)
+        # This prevents foreign key constraint violation when deleting user
+        db.query(ManualCost).filter(ManualCost.created_by_user_id == user_id).update(
+            {"created_by_user_id": None},
+            synchronize_session=False
+        )
+        logger.info(f"[DELETE_ACCOUNT] Nullified user reference in manual costs for user {user_id}")
+        
         if delete_workspace:
             logger.info(f"[DELETE_ACCOUNT] User is sole member, deleting workspace {workspace_id}")
             
